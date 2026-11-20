@@ -287,6 +287,15 @@
   }
   function uid() { return 'l' + Math.random().toString(36).slice(2, 10); }
 
+  /** 새 탭으로 열되, 팝업이 막히면 같은 탭에서 연다(Enter 로 열기). */
+  function openLink(url) {
+    if (!url) return;
+    var w = null;
+    try { w = window.open(url, '_blank'); } catch (e) {}
+    if (w) { try { w.opener = null; } catch (e) {} return; }
+    location.href = url;
+  }
+
   /** URL만 보고 흔한 사이트의 아이콘을 추측합니다(가져오기용). */
   var ICON_HINTS = [
     [/calendar\.google\.com/, '📅'], [/drive\.google\.com/, '📁'], [/mail\.google\.com/, '✉️'],
@@ -1244,7 +1253,7 @@
       if (e.key === 'Enter') {
         e.preventDefault();
         var pick = hits[state.sel] || hits[0];
-        if (pick) window.open(pick.url, '_blank', 'noopener');
+        if (pick) openLink(pick.url);
       } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         if (!hits.length) return;
