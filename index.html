@@ -175,7 +175,7 @@
     border:1px dashed color-mix(in srgb, var(--c,var(--acc)) 24%, var(--line));
     font-size:11.5px;font-weight:800;letter-spacing:.1px;
     color:color-mix(in srgb, var(--c,var(--acc)) 62%, var(--txt));
-    transition:background .12s,border-color .12s;user-select:none;-webkit-user-select:none;cursor:grab;touch-action:pan-y}
+    transition:background .12s,border-color .12s;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:grab;touch-action:pan-y}
   .grp-head:hover{background:color-mix(in srgb, var(--c,var(--acc)) 13%, var(--panel2));border-color:color-mix(in srgb, var(--c,var(--acc)) 45%, var(--line))}
   .grp-head .gchev-btn{width:28px;height:28px;border-radius:8px;border:1px solid color-mix(in srgb,var(--c,var(--acc)) 26%,var(--line));background:color-mix(in srgb,var(--panel) 72%,transparent);font-size:11px;font-weight:800;color:inherit;display:flex;align-items:center;justify-content:center;flex:none;transition:background .12s,border-color .12s}
   .grp-head .gchev-btn:hover{background:color-mix(in srgb,var(--acc) 16%,var(--panel));border-color:color-mix(in srgb,var(--acc) 55%,var(--line))}
@@ -732,12 +732,16 @@
   function savePrefs() {
     if (state.demo || !state.url || !state.data) return;
     if (state.backendOld) return;
+    savePrefsSoon();
+  }
+  var savePrefsSoon = debounce(function () {
+    if (!state.data) return;
     var body = {
       collapsed: (state.data.collapsed || []).slice(),
       collapsedGroups: (state.data.collapsedGroups || []).slice()
     };
     jsonp({ action: 'setSettings', d: JSON.stringify(body) }).catch(function () {});
-  }
+  }, 550);
 
   /* ---------------------------------------------------------------- boot */
   function boot() {
@@ -2882,6 +2886,7 @@
 
     /* 오른쪽 버튼 메뉴 */
     $('#root').addEventListener('contextmenu', function (e) {
+      if (drag && drag.active) { e.preventDefault(); return; }
       var link = e.target.closest('.lk');
       if (link && link.dataset.id) {
         e.preventDefault(); closeCtx(); linkCtx(linkById(link.dataset.id), e.clientX, e.clientY); return;
