@@ -390,6 +390,13 @@
     .ph h2{font-size:15px}
     .add-mini{opacity:.75}
   }
+  @media (max-width:480px){
+    .status{display:none}
+    .brand h1{max-width:132px;font-size:15px}
+    .tools{gap:4px}
+    .icon-btn{width:36px;height:36px}
+    .btn{height:36px;padding:0 11px}
+  }
   @media (max-width:720px){
     .top-in{height:auto;padding:9px 0;flex-wrap:wrap;gap:8px}
     .brand{order:1}
@@ -833,7 +840,7 @@
     state.data.collapsed = mergeCollapsed(state.data, state.data.collapsed);
     mergeCollapsedGroups(state.data);
     renderAll();
-    toast('데모 화면입니다. 카드를 끌어 옮겨 보세요. (실제 시트에는 저장되지 않아요)');
+    toast('데모 화면입니다. 끌어서 옮겨 보세요. (실제 시트에는 저장 안 됨)');
   }
 
   function load(opt) {
