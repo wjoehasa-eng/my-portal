@@ -2288,7 +2288,7 @@
     };
     window.addEventListener('pointermove', onMove, { passive: false });
     window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointercancel', onCancel);
     if (pending.pointerType === 'touch') {
       pending.timer = setTimeout(function () {
         if (pending && !drag) beginDrag(pending.startX, pending.startY);
@@ -2316,7 +2316,7 @@
   function onUp() {
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
-    window.removeEventListener('pointercancel', onUp);
+    window.removeEventListener('pointercancel', onCancel);
     if (!drag || !drag.active) { abortPending(); return; }
 
     var target = drag.target;
@@ -2373,6 +2373,26 @@
   function abortPending() {
     if (pending && pending.timer) clearTimeout(pending.timer);
     pending = null;
+  }
+
+  /** 터치 제스처 취소 등: 아무 것도 바꾸지 않고 드래그만 끝냅니다. */
+  function onCancel() {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onCancel);
+    if (!drag || !drag.active) { abortPending(); return; }
+    var autoCats = drag.autoCollapsed ? drag.autoCollapsed.slice() : [];
+    var autoGroups = drag.autoGroups ? drag.autoGroups.slice() : [];
+    endDrag();
+    if (autoCats.length || autoGroups.length) {
+      autoGroups.forEach(function (k) {
+        if ((state.data.collapsedGroups || []).indexOf(k) < 0) state.data.collapsedGroups.push(k);
+      });
+      autoCats.forEach(function (n) {
+        if ((state.data.collapsed || []).indexOf(n) < 0) state.data.collapsed.push(n);
+      });
+      renderBoard();
+    }
   }
 
   function beginDrag(x, y) {
