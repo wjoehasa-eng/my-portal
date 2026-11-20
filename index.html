@@ -45,6 +45,7 @@
   button{cursor:pointer;background:none;border:0}
   a{color:inherit;text-decoration:none}
   .hidden{display:none !important}
+  body.disconnected .searchbox,body.disconnected #btnEdit{display:none !important}
   .wrap{max-width:1320px;margin:0 auto;padding:0 14px}
 
   /* ---------- header ---------- */
@@ -654,6 +655,7 @@
     document.title = state.data.title || '나만의 포털';
     $('#portalTitle').textContent = state.data.title || '나만의 포털';
     document.documentElement.setAttribute('data-theme', state.data.theme || 'auto');
+    document.body.classList.remove('disconnected');
     document.body.classList.toggle('editing', state.edit);
 
     var btn = $('#btnEdit');
@@ -823,6 +825,8 @@
   /* ---------------------------------------------------------------- connect */
   function renderConnect(err, fromMenu) {
     if (!fromMenu) state.data = null;
+    document.body.classList.add('disconnected');
+    document.body.classList.remove('editing');
     $('#bannerWrap').innerHTML = '';
     $('#foot').innerHTML = '';
     document.title = '나만의 포털';
