@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
+<meta name="portal-version" content="3.0.0" />
 <title>나만의 포털</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E" />
 <style>
@@ -135,10 +136,13 @@
   .ph h2{font-size:15.5px;font-weight:800;letter-spacing:-.35px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;padding-right:2px}
   .pdot{width:9px;height:9px;border-radius:50%;background:var(--c,var(--acc));box-shadow:0 0 0 3px color-mix(in srgb,var(--c,var(--acc)) 16%,transparent);flex:none}
   .cnt{font-size:11.5px;font-weight:800;color:var(--c,var(--acc));background:color-mix(in srgb, var(--c,var(--acc)) 12%, transparent);border-radius:999px;padding:2px 8px;flex:none;line-height:1.5}
-  .collapser{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mut);flex:none;transition:background .12s,color .12s}
-  .collapser:hover{background:var(--panel2);color:var(--txt)}
-  .cat-grip{width:20px;height:26px;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--mut);opacity:.32;cursor:grab;flex:none;touch-action:none;user-select:none}
-  .ph:hover .cat-grip{opacity:.75}
+  .collapser{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--txt);flex:none;transition:background .12s,color .12s,border-color .12s,transform .06s}
+  .collapser:hover{background:var(--acc-soft);border-color:color-mix(in srgb,var(--acc) 55%,var(--line));color:var(--acc)}
+  .collapser:active{transform:scale(.93)}
+  .cat-grip{width:18px;height:28px;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--mut);opacity:.3;cursor:grab;flex:none;touch-action:none;user-select:none}
+  .ph:hover .cat-grip{opacity:.8}
+  .open-mini{width:28px;height:28px;border-radius:8px;font-size:13px;color:var(--mut);display:flex;align-items:center;justify-content:center;flex:none;opacity:.7;border:1px solid transparent;transition:opacity .12s,background .12s,border-color .12s,color .12s}
+  .open-mini:hover{opacity:1;background:var(--acc-soft);border-color:color-mix(in srgb,var(--acc) 35%,transparent);color:var(--acc)}
   .add-mini{width:28px;height:28px;border-radius:8px;font-size:15px;color:var(--mut);display:flex;align-items:center;justify-content:center;flex:none;opacity:0;transition:opacity .12s,background .12s}
   .panel:hover .add-mini{opacity:1}
   .add-mini:hover{background:var(--panel2);color:var(--txt)}
@@ -166,21 +170,26 @@
   .grp{position:relative}
   .grp+.grp{margin-top:7px}
   .plist>.grp:first-child{margin-top:2px}
-  .grp-head{display:flex;align-items:center;gap:6px;width:100%;padding:5px 8px 5px 7px;border-radius:10px;text-align:left;
+  .grp-head{display:flex;align-items:center;gap:5px;width:100%;padding:4px 6px 4px 4px;border-radius:10px;text-align:left;
     background:color-mix(in srgb, var(--c,var(--acc)) 7%, var(--panel2));
     border:1px dashed color-mix(in srgb, var(--c,var(--acc)) 24%, var(--line));
     font-size:11.5px;font-weight:800;letter-spacing:.1px;
     color:color-mix(in srgb, var(--c,var(--acc)) 62%, var(--txt));
-    transition:background .12s,border-color .12s;user-select:none;-webkit-user-select:none}
+    transition:background .12s,border-color .12s;user-select:none;-webkit-user-select:none;cursor:grab;touch-action:pan-y}
   .grp-head:hover{background:color-mix(in srgb, var(--c,var(--acc)) 13%, var(--panel2));border-color:color-mix(in srgb, var(--c,var(--acc)) 45%, var(--line))}
-  .grp-head .gchev{font-size:10px;opacity:.85;width:12px;text-align:center;flex:none}
-  .grp-head .gname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-  .grp-head .gcnt{margin-left:auto;font-size:10.5px;font-weight:800;opacity:.7;flex:none}
-  .grp-head .gbtn{width:22px;height:22px;border-radius:6px;font-size:11px;opacity:.55;display:flex;align-items:center;justify-content:center;flex:none}
+  .grp-head .gchev-btn{width:28px;height:28px;border-radius:8px;border:1px solid color-mix(in srgb,var(--c,var(--acc)) 26%,var(--line));background:color-mix(in srgb,var(--panel) 72%,transparent);font-size:11px;font-weight:800;color:inherit;display:flex;align-items:center;justify-content:center;flex:none;transition:background .12s,border-color .12s}
+  .grp-head .gchev-btn:hover{background:color-mix(in srgb,var(--acc) 16%,var(--panel));border-color:color-mix(in srgb,var(--acc) 55%,var(--line))}
+  .grp-head .gname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;cursor:text}
+  .grp-head .gcnt{font-size:10.5px;font-weight:800;opacity:.7;flex:none}
+  .grp-head .gbtn{width:24px;height:24px;border-radius:6px;font-size:11px;opacity:.55;display:flex;align-items:center;justify-content:center;flex:none}
   .grp-head .gbtn:hover{opacity:1;background:color-mix(in srgb,var(--txt) 8%,transparent)}
+  .grp-head .gbtn.gopen{opacity:.7;font-size:12px}
+  .grp-head .gbtn.gopen:hover{color:var(--acc);background:var(--acc-soft)}
   .grp-head .gbtn.del:hover{color:var(--danger)}
+  .grp.drop-into .grp-head{border-style:solid;border-color:var(--acc);background:var(--acc-soft);color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 16%,transparent)}
   .grp-body{display:flex;flex-direction:column;gap:3px;padding:3px 0 3px 9px;margin-left:7px;
     border-left:2px solid color-mix(in srgb, var(--c,var(--acc)) 18%, transparent)}
+  .grp.drop-src{opacity:.4}
   .grp-body:empty{min-height:6px}
   body.editing .grp-body:empty{min-height:30px;border-left-color:color-mix(in srgb, var(--c,var(--acc)) 30%, transparent);border-radius:0 8px 8px 0;background:color-mix(in srgb, var(--c,var(--acc)) 3%, transparent)}
   .grp.is-collapsed .grp-body{display:none}
@@ -243,8 +252,46 @@
   .drag-ghost .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .drag-ghost.cat{height:42px;font-size:14px;font-weight:800;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;border:0}
   .drag-ghost.cat .gl{opacity:.8;font-size:14px}
+  .drag-ghost.grp{height:38px;font-size:13px;font-weight:800;background:color-mix(in srgb,var(--acc) 10%,var(--panel));border-style:dashed}
   html.dragging{cursor:grabbing !important}
   html.dragging *{cursor:grabbing !important}
+
+  /* ---------- precise drop line + action badge ---------- */
+  #dropLine{position:fixed;z-index:185;display:none;pointer-events:none;border-radius:6px;
+    background:linear-gradient(90deg,var(--acc),var(--acc2));
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--panel) 88%,transparent),0 0 0 6px color-mix(in srgb,var(--acc) 38%,transparent),0 0 20px 4px color-mix(in srgb,var(--acc) 75%,transparent)}
+  #dropLine.h{height:8px}
+  #dropLine.v{width:8px;background:linear-gradient(180deg,var(--acc),var(--acc2))}
+  #dropBadge{position:fixed;z-index:186;pointer-events:none;max-width:min(78vw,340px);padding:7px 12px;border-radius:999px;
+    background:var(--txt);color:var(--bg);font-size:12.5px;font-weight:800;letter-spacing:-.15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    box-shadow:0 10px 26px -12px rgba(0,0,0,.65)}
+  #dropBadge.into{background:var(--acc);color:#fff}
+  #dropBadge.out{background:var(--ok);color:#fff}
+  #promoteZone{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:170;display:none;pointer-events:none;
+    padding:13px 22px;border:2px dashed var(--ok);border-radius:14px;background:color-mix(in srgb,var(--ok) 14%,var(--panel));
+    color:var(--ok);font-size:13.5px;font-weight:800;box-shadow:var(--shadow);white-space:nowrap}
+  .panel.drop-into{border-color:var(--acc);border-style:dashed;background:color-mix(in srgb,var(--acc) 6%,var(--panel));box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 20%,transparent),var(--shadow)}
+  .panel.cat-src{opacity:.5}
+
+  /* ---------- inline rename ---------- */
+  input.in-rename{height:28px;border:1px solid var(--acc);border-radius:8px;background:var(--panel);padding:0 8px;font-size:13.5px;font-weight:750;color:var(--txt);outline:0;min-width:0;box-shadow:0 0 0 3px var(--acc-soft)}
+  .grp-head input.in-rename{height:25px;font-size:12px;font-weight:800}
+
+  /* ---------- context menu ---------- */
+  #ctxMenu{position:fixed;z-index:300;min-width:230px;max-width:min(92vw,300px);max-height:min(76vh,460px);overflow:auto;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 50px -18px rgba(8,12,20,.55);padding:6px;display:flex;flex-direction:column;gap:1px}
+  #ctxMenu .chead{padding:6px 10px 5px;font-size:11px;font-weight:800;color:var(--mut);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  #ctxMenu .ci{ display:flex;align-items:center;gap:9px;min-height:38px;padding:7px 10px;border-radius:9px;font-size:13.5px;font-weight:650;text-align:left;white-space:nowrap}
+  #ctxMenu .ci:hover{background:var(--panel2)}
+  #ctxMenu .ci .ic{width:18px;text-align:center;flex:none;opacity:.9}
+  #ctxMenu .ci.danger{color:var(--danger)}
+  #ctxMenu .ci.danger:hover{background:color-mix(in srgb,var(--danger) 10%,transparent)}
+  #ctxMenu .sep{height:1px;background:var(--line);margin:4px 2px}
+
+  #toasts{pointer-events:none}
+  .toast{display:flex;align-items:center;gap:8px;pointer-events:none;white-space:normal;line-height:1.35;text-align:left}
+  .toast.act{pointer-events:auto}
+  .toast .tact{border:0;background:transparent;color:currentColor;font-weight:900;text-decoration:underline;text-underline-offset:2px;padding:2px 4px;font-size:13px;flex:none}
 
   /* ---------- add category tile ---------- */
   .addcat-tile{display:flex;align-items:center;justify-content:center;gap:8px;min-height:96px;border:2px dashed color-mix(in srgb,var(--acc) 35%,var(--line));border-radius:var(--r);color:var(--mut);font-size:14px;font-weight:700;background:color-mix(in srgb,var(--acc) 3%,transparent)}
@@ -318,6 +365,31 @@
   footer.foot a:hover{color:var(--txt);text-decoration:underline}
   footer.foot .sep{opacity:.4}
 
+  @media (max-width:900px){
+    .fold-btn .lbl{display:none}
+    .fold-btn{width:38px;padding:0}
+    .status .txt{display:none}
+  }
+  @media (max-width:820px){
+    .top-in{height:auto;padding:9px 0;flex-wrap:wrap;gap:8px}
+    .brand{order:1}
+    .tools{order:2;margin-left:auto;gap:5px}
+    .searchbox{order:3;flex-basis:100%;max-width:none;height:44px}
+    .brand h1{max-width:170px;font-size:16px}
+    .pins-label{display:none}
+    .pinbar{margin:14px 0 0}
+    .board{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:13px}
+    .editbar{top:0;position:static;margin:12px 0 0}
+    .eb-in{flex-wrap:wrap;gap:8px}
+    .eb-ico{display:none}
+    .eb-txt{flex-basis:100%;order:1}
+    .eb-act{order:2;width:100%;margin-top:2px}
+    .eb-act .btn{flex:1}
+    .cnt{display:none}
+    .ph{gap:4px;padding-right:8px}
+    .ph h2{font-size:15px}
+    .add-mini{opacity:.75}
+  }
   @media (max-width:720px){
     .top-in{height:auto;padding:9px 0;flex-wrap:wrap;gap:8px}
     .brand{order:1}
@@ -357,6 +429,7 @@
     </div>
     <div class="tools">
       <div class="status" id="status" title="저장 상태"><span class="dot"></span><span class="txt">자동 저장</span></div>
+      <button class="btn fold-btn" id="btnFold" title="모두 접기">▾ <span class="lbl">모두 접기</span></button>
       <button class="btn" id="btnEdit" title="편집 모드 (삭제·수정은 여기서만)">✏️ <span>편집</span></button>
       <button class="icon-btn" id="btnTheme" title="테마 바꾸기">🌗</button>
       <button class="icon-btn" id="btnMenu" title="더보기" aria-haspopup="true">⋯</button>
@@ -372,6 +445,10 @@
 <footer class="foot wrap" id="foot"></footer>
 
 <div class="ovl hidden" id="ovl"><div class="sheet" id="sheet"></div></div>
+<div id="dropLine" aria-hidden="true"></div>
+<div id="dropBadge" class="hidden" aria-hidden="true"></div>
+<div id="promoteZone" aria-hidden="true">⬆ 여기에 놓으면 독립 카테고리로 꺼내기</div>
+<div id="ctxMenu" class="hidden" role="menu"></div>
 <div id="toasts"></div>
 <input type="file" id="fileInput" accept=".html,.htm,text/html" class="hidden" />
 
@@ -616,7 +693,7 @@
 
   /* ---------------------------------------------------------------- cache */
   function cacheKey() { return state.demo || !state.url ? '' : LS.cache + hashKey(state.url); }
-  function collKey() { return state.demo || !state.url ? '' : LS.collapsed + hashKey(state.url); }
+  function collKey() { if (state.demo) return LS.collapsed + 'demo'; return !state.url ? '' : LS.collapsed + hashKey(state.url); }
 
   function readCache() {
     var k = cacheKey();
@@ -649,6 +726,17 @@
   function persistCollapsed() {
     var k = collKey();
     if (k) lsSet(k, JSON.stringify((state.data && state.data.collapsed) || []));
+  }
+
+  /** 접힘 상태만 시트 설정에 바로 저장합니다(내용 편집과 무관). */
+  function savePrefs() {
+    if (state.demo || !state.url || !state.data) return;
+    if (state.backendOld) return;
+    var body = {
+      collapsed: (state.data.collapsed || []).slice(),
+      collapsedGroups: (state.data.collapsedGroups || []).slice()
+    };
+    jsonp({ action: 'setSettings', d: JSON.stringify(body) }).catch(function () {});
   }
 
   /* ---------------------------------------------------------------- boot */
@@ -738,8 +826,10 @@
     state.demo = true;
     state.connected = false;
     state.data = normalizeData(DEMO);
+    state.data.collapsed = mergeCollapsed(state.data, state.data.collapsed);
+    mergeCollapsedGroups(state.data);
     renderAll();
-    toast('데모 화면입니다. 카드를 그냥 끌어서 옮겨 보세요. (저장되지 않아요)');
+    toast('데모 화면입니다. 카드를 끌어 옮겨 보세요. (실제 시트에는 저장되지 않아요)');
   }
 
   function load(opt) {
@@ -895,13 +985,13 @@
 
   /** 화면 상태를 바꾼 직후 호출: 보기 모드는 자동 저장, 편집 모드는 완료 때 한 번에 저장. */
   function changed() {
-    if (state.demo) { paintStatus(); return; }
     if (state.edit) {
       state.editDirty = true;
       paintStatus();
       renderEditBar();
       return;
     }
+    if (state.demo) { paintStatus(); return; }
     scheduleSave();
   }
 
@@ -999,6 +1089,7 @@
     if (state.query.trim()) renderResults(); else renderBoard();
     renderFoot();
     paintStatus();
+    updateFoldBtn();
   }
 
   function renderEditBar() {
@@ -1089,14 +1180,16 @@
     var items = state.data.links.filter(function (l) { return l.cat === c.name; });
     var collapsed = (state.data.collapsed || []).indexOf(c.name) >= 0;
     var gs = groupsOf(c.name);
+    var chev = collapsed ? '▸' : '▾';
     var h = '<section class="panel' + (collapsed ? ' is-collapsed' : '') + '" data-cat="' + esc(c.name) + '" style="--c:' + esc(c.color || 'var(--acc)') + '">';
+    var openBtn = '<button class="open-mini" data-act="open-all" title="이 카테고리의 링크를 모두 새 탭에서 열기">↗</button>';
 
     if (state.edit) {
       h += '<div class="ph">' +
-        '<button class="collapser" data-act="collapse" aria-expanded="' + (collapsed ? 'false' : 'true') + '" title="접기 / 펼치기">' + (collapsed ? '▸' : '▾') + '</button>' +
+        '<button class="collapser" data-act="collapse" aria-expanded="' + (collapsed ? 'false' : 'true') + '" title="접기 / 펼치기">' + chev + '</button>' +
         '<span class="cat-grip" title="끌어서 카테고리 순서 바꾸기">⠿</span>' +
         '<input class="cat-name" value="' + esc(c.name) + '" data-cat="' + esc(c.name) + '" aria-label="카테고리 이름" />' +
-        '<span class="cnt">' + items.length + '</span>' +
+        '<span class="cnt">' + items.length + '</span>' + openBtn +
         '</div>' +
         '<div class="ed-head"><div class="dots">' +
         COLORS.map(function (col) {
@@ -1104,12 +1197,13 @@
         }).join('') +
         '</div><span class="spacer"></span>' +
         '<button class="mini" data-act="add-here" title="이 카테고리에 링크 추가">＋ 링크</button>' +
-        '<button class="mini danger" data-act="cat-del"' + (items.length ? ' disabled' : '') + ' title="' + (items.length ? '링크가 있으면 지울 수 없어요' : '이 카테고리 삭제') + '">🗑</button>' +
+        '<button class="mini danger" data-act="cat-del" title="이 카테고리 삭제">🗑</button>' +
         '</div>';
     } else {
       h += '<div class="ph">' +
-        '<button class="collapser" data-act="collapse" aria-expanded="' + (collapsed ? 'false' : 'true') + '" title="접기 / 펼치기">' + (collapsed ? '▸' : '▾') + '</button>' +
-        '<span class="pdot"></span><h2>' + esc(c.name) + '</h2><span class="cnt">' + items.length + '</span>' +
+        '<button class="collapser" data-act="collapse" aria-expanded="' + (collapsed ? 'false' : 'true') + '" title="접기 / 펼치기">' + chev + '</button>' +
+        '<span class="pdot"></span><h2 title="두 번 누르면 이름 바꾸기">' + esc(c.name) + '</h2><span class="cnt">' + items.length + '</span>' +
+        openBtn +
         '<span class="cat-grip" title="끌어서 카테고리 순서 바꾸기">⠿</span>' +
         '<button class="add-mini" data-act="add-here" title="이 카테고리에 링크 추가">＋</button>' +
         '</div>';
@@ -1130,16 +1224,16 @@
     return h;
   }
 
-  /** 카테고리 안의 소그룹 순서: 링크에 먼저 나오는 순서 → 직접 만든 빈 소그룹. */
+  /** 카테고리 안의 소그룹 순서: 카테고리에 저장된 순서 → 링크에만 있는 소그룹. */
   function groupsOf(catName) {
     var out = [], seen = {};
-    state.data.links.forEach(function (l) {
-      if (l.cat !== catName || !l.group || seen[l.group]) return;
-      seen[l.group] = 1; out.push(l.group);
-    });
     var c = state.data.cats.filter(function (x) { return x.name === catName; })[0];
     ((c && c.groups) || []).forEach(function (g) {
-      if (g && !seen[g]) { seen[g] = 1; out.push(g); }
+      var s = String(g || '').trim();
+      if (s && !seen[s]) { seen[s] = 1; out.push(s); }
+    });
+    state.data.links.forEach(function (l) {
+      if (l.cat === catName && l.group && !seen[l.group]) { seen[l.group] = 1; out.push(l.group); }
     });
     return out;
   }
@@ -1149,10 +1243,11 @@
   function groupHtml(c, g, gl) {
     var collapsed = (state.data.collapsedGroups || []).indexOf(gkey(c.name, g)) >= 0;
     var h = '<div class="grp' + (collapsed ? ' is-collapsed' : '') + '" data-group="' + esc(g) + '" data-cat="' + esc(c.name) + '">';
-    h += '<div class="grp-head" data-act="gtoggle" title="접기 / 펼치기">' +
-      '<span class="gchev">' + (collapsed ? '▸' : '▾') + '</span>' +
-      '<span class="gname">' + esc(g) + '</span>' +
+    h += '<div class="grp-head" data-act="gtoggle" title="접기 / 펼치기 · 끌어서 소그룹 옮기기">' +
+      '<button class="gchev-btn" data-act="gtoggle" aria-expanded="' + (collapsed ? 'false' : 'true') + '" title="접기 / 펼치기">' + (collapsed ? '▸' : '▾') + '</button>' +
+      '<span class="gname" title="두 번 누르면 이름 바꾸기">' + esc(g) + '</span>' +
       '<span class="gcnt">' + gl.length + '</span>' +
+      '<button class="gbtn gopen" data-act="g-open-all" title="이 소그룹의 링크를 모두 새 탭에서 열기">↗</button>' +
       (state.edit ? '<button class="gbtn" data-act="g-ren" title="소그룹 이름 바꾸기">✏️</button>' +
         '<button class="gbtn del" data-act="g-del" title="소그룹 삭제">🗑</button>' : '') +
       '</div>';
@@ -1328,8 +1423,6 @@
     if (state.snapshot) {
       state.data.cats = state.snapshot.cats;
       state.data.links = state.snapshot.links;
-      state.data.collapsed = state.snapshot.collapsed || [];
-      state.data.collapsedGroups = state.snapshot.collapsedGroups || [];
       state.data.title = state.snapshot.title;
       state.data.theme = state.snapshot.theme;
     }
@@ -1346,12 +1439,13 @@
   function deleteLink(id) {
     var l = linkById(id);
     if (!l) return;
-    if (!confirm('“' + l.name + '” 링크를 지울까요?\n\n완료를 누르면 시트에도 반영됩니다. (취소를 누르면 되돌릴 수 있어요)')) return;
+    if (!confirm('“' + l.name + '” 링크를 지울까요?' + (state.edit ? '\n\n완료를 누르면 시트에도 반영됩니다.' : '\n\n지운 내용은 바로 저장됩니다.'))) return;
+    var snap = undoSnapshot();
     state.data.links = state.data.links.filter(function (x) { return x.id !== id; });
     if (!state.data.links.length) state.clearAllowed = true;
     renderAll();
     changed();
-    toast('삭제했습니다 — 완료를 눌러야 저장됩니다');
+    offerUndo(snap, '“' + l.name + '”을(를) 지웠습니다');
   }
 
   function togglePin(id) {
@@ -1375,11 +1469,22 @@
 
   function removeCategory(name) {
     var items = state.data.links.filter(function (l) { return l.cat === name; });
-    if (items.length) { toast('링크가 있는 카테고리는 지울 수 없어요. 먼저 링크를 옮기거나 지워 주세요.', true); return; }
-    if (!confirm('“' + name + '” 카테고리를 지울까요?')) return;
+    if (!confirm('“' + name + '” 카테고리를 지울까요?' + (items.length ? '\n안에 있는 링크 ' + items.length + '개도 함께 지워집니다.' : ''))) return;
+    deleteCategoryNow(name);
+  }
+
+  /** 확인을 마친 카테고리 삭제(링크·소그룹 포함). 되돌리기 가능. */
+  function deleteCategoryNow(name) {
+    var snap = undoSnapshot();
+    var n = state.data.links.filter(function (l) { return l.cat === name; }).length;
     state.data.cats = state.data.cats.filter(function (c) { return c.name !== name; });
+    state.data.links = state.data.links.filter(function (l) { return l.cat !== name; });
+    state.data.collapsed = (state.data.collapsed || []).filter(function (x) { return x !== name; });
+    state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (k) { return k.indexOf(name + '»') !== 0; });
+    if (!state.data.links.length) state.clearAllowed = true;
     renderAll();
     changed();
+    offerUndo(snap, '“' + name + '”' + (n ? ' (링크 ' + n + '개)' : '') + '를 지웠습니다');
   }
 
   function renameCategory(from, to) {
@@ -1392,6 +1497,9 @@
     state.data.links.forEach(function (l) { if (l.cat === from) l.cat = to; });
     var ci = (state.data.collapsed || []).indexOf(from);
     if (ci >= 0) state.data.collapsed[ci] = to;
+    state.data.collapsedGroups = (state.data.collapsedGroups || []).map(function (k) {
+      return k.indexOf(from + '»') === 0 ? to + '»' + k.slice(from.length + 1) : k;
+    });
     return true;
   }
 
@@ -1408,7 +1516,44 @@
       var btn = panel.querySelector('.collapser');
       if (btn) { btn.textContent = collapsed ? '▸' : '▾'; btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); }
     }
-    if (!state.edit) scheduleSave();
+    if (state.edit) state.editDirty = true; else scheduleSave();
+    savePrefs();
+    updateFoldBtn();
+  }
+
+  /** 상단 모두 접기 / 모두 펼치기 */
+  function allGroupKeys() {
+    var out = [];
+    state.data.cats.forEach(function (c) {
+      groupsOf(c.name).forEach(function (g) { out.push(gkey(c.name, g)); });
+    });
+    return out;
+  }
+
+  function everythingCollapsed() {
+    if (!state.data || !state.data.cats.length) return false;
+    return state.data.cats.every(function (c) { return (state.data.collapsed || []).indexOf(c.name) >= 0; }) &&
+      allGroupKeys().every(function (k) { return (state.data.collapsedGroups || []).indexOf(k) >= 0; });
+  }
+
+  function foldAll(collapse) {
+    if (!state.data) return;
+    state.data.collapsed = collapse ? state.data.cats.map(function (c) { return c.name; }) : [];
+    state.data.collapsedGroups = collapse ? allGroupKeys() : [];
+    persistCollapsed();
+    persistCollapsedGroups();
+    if (state.edit) state.editDirty = true; else scheduleSave();
+    renderAll();
+    savePrefs();
+    toast(collapse ? '모든 카테고리와 소그룹을 접었습니다' : '모두 펼쳤습니다');
+  }
+
+  function updateFoldBtn() {
+    var b = $('#btnFold');
+    if (!b) return;
+    var all = everythingCollapsed();
+    b.innerHTML = (all ? '▸' : '▾') + ' <span class="lbl">' + (all ? '모두 펼치기' : '모두 접기') + '</span>';
+    b.title = all ? '모든 카테고리와 소그룹 펼치기' : '모든 카테고리와 소그룹 접기';
   }
 
   function cssEsc(s) { return String(s).replace(/["\\]/g, '\\$&'); }
@@ -1430,10 +1575,12 @@
     if (el) {
       var isC = arr.indexOf(key) >= 0;
       el.classList.toggle('is-collapsed', isC);
-      var ch = el.querySelector('.gchev');
-      if (ch) ch.textContent = isC ? '▸' : '▾';
+      var ch = el.querySelector('.gchev-btn');
+      if (ch) { ch.textContent = isC ? '▸' : '▾'; ch.setAttribute('aria-expanded', isC ? 'false' : 'true'); }
     }
-    if (!state.edit) scheduleSave();
+    if (state.edit) state.editDirty = true; else scheduleSave();
+    savePrefs();
+    updateFoldBtn();
   }
 
   function ensureGroup(cat, g) {
@@ -1461,30 +1608,319 @@
   function renameGroup(cat, g) {
     var name = prompt('소그룹 이름', g);
     if (name === null) return;
-    name = name.trim();
-    if (!name || name === g) return;
+    if (renameGroupTo(cat, g, name)) { renderAll(); changed(); }
+  }
+
+  /** 소그룹 이름 변경(프롬프트 없이). 성공하면 true. */
+  function renameGroupTo(cat, g, to) {
+    to = String(to || '').trim();
+    if (!to || to === g) return false;
     var c = state.data.cats.filter(function (x) { return x.name === cat; })[0];
-    if (!c) return;
+    if (!c) return false;
     c.groups = c.groups || [];
-    if (c.groups.indexOf(name) >= 0 && name !== g) { toast('이미 있는 이름입니다.', true); return; }
+    if (c.groups.indexOf(to) >= 0) { toast('이미 있는 이름입니다.', true); return false; }
     var i = c.groups.indexOf(g);
-    if (i >= 0) c.groups[i] = name; else c.groups.push(name);
-    state.data.links.forEach(function (l) { if (l.cat === cat && l.group === g) l.group = name; });
-    var j = (state.data.collapsedGroups || []).indexOf(gkey(cat, g));
-    if (j >= 0) state.data.collapsedGroups[j] = gkey(cat, name);
-    renderAll();
-    changed();
+    if (i >= 0) c.groups[i] = to; else c.groups.push(to);
+    state.data.links.forEach(function (l) { if (l.cat === cat && l.group === g) l.group = to; });
+    state.data.collapsedGroups = (state.data.collapsedGroups || []).map(function (k) {
+      return k === gkey(cat, g) ? gkey(cat, to) : k;
+    });
+    return true;
   }
 
   function removeGroup(cat, g) {
     var n = state.data.links.filter(function (l) { return l.cat === cat && l.group === g; }).length;
     if (!confirm('“' + g + '” 소그룹을 지울까요?' + (n ? '\n링크 ' + n + '개는 “그룹 없음”으로 옮겨집니다.' : ''))) return;
+    var snap = undoSnapshot();
     state.data.links.forEach(function (l) { if (l.cat === cat && l.group === g) l.group = ''; });
     var c = state.data.cats.filter(function (x) { return x.name === cat; })[0];
     if (c) c.groups = (c.groups || []).filter(function (x) { return x !== g; });
     state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (k) { return k !== gkey(cat, g); });
     renderAll();
     changed();
+    offerUndo(snap, '“' + g + '” 소그룹을 지웠습니다');
+  }
+
+  /* ------------------------------------------------ 되돌리기 · 모두 열기 */
+  function undoSnapshot() {
+    return {
+      cats: clone(state.data.cats),
+      links: clone(state.data.links),
+      collapsed: (state.data.collapsed || []).slice(),
+      collapsedGroups: (state.data.collapsedGroups || []).slice()
+    };
+  }
+
+  function offerUndo(snap, msg) {
+    if (!snap) { toast(msg); return; }
+    toast(msg, false, { label: '↩ 되돌리기', fn: function () {
+      state.data.cats = snap.cats;
+      state.data.links = snap.links;
+      state.data.collapsed = snap.collapsed;
+      state.data.collapsedGroups = snap.collapsedGroups;
+      renderAll();
+      changed();
+      toast('되돌렸습니다');
+    } });
+  }
+
+  function openAllLinks(items, label) {
+    items = items || [];
+    if (!items.length) { toast(label + '에 열 링크가 없습니다.', true); return; }
+    if (items.length > 5 && !confirm(label + ' 링크 ' + items.length + '개를 새 탭에서 열까요?')) return;
+    var blocked = 0;
+    items.forEach(function (l) {
+      var u = safeUrl(l.url);
+      if (!u) return;
+      var w = null;
+      try { w = window.open(u, '_blank'); } catch (e) {}
+      if (w) { try { w.opener = null; } catch (e) {} } else blocked++;
+    });
+    toast(items.length + '개를 새 탭에서 열었습니다' + (blocked ? ' · ' + blocked + '개는 팝업 차단됨 — 주소창의 차단 아이콘에서 허용해 주세요' : ''), !!blocked);
+  }
+
+  /* ------------------------------------------------ 소그룹 이동 · 승격 */
+  function catByName(name) {
+    return state.data.cats.filter(function (c) { return c.name === name; })[0] || null;
+  }
+
+  /** 소그룹을 다른 카테고리로 옮기거나 같은 카테고리 안에서 순서를 바꿉니다. */
+  function moveGroupTo(fromCat, g, toCat, targetGroup, after, append) {
+    if (!g) return false;
+    var from = catByName(fromCat), to = catByName(toCat);
+    if (!from || !to) return false;
+    if (fromCat === toCat && targetGroup === g) return false;
+    var sameName = fromCat !== toCat && groupsOf(toCat).indexOf(g) >= 0;
+
+    /* 링크는 통째로 따라갑니다. */
+    var n = 0;
+    state.data.links.forEach(function (l) {
+      if (l.cat === fromCat && l.group === g) { l.cat = toCat; l.group = g; n++; }
+    });
+
+    if (sameName) {
+      from.groups = (from.groups || []).filter(function (x) { return x !== g; });
+      state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (k) { return k !== gkey(fromCat, g); });
+      return { moved: n, merged: true };
+    }
+
+    to.groups = to.groups || [];
+    var list = to.groups.filter(function (x) { return x !== g; });
+    var idx;
+    if (append || !targetGroup || list.indexOf(targetGroup) < 0) idx = list.length;
+    else idx = list.indexOf(targetGroup) + (after ? 1 : 0);
+    list.splice(Math.max(0, Math.min(idx, list.length)), 0, g);
+    to.groups = list;
+
+    if (fromCat !== toCat) {
+      from.groups = (from.groups || []).filter(function (x) { return x !== g; });
+      state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (k) { return k !== gkey(fromCat, g); });
+    }
+    return { moved: n, merged: false };
+  }
+
+  /** 카테고리를 다른 카테고리 안의 소그룹으로 넣습니다. */
+  function demoteCategoryToGroup(fromName, toName) {
+    if (!fromName || !toName || fromName === toName) return false;
+    var from = catByName(fromName), to = catByName(toName);
+    if (!from || !to) return false;
+    var inner = groupsOf(fromName).length;
+    var links = state.data.links.filter(function (l) { return l.cat === fromName; });
+    var merged = groupsOf(toName).indexOf(fromName) >= 0;
+    to.groups = to.groups || [];
+    if (!merged) to.groups.push(fromName);
+    links.forEach(function (l) { l.cat = toName; l.group = fromName; });
+    state.data.cats = state.data.cats.filter(function (c) { return c.name !== fromName; });
+    state.data.collapsed = (state.data.collapsed || []).filter(function (x) { return x !== fromName; });
+    state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (k) { return k.indexOf(fromName + '»') !== 0; });
+    return { n: links.length, inner: inner, merged: merged };
+  }
+
+  /** 소그룹을 독립 카테고리로 꺼냅니다. 같은 이름 카테고리가 있으면 그쪽으로 합칩니다. */
+  function promoteGroupToCategory(cat, g) {
+    if (!g) return false;
+    var src = catByName(cat);
+    if (!src) return false;
+    var links = state.data.links.filter(function (l) { return l.cat === cat && l.group === g; });
+    var merged = catIndex(g) >= 0;
+    if (!merged) {
+      var at = catIndex(cat);
+      var newCat = { name: g, color: COLORS[state.data.cats.length % COLORS.length], groups: [] };
+      state.data.cats.splice(at >= 0 ? at + 1 : state.data.cats.length, 0, newCat);
+    }
+    links.forEach(function (l) { l.cat = g; l.group = ''; });
+    src.groups = (src.groups || []).filter(function (x) { return x !== g; });
+    state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (k) { return k !== gkey(cat, g); });
+    return { n: links.length, merged: merged };
+  }
+
+  /* ------------------------------------------------ 이름 바로 바꾸기 */
+  function inlineEditName(el, current, commit) {
+    if (!el || el.querySelector('input')) return;
+    var input = document.createElement('input');
+    input.className = 'in-rename';
+    input.value = current;
+    input.setAttribute('aria-label', '이름 바꾸기 · Enter 저장, Esc 취소');
+    el.style.display = 'none';
+    el.parentNode.insertBefore(input, el.nextSibling);
+    input.focus();
+    input.select();
+    var done = false;
+    function finish(ok) {
+      if (done) return;
+      done = true;
+      var v = input.value.trim();
+      if (input.parentNode) input.parentNode.removeChild(input);
+      el.style.display = '';
+      if (ok && v && v !== current) commit(v);
+    }
+    input.addEventListener('keydown', function (e) {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    });
+    input.addEventListener('blur', function () { finish(true); });
+    input.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+    input.addEventListener('click', function (e) { e.stopPropagation(); });
+    input.addEventListener('dblclick', function (e) { e.stopPropagation(); });
+  }
+
+  /* ------------------------------------------------ 오른쪽 버튼 메뉴 */
+  function closeCtx() {
+    var m = $('#ctxMenu');
+    if (!m) return;
+    m.classList.add('hidden');
+    m.innerHTML = '';
+  }
+
+  function openCtx(x, y, title, items) {
+    var m = $('#ctxMenu');
+    if (!m) return;
+    m.innerHTML = '';
+    if (title) {
+      var hd = document.createElement('div');
+      hd.className = 'chead';
+      hd.textContent = title;
+      m.appendChild(hd);
+    }
+    items.forEach(function (it) {
+      if (it === '-') { var s = document.createElement('div'); s.className = 'sep'; m.appendChild(s); return; }
+      var b = document.createElement('button');
+      b.className = 'ci' + (it.danger ? ' danger' : '');
+      b.innerHTML = '<span class="ic">' + esc(it.ic || '') + '</span><span>' + esc(it.label) + '</span>';
+      b.onclick = function () { closeCtx(); it.fn(); };
+      m.appendChild(b);
+    });
+    m.classList.remove('hidden');
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var w = m.offsetWidth, h = m.offsetHeight;
+    var left = Math.max(8, Math.min(x, vw - w - 8));
+    var top = Math.max(8, Math.min(y, vh - h - 8));
+    m.style.left = left + 'px';
+    m.style.top = top + 'px';
+  }
+
+  function linkCtx(link, x, y) {
+    var items = [
+      { ic: '↗', label: '새 탭에서 열기', fn: function () { openLink(link.url); } },
+      { ic: '📋', label: '주소(URL) 복사', fn: function () { copyText(link.url, '주소를 복사했습니다'); } },
+      '-',
+      { ic: '✏️', label: '이름·주소 수정', fn: function () { openLinkModal(link, null); } },
+      { ic: '📁', label: '다른 폴더로 이동', fn: function () { openMoveModal(link); } },
+      { ic: '📌', label: link.pin ? '즐겨찾기 고정 해제' : '즐겨찾기 고정', fn: function () { togglePin(link.id); } },
+      '-',
+      { ic: '🗑', label: '삭제', danger: true, fn: function () { deleteLink(link.id); } }
+    ];
+    openCtx(x, y, link.name, items);
+  }
+
+  function categoryCtx(cat, x, y) {
+    var collapsed = (state.data.collapsed || []).indexOf(cat) >= 0;
+    var items = [
+      { ic: '↗', label: '모두 새 탭에서 열기', fn: function () { openAllLinks(state.data.links.filter(function (l) { return l.cat === cat; }), '“' + cat + '”'); } },
+      { ic: '✏️', label: '이름 바꾸기', fn: function () { var h = $('.panel[data-cat="' + cssEsc(cat) + '"] .ph h2'); if (h) inlineEditName(h, cat, function (v) { if (renameCategory(cat, v)) { renderAll(); changed(); } }); else { var inp = $('.panel[data-cat="' + cssEsc(cat) + '"] .cat-name'); if (inp) { inp.focus(); inp.select(); } } } },
+      { ic: collapsed ? '▾' : '▸', label: collapsed ? '펼치기' : '접기', fn: function () { toggleCollapse(cat); } },
+      '-',
+      { ic: '🗑', label: '카테고리 삭제', danger: true, fn: function () {
+        var n = state.data.links.filter(function (l) { return l.cat === cat; }).length;
+        if (!confirm('“' + cat + '” 카테고리를 지울까요?' + (n ? '\n안에 있는 링크 ' + n + '개도 함께 지워집니다.' : ''))) return;
+        deleteCategoryNow(cat);
+      } }
+    ];
+    openCtx(x, y, '📁 ' + cat, items);
+  }
+
+  function groupCtx(cat, g, x, y) {
+    var collapsed = (state.data.collapsedGroups || []).indexOf(gkey(cat, g)) >= 0;
+    var items = [
+      { ic: '↗', label: '모두 새 탭에서 열기', fn: function () { openAllLinks(state.data.links.filter(function (l) { return l.cat === cat && l.group === g; }), '“' + g + '”'); } },
+      { ic: '✏️', label: '이름 바꾸기', fn: function () { var h = $('.grp[data-cat="' + cssEsc(cat) + '"][data-group="' + cssEsc(g) + '"] .gname'); if (h) inlineEditName(h, g, function (v) { if (renameGroupTo(cat, g, v)) { renderAll(); changed(); } }); } },
+      { ic: collapsed ? '▾' : '▸', label: collapsed ? '펼치기' : '접기', fn: function () { toggleGroup(cat, g); } },
+      '-',
+      { ic: '🗑', label: '소그룹 삭제', danger: true, fn: function () { removeGroup(cat, g); } }
+    ];
+    openCtx(x, y, '📂 ' + cat + ' › ' + g, items);
+  }
+
+  function copyText(text, msg) {
+    function fallback() {
+      var t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select();
+      try { document.execCommand('copy'); toast(msg); } catch (e) { toast('복사하지 못했습니다.', true); }
+      document.body.removeChild(t);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { toast(msg); }, fallback);
+    else fallback();
+  }
+
+  /** 링크를 다른 카테고리·소그룹으로 옮기는 작은 창. */
+  function openMoveModal(link) {
+    if (!link) return;
+    var cats = state.data.cats;
+    openModal(
+      '<div class="sh-head"><h3>다른 폴더로 이동</h3><button class="x" id="mX">✕</button></div>' +
+      '<p style="font-size:13px;color:var(--mut);margin:0 0 12px">“' + esc(link.name) + '”</p>' +
+      '<div class="row2">' +
+      '<div class="field"><label for="mvCat">카테고리</label><select id="mvCat">' + cats.map(function (c) { return '<option value="' + esc(c.name) + '"' + (c.name === link.cat ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="mvGroup">소그룹</label><select id="mvGroup"></select></div>' +
+      '</div>' +
+      '<div class="sh-foot"><button class="btn" id="mCancel">취소</button><button class="btn primary" id="mvGo">이동</button></div>'
+    );
+    $('#mX').onclick = $('#mCancel').onclick = closeModal;
+    function fill(catName, selected) {
+      var gs = groupsOf(catName);
+      var html = '<option value="">그룹 없음</option>';
+      gs.forEach(function (g) { html += '<option value="' + esc(g) + '"' + (g === selected ? ' selected' : '') + '>' + esc(g) + '</option>'; });
+      html += '<option value="__new">＋ 새 소그룹…</option>';
+      $('#mvGroup').innerHTML = html;
+    }
+    fill(link.cat, link.group);
+    $('#mvCat').onchange = function () { fill(this.value, ''); };
+    $('#mvGroup').onchange = function () {
+      if (this.value !== '__new') return;
+      var n = prompt('새 소그룹 이름', '새 소그룹');
+      if (n && n.trim()) {
+        var nm = n.trim();
+        ensureGroup($('#mvCat').value, nm);
+        var o = document.createElement('option'); o.value = o.textContent = nm;
+        this.insertBefore(o, this.lastElementChild); this.value = nm;
+      } else this.value = '';
+    };
+    $('#mvGo').onclick = function () {
+      var toCat = $('#mvCat').value;
+      var toGroup = $('#mvGroup').value;
+      if (toGroup === '__new') toGroup = '';
+      if (toCat === link.cat && toGroup === (link.group || '')) { closeModal(); return; }
+      var snap = undoSnapshot();
+      ensureGroup(toCat, toGroup);
+      link.cat = toCat; link.group = toGroup;
+      var arr = state.data.links, at = arr.indexOf(link);
+      if (at >= 0) { arr.splice(at, 1); arr.splice(destIndex(toCat, toGroup), 0, link); }
+      closeModal();
+      renderAll();
+      changed();
+      offerUndo(snap, '“' + link.name + '”을(를) “' + toCat + (toGroup ? ' › ' + toGroup : '') + '”로 옮겼습니다');
+    };
   }
 
   /* ---------------------------------------------------------------- modal */
@@ -1722,49 +2158,121 @@
   }
 
   /* ---------------------------------------------------------------- toast */
-  function toast(msg, isErr) {
+  function toast(msg, isErr, action) {
     var el = document.createElement('div');
-    el.className = 'toast' + (isErr ? ' err' : '');
-    el.textContent = msg;
+    el.className = 'toast' + (isErr ? ' err' : '') + (action ? ' act' : '');
+    var sp = document.createElement('span');
+    sp.textContent = msg;
+    el.appendChild(sp);
+    if (action) {
+      var b = document.createElement('button');
+      b.className = 'tact';
+      b.textContent = action.label;
+      b.onclick = function () {
+        if (el.parentNode) el.parentNode.removeChild(el);
+        action.fn();
+      };
+      el.appendChild(b);
+    }
     $('#toasts').appendChild(el);
-    setTimeout(function () { el.style.opacity = '0'; el.style.transition = 'opacity .25s'; }, 2600);
-    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 3000);
+    var life = action ? 7000 : 3000;
+    setTimeout(function () { el.style.opacity = '0'; el.style.transition = 'opacity .25s'; }, life - 400);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, life);
   }
 
   /* ================================================================ drag */
   function clearMarks() {
-    $$('.drop-before,.drop-after').forEach(function (el) { el.classList.remove('drop-before', 'drop-after'); });
-    $$('.drop-end').forEach(function (el) { el.classList.remove('drop-end'); });
-    $$('.drop-zone').forEach(function (el) { el.classList.remove('drop-zone'); });
-    $$('.cat-before,.cat-after').forEach(function (el) { el.classList.remove('cat-before', 'cat-after'); });
+    $$('.drop-before,.drop-after,.drop-end,.drop-zone,.cat-before,.cat-after,.drop-into').forEach(function (el) {
+      el.classList.remove('drop-before', 'drop-after', 'drop-end', 'drop-zone', 'cat-before', 'cat-after', 'drop-into');
+    });
+    hideLine();
+    hideBadge();
+    var pz = $('#promoteZone'); if (pz) pz.style.display = 'none';
+  }
+
+  function uiRefs() {
+    return { line: $('#dropLine'), badge: $('#dropBadge'), zone: $('#promoteZone') };
+  }
+
+  function showHLine(left, width, top) {
+    var l = $('#dropLine');
+    if (!l) return;
+    l.className = 'h';
+    l.style.display = 'block';
+    l.style.left = Math.max(0, left) + 'px';
+    l.style.top = (top - 4) + 'px';
+    l.style.width = Math.max(20, width) + 'px';
+    l.style.height = '8px';
+  }
+
+  function showVLine(left, top, height) {
+    var l = $('#dropLine');
+    if (!l) return;
+    l.className = 'v';
+    l.style.display = 'block';
+    l.style.left = (left - 4) + 'px';
+    l.style.top = top + 'px';
+    l.style.width = '8px';
+    l.style.height = Math.max(20, height) + 'px';
+  }
+
+  function hideLine() {
+    var l = $('#dropLine');
+    if (l) { l.style.display = 'none'; l.className = ''; }
+  }
+
+  function hideBadge() {
+    var b = $('#dropBadge');
+    if (b) { b.className = 'hidden'; b.textContent = ''; }
+  }
+
+  function setBadge(text, x, y, kind) {
+    var b = $('#dropBadge');
+    if (!b) return;
+    b.textContent = text;
+    b.className = kind || '';
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var w = b.offsetWidth, h = b.offsetHeight;
+    var left = Math.max(8, Math.min(x + 16, vw - w - 8));
+    var top = Math.max(8, Math.min(y + 18, vh - h - 8));
+    b.style.left = left + 'px';
+    b.style.top = top + 'px';
+  }
+
+  function showPromoteZone() {
+    var z = $('#promoteZone');
+    if (z) z.style.display = 'block';
   }
 
   function onDown(e) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     var t = e.target;
     if (!t || !t.closest) return;
-    if (t.closest('.ctools') || t.closest('.collapser') || t.closest('.add-mini') ||
-        t.closest('.ed-head') || t.closest('input') || t.closest('select') || t.closest('textarea')) return;
+    if (t.closest('.ctools,.collapser,.gchev-btn,.open-mini,.gbtn,.add-mini,.ed-head,.add-group,.dots,input,select,textarea,#ctxMenu,#ovl,.cat-name')) return;
     if (state.query.trim() || !state.data) return;
 
     var chip = t.closest('.lk');
+    var ghead = t.closest('.grp-head');
     var grip = t.closest('.cat-grip');
     var head = t.closest('.ph');
-    var panel = (chip || grip || head) ? (chip ? chip.closest('.panel') : (grip || head).closest('.panel')) : null;
+    var anchor = chip || ghead || grip || head;
+    var panel = anchor ? anchor.closest('.panel') : null;
     if (!panel) return;
-
-    if (chip && !chip.dataset.id) return;
-    if (!chip && !grip && !head) return;
+    var grpEl = ghead ? ghead.closest('.grp') : null;
+    var kind = chip ? 'link' : grpEl ? 'grp' : (grip || head) ? 'cat' : null;
+    if (!kind) return;
+    if (kind === 'link' && !chip.dataset.id) return;
 
     pending = {
-      kind: chip ? 'link' : 'cat',
+      kind: kind,
       pointerType: e.pointerType || 'mouse',
       startX: e.clientX, startY: e.clientY,
       lastX: e.clientX, lastY: e.clientY,
-      source: chip || panel,
+      source: chip || grpEl || panel,
       panel: panel,
       id: chip ? chip.dataset.id : null,
       cat: panel.dataset.cat,
+      group: chip ? (chip.dataset.group || '') : grpEl ? (grpEl.dataset.group || '') : null,
       pointerId: e.pointerId
     };
     window.addEventListener('pointermove', onMove, { passive: false });
@@ -1773,7 +2281,7 @@
     if (pending.pointerType === 'touch') {
       pending.timer = setTimeout(function () {
         if (pending && !drag) beginDrag(pending.startX, pending.startY);
-      }, 210);
+      }, 230);
     }
   }
 
@@ -1802,26 +2310,51 @@
 
     var target = drag.target;
     var kind = drag.kind;
-    var moved = false;
-    var autoCat = drag.autoExpand;
+    var autoCats = drag.autoCollapsed ? drag.autoCollapsed.slice() : [];
     var autoGroups = drag.autoGroups ? drag.autoGroups.slice() : [];
+    var snap = null, res = null, msg = '';
 
     if (target) {
-      if (kind === 'cat') moved = moveCategoryTo(drag.cat, target.cat, target.after);
-      else moved = moveLinkTo(drag.id, target.cat, target.group, target.beforeId, target.after);
+      snap = undoSnapshot();
+      if (kind === 'link') {
+        var moved = moveLinkTo(drag.id, target.cat, target.group, target.beforeId, target.after);
+        if (moved) msg = '링크를 “' + target.cat + (target.group ? ' › ' + target.group : '') + '”로 옮겼습니다';
+        else snap = null;
+      } else if (kind === 'cat' && target.type === 'demote') {
+        var d = demoteCategoryToGroup(drag.cat, target.cat);
+        if (d) msg = '“' + drag.cat + '”를 “' + target.cat + '”의 소그룹으로 넣었습니다' +
+          (d.n ? ' · 링크 ' + d.n + '개' : '') + (d.inner ? ' · 안쪽 소그룹 ' + d.inner + '개는 합쳤습니다' : '') +
+          (d.merged ? ' · 같은 이름 소그룹에 합쳤습니다' : '');
+        else snap = null;
+      } else if (kind === 'cat' && target.type === 'cat') {
+        if (moveCategoryToIndex(drag.cat, target.index)) msg = '“' + drag.cat + '” 카테고리 순서를 옮겼습니다';
+        else snap = null;
+      } else if (kind === 'grp' && target.type === 'promote') {
+        var p = promoteGroupToCategory(drag.cat, drag.group);
+        if (p) msg = '“' + drag.group + '”을(를) 독립 카테고리로 꺼냈습니다' + (p.merged ? ' · 같은 이름 카테고리에 합쳤습니다' : '') + (p.n ? ' · 링크 ' + p.n + '개' : '');
+        else snap = null;
+      } else if (kind === 'grp' && target.type === 'grp') {
+        var m = moveGroupTo(drag.cat, drag.group, target.cat, target.group, target.after, target.append);
+        if (m) msg = '소그룹 “' + drag.group + '”을(를) “' + target.cat + '”로 옮겼습니다' +
+          (m.merged ? ' · 같은 이름 소그룹에 합쳤습니다' : '') + (m.moved ? ' · 링크 ' + m.moved + '개' : '');
+        else snap = null;
+      }
     }
-    endDrag();
-    state.suppressClick = Date.now() + 320;
 
-    if (moved) {
+    endDrag();
+    state.suppressClick = Date.now() + 340;
+
+    if (snap && msg) {
       renderAll();
       changed();
-    } else if (autoCat || autoGroups.length) {
-      /* 드롭하지 않고 끝났으면 잠시 페쳤던 접기 상태를 되돌립니다. */
+      offerUndo(snap, msg);
+    } else if (autoCats.length || autoGroups.length) {
       autoGroups.forEach(function (k) {
         if ((state.data.collapsedGroups || []).indexOf(k) < 0) state.data.collapsedGroups.push(k);
       });
-      if (autoCat && state.data.collapsed.indexOf(autoCat) < 0) state.data.collapsed.push(autoCat);
+      autoCats.forEach(function (n) {
+        if ((state.data.collapsed || []).indexOf(n) < 0) state.data.collapsed.push(n);
+      });
       renderBoard();
     }
   }
@@ -1843,11 +2376,15 @@
     drag.rect = r;
 
     var g = document.createElement('div');
-    g.className = 'drag-ghost' + (drag.kind === 'cat' ? ' cat' : '');
+    g.className = 'drag-ghost' + (drag.kind === 'cat' ? ' cat' : drag.kind === 'grp' ? ' grp' : '');
     if (drag.kind === 'cat') {
       g.innerHTML = '<span class="gl">⠿</span><span class="nm">' + esc(drag.cat) + '</span>';
-      g.style.width = Math.min(r.width, 280) + 'px';
+      g.style.width = Math.min(Math.max(r.width, 140), 280) + 'px';
       g.style.height = '42px';
+    } else if (drag.kind === 'grp') {
+      g.innerHTML = '<span class="gl">📂</span><span class="nm">' + esc(drag.group) + '</span>';
+      g.style.width = Math.min(Math.max(r.width, 130), 250) + 'px';
+      g.style.height = '38px';
     } else {
       var ico = el.querySelector('.ico'), nm = el.querySelector('.nm');
       g.innerHTML = '<span class="ico">' + esc(ico ? ico.textContent : '🔗') + '</span>' +
@@ -1858,83 +2395,248 @@
     drag.ghost = g;
     el.classList.add('drop-src');
     document.documentElement.classList.add('dragging');
-    drag.offX = Math.min(r.width / 2, 140);
-    drag.offY = r.height / 2;
+    drag.offX = Math.min(r.width / 2, 150);
+    drag.offY = Math.min(r.height, 60) + 28;
     moveGhost(x, y);
     drag.raf = requestAnimationFrame(autoScroll);
   }
 
   function moveGhost(x, y) {
     if (!drag || !drag.ghost) return;
-    drag.ghost.style.transform = 'translate3d(' + (x - drag.offX) + 'px,' + (y - drag.offY) + 'px,0) rotate(1.2deg)';
+    var left = x - drag.offX;
+    var top = y - drag.offY;
+    if (top < 6) top = y + 22;
+    drag.ghost.style.transform = 'translate3d(' + left + 'px,' + top + 'px,0) rotate(1.2deg)';
   }
 
+  /** 마우스 아래의 패널/그룹/링크를 읽어 드롭 위치를 정합니다. */
   function updateTarget(x, y) {
     clearMarks();
     drag.target = null;
     var under = document.elementFromPoint(x, y);
     if (!under || !under.closest) return;
-    var panel = under.closest('.panel');
-    if (!panel || !panel.dataset.cat) return;
+    if (drag.kind === 'link') drag.target = linkTarget(under, x, y);
+    else if (drag.kind === 'cat') drag.target = catTarget(under, x, y);
+    else if (drag.kind === 'grp') drag.target = grpTarget(under, x, y);
+  }
+
+  function autoExpandPanel(panel) {
+    if (!panel || !panel.classList.contains('is-collapsed')) return;
+    panel.classList.remove('is-collapsed');
     var cat = panel.dataset.cat;
-    panel.classList.add('drop-zone');
+    drag.autoCollapsed = drag.autoCollapsed || [];
+    if (drag.autoCollapsed.indexOf(cat) < 0) drag.autoCollapsed.push(cat);
+    state.data.collapsed = (state.data.collapsed || []).filter(function (n) { return n !== cat; });
+  }
 
-    if (drag.kind === 'cat') {
-      if (cat === drag.cat) return;
-      var pr = panel.getBoundingClientRect();
-      drag.target = { cat: cat, after: (x - pr.left) > pr.width / 2 };
-      panel.classList.add(drag.target.after ? 'cat-after' : 'cat-before');
-      return;
-    }
+  function autoExpandGroup(grp) {
+    if (!grp || !grp.classList.contains('is-collapsed')) return;
+    grp.classList.remove('is-collapsed');
+    var k = gkey(grp.dataset.cat, grp.dataset.group);
+    drag.autoGroups = drag.autoGroups || [];
+    if (drag.autoGroups.indexOf(k) < 0) drag.autoGroups.push(k);
+    state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (x) { return x !== k; });
+  }
 
-    if (panel.classList.contains('is-collapsed')) {
-      panel.classList.remove('is-collapsed');
-      if (drag.autoExpand !== cat) {
-        drag.autoExpand = cat;
-        state.data.collapsed = (state.data.collapsed || []).filter(function (n) { return n !== cat; });
-      }
-      var lst0 = panel.querySelector('.plist');
-      if (lst0) lst0.classList.add('drop-end');
-      drag.target = { cat: cat, group: '', beforeId: null, after: true };
-      return;
-    }
+  function firstChipId(el) {
+    if (!el) return null;
+    var c = el.querySelector('.lk');
+    return c ? c.dataset.id : null;
+  }
 
-    var grpEl = under.closest('.grp');
-    var gname = grpEl ? (grpEl.dataset.group || '') : '';
-
-    if (grpEl) {
-      grpEl.classList.add('drop-zone');
-      if (grpEl.classList.contains('is-collapsed')) {
-        grpEl.classList.remove('is-collapsed');
-        var gk = gkey(cat, gname);
-        drag.autoGroups = drag.autoGroups || [];
-        if (drag.autoGroups.indexOf(gk) < 0) drag.autoGroups.push(gk);
-        state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (k) { return k !== gk; });
-        var gh = grpEl.querySelector('.grp-head');
-        if (gh) gh.classList.add('drop-end');
-        drag.target = { cat: cat, group: gname, beforeId: null, after: true };
-        return;
-      }
-    }
+  function linkTarget(under, x, y) {
+    var panel = under.closest('.panel');
+    if (!panel) return null;
+    autoExpandPanel(panel);
+    var cat = panel.dataset.cat;
+    var grp = under.closest('.grp');
+    if (grp) autoExpandGroup(grp);
 
     var chip = under.closest('.lk');
-    if (chip && chip !== drag.source) {
-      var cr = chip.getBoundingClientRect();
-      var after = (y - cr.top) > cr.height / 2;
-      chip.classList.add(after ? 'drop-after' : 'drop-before');
-      drag.target = { cat: cat, group: chip.dataset.group || '', beforeId: chip.dataset.id, after: after };
-      return;
+    if (chip && chip !== drag.source && chip.dataset.id) {
+      var r = chip.getBoundingClientRect();
+      var after = (y - r.top) > r.height / 2;
+      showHLine(r.left, r.width, after ? r.bottom : r.top);
+      var g0 = chip.dataset.group || '';
+      setBadge(linkAction(cat, g0), x, y, cat !== drag.cat ? 'into' : '');
+      if (grp) grp.classList.add('drop-into');
+      return { type: 'link', cat: cat, group: g0, beforeId: chip.dataset.id, after: after };
     }
 
-    if (grpEl) {
-      var body = grpEl.querySelector('.grp-body');
-      if (body) body.classList.add('drop-end');
-      drag.target = { cat: cat, group: gname, beforeId: null, after: true };
-    } else {
-      var list = panel.querySelector('.plist');
-      if (list) list.classList.add('drop-end');
-      drag.target = { cat: cat, group: '', beforeId: null, after: true };
+    if (grp) {
+      var g1 = grp.dataset.group || '';
+      grp.classList.add('drop-into');
+      var body = grp.querySelector('.grp-body');
+      if (under.closest('.grp-head')) {
+        var br = body.getBoundingClientRect();
+        showHLine(br.left, br.width, br.top);
+        return { type: 'link', cat: cat, group: g1, beforeId: firstChipId(body), after: false };
+      }
+      var br2 = body.getBoundingClientRect();
+      showHLine(br2.left, br2.width, br2.bottom);
+      return { type: 'link', cat: cat, group: g1, beforeId: null, after: true };
     }
+
+    /* 카테고리의 그룹 없음 구역 끝 */
+    var list = panel.querySelector('.plist');
+    if (!list) return null;
+    var direct = $$(':scope > .lk', list);
+    if (direct.length) {
+      var lr = direct[direct.length - 1].getBoundingClientRect();
+      showHLine(lr.left, lr.width, lr.bottom);
+    } else {
+      var pr = panel.getBoundingClientRect();
+      showHLine(pr.left + 12, pr.width - 24, pr.top + 62);
+    }
+    setBadge(linkAction(cat, ''), x, y, cat !== drag.cat ? 'into' : '');
+    return { type: 'link', cat: cat, group: '', beforeId: null, after: true };
+  }
+
+  function linkAction(cat, group) {
+    if (cat !== drag.cat) return '📂 “' + cat + (group ? ' › ' + group : '') + '”로 이동';
+    var from = drag.group == null ? '' : drag.group;
+    if (group !== from) return '📂 “' + group + '”로 이동';
+    return '↕ 순서 이동';
+  }
+
+  function rowsOfPanels(panels) {
+    var rows = [], cur = null;
+    panels.forEach(function (p) {
+      var r = p.getBoundingClientRect();
+      if (!cur || Math.abs(r.top - cur.top) > 6) {
+        cur = { top: r.top, bottom: r.bottom, left: r.left, right: r.right, items: [] };
+        rows.push(cur);
+      }
+      cur.items.push({ el: p, rect: r, index: panels.indexOf(p) });
+      cur.top = Math.min(cur.top, r.top);
+      cur.bottom = Math.max(cur.bottom, r.bottom);
+      cur.left = Math.min(cur.left, r.left);
+      cur.right = Math.max(cur.right, r.right);
+    });
+    return rows;
+  }
+
+  function catTarget(under, x, y) {
+    var panel = under.closest('.panel');
+    var panels = $$('.panel');
+    if (!panels.length) return null;
+
+    if (panel && panel.dataset.cat === drag.cat) return null;
+
+    if (panel) {
+      autoExpandPanel(panel);
+      var cat = panel.dataset.cat;
+      var pr = panel.getBoundingClientRect();
+      var idx = panels.indexOf(panel);
+      var edge = Math.min(30, pr.width * 0.16);
+
+      /* 카드의 좌/우 가장자리 = 그 앞/뒤로 순서 이동 (세로 삽입선) */
+      if (x - pr.left < edge || pr.right - x < edge) {
+        var leftSide = (x - pr.left) < (pr.right - x);
+        showVLine(leftSide ? pr.left : pr.right, pr.top, pr.height);
+        setBadge('↔ 카테고리 순서 이동', x, y);
+        return { type: 'cat', index: idx + (leftSide ? 0 : 1) };
+      }
+
+      /* 본문 가운데로 끌면 이 카테고리 안의 소그룹으로 */
+      if (under.closest('.plist')) {
+        panel.classList.add('drop-into');
+        setBadge('📁 “' + cat + '” 안의 소그룹으로 넣기', x, y, 'into');
+        return { type: 'demote', cat: cat };
+      }
+
+      /* 헤더 위/아래 = 위/아래 삽입선 */
+      var headEl = panel.querySelector('.ph');
+      var hr = headEl ? headEl.getBoundingClientRect() : pr;
+      var before = y < hr.top + hr.height / 2;
+      showHLine(pr.left + 4, pr.width - 8, before ? pr.top : pr.bottom);
+      setBadge('↕ 카테고리 순서 이동', x, y);
+      return { type: 'cat', index: idx + (before ? 0 : 1) };
+    }
+
+    return catGapTarget(panels, x, y);
+  }
+
+  function catGapTarget(panels, x, y) {
+    var rows = rowsOfPanels(panels);
+    if (!rows.length) return null;
+    var first = rows[0], last = rows[rows.length - 1];
+    if (y > last.bottom + 4) {
+      showHLine(last.left, last.right - last.left, last.bottom + 6);
+      setBadge('↕ 카테고리 맨 뒤로', x, y);
+      return { type: 'cat', index: panels.length };
+    }
+    if (y < first.top - 4) {
+      showHLine(first.left, first.right - first.left, first.top - 6);
+      setBadge('↕ 카테고리 맨 앞으로', x, y);
+      return { type: 'cat', index: 0 };
+    }
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      if (y >= row.top - 8 && y <= row.bottom + 8) {
+        var items = row.items;
+        for (var j = 0; j < items.length; j++) {
+          var it = items[j];
+          if (x < it.rect.left) {
+            showVLine(it.rect.left - 4, row.top, row.bottom - row.top);
+            setBadge('↔ 카테고리 순서 이동', x, y);
+            return { type: 'cat', index: it.index };
+          }
+          if (x <= it.rect.right) {
+            var rightSide = (x - it.rect.left) > it.rect.width / 2;
+            showVLine(rightSide ? it.rect.right : it.rect.left, row.top, row.bottom - row.top);
+            setBadge('↔ 카테고리 순서 이동', x, y);
+            return { type: 'cat', index: it.index + (rightSide ? 1 : 0) };
+          }
+        }
+        var end = items[items.length - 1];
+        showVLine(end.rect.right, row.top, row.bottom - row.top);
+        setBadge('↔ 카테고리 순서 이동', x, y);
+        return { type: 'cat', index: end.index + 1 };
+      }
+      var next = rows[i + 1];
+      if (next && y > row.bottom && y < next.top) {
+        showHLine(next.left, next.right - next.left, (row.bottom + next.top) / 2);
+        setBadge('↕ 카테고리 순서 이동', x, y);
+        return { type: 'cat', index: next.items[0].index };
+      }
+    }
+    return null;
+  }
+
+  function grpTarget(under, x, y) {
+    var panel = under.closest('.panel');
+    if (!panel) {
+      showPromoteZone();
+      setBadge('⬆ 독립 카테고리로 꺼내기', x, y, 'out');
+      return { type: 'promote' };
+    }
+    autoExpandPanel(panel);
+    var cat = panel.dataset.cat;
+    var grp = under.closest('.grp');
+    if (grp) {
+      autoExpandGroup(grp);
+      if (grp === drag.source) return null;
+      var tg = grp.dataset.group || '';
+      var head = grp.querySelector('.grp-head');
+      var hr = head.getBoundingClientRect();
+      var gr = grp.getBoundingClientRect();
+      var after;
+      if (y < hr.top) after = false;
+      else if (y > hr.top + hr.height / 2) after = true;
+      else after = false;
+      if (y > gr.bottom) after = true;
+      grp.classList.add('drop-into');
+      showHLine(gr.left + 4, gr.width - 8, after ? gr.bottom : gr.top);
+      setBadge(cat !== drag.cat ? '📂 “' + cat + ' › ' + tg + '”로 소그룹 이동' : '↕ 소그룹 순서 이동', x, y, cat !== drag.cat ? 'into' : '');
+      return { type: 'grp', cat: cat, group: tg, after: after, append: false };
+    }
+    var list = panel.querySelector('.plist');
+    if (!list) return null;
+    var lr = list.getBoundingClientRect();
+    showHLine(lr.left + 8, lr.width - 16, lr.bottom - 6);
+    setBadge('📂 “' + cat + '”의 소그룹으로 이동', x, y, cat !== drag.cat ? 'into' : '');
+    return { type: 'grp', cat: cat, group: null, after: true, append: true };
   }
 
   function autoScroll() {
@@ -1990,21 +2692,26 @@
     return at;
   }
 
-  function moveCategoryTo(from, to, after) {
+  function moveCategoryToIndex(from, index) {
     var cats = state.data.cats;
-    var fi = catIndex(from), ti = catIndex(to);
-    if (fi < 0 || ti < 0 || from === to) return false;
+    var fi = catIndex(from);
+    if (fi < 0) return false;
+    if (index === fi || index === fi + 1) return false;
     var c = cats.splice(fi, 1)[0];
-    ti = catIndex(to);
-    if (ti < 0) ti = cats.length;
-    if (after) ti = ti + 1;
-    cats.splice(ti, 0, c);
+    if (index > fi) index--;
+    index = Math.max(0, Math.min(cats.length, index));
+    cats.splice(index, 0, c);
     return true;
   }
 
   /* ---------------------------------------------------------------- events */
   function bind() {
     $('#btnEdit').onclick = function () { if (state.data) startEdit(); };
+
+    $('#btnFold').onclick = function () {
+      if (!state.data) return;
+      foldAll(!everythingCollapsed());
+    };
 
     $('#btnTheme').onclick = function () {
       if (!state.data) return;
@@ -2083,6 +2790,7 @@
       var typing = /INPUT|TEXTAREA|SELECT/.test(tag) || (document.activeElement && document.activeElement.isContentEditable);
       if (e.key === '/' && !typing) { e.preventDefault(); q.focus(); q.select(); }
       if (e.key === 'Escape') {
+        if (!$('#ctxMenu').classList.contains('hidden')) { closeCtx(); return; }
         if (!$('#ovl').classList.contains('hidden')) { closeModal(); return; }
         if (state.edit) { cancelEdit(); return; }
       }
@@ -2102,15 +2810,20 @@
         var a = actEl.dataset.act;
         var panel = actEl.closest('.panel');
         if (a === 'collapse') { toggleCollapse(panel.dataset.cat); return; }
+        if (a === 'open-all') {
+          openAllLinks(state.data.links.filter(function (l) { return l.cat === panel.dataset.cat; }), '“' + panel.dataset.cat + '”');
+          return;
+        }
         if (a === 'add-here') { openLinkModal(null, panel ? panel.dataset.cat : null); return; }
         if (a === 'cat-del') { removeCategory(panel.dataset.cat); return; }
         if (a === 'addcat') { addCategory(); return; }
         if (a === 'g-add') { addGroup(panel.dataset.cat); return; }
-        if (a === 'gtoggle' || a === 'g-ren' || a === 'g-del') {
+        if (a === 'gtoggle' || a === 'g-ren' || a === 'g-del' || a === 'g-open-all') {
           var grp = actEl.closest('.grp');
           if (!grp) return;
           if (a === 'gtoggle') toggleGroup(grp.dataset.cat, grp.dataset.group);
           else if (a === 'g-ren') renameGroup(grp.dataset.cat, grp.dataset.group);
+          else if (a === 'g-open-all') openAllLinks(state.data.links.filter(function (l) { return l.cat === grp.dataset.cat && l.group === grp.dataset.group; }), '“' + grp.dataset.group + '”');
           else removeGroup(grp.dataset.cat, grp.dataset.group);
           return;
         }
@@ -2146,6 +2859,48 @@
     });
     $('#root').addEventListener('keydown', function (e) {
       if (e.target.classList && e.target.classList.contains('cat-name') && e.key === 'Enter') e.target.blur();
+    });
+
+    /* 제목 더블클릭 → 그 자리에서 이름 바꾸기 */
+    $('#root').addEventListener('dblclick', function (e) {
+      var h2 = e.target.closest('.ph h2');
+      if (h2) {
+        var panel = h2.closest('.panel');
+        inlineEditName(h2, panel.dataset.cat, function (v) {
+          if (renameCategory(panel.dataset.cat, v)) { renderAll(); changed(); toast('“' + v + '”로 바꿨습니다'); }
+        });
+        return;
+      }
+      var gn = e.target.closest('.gname');
+      if (gn) {
+        var grp = gn.closest('.grp');
+        inlineEditName(gn, grp.dataset.group, function (v) {
+          if (renameGroupTo(grp.dataset.cat, grp.dataset.group, v)) { renderAll(); changed(); toast('“' + v + '”로 바꿨습니다'); }
+        });
+      }
+    });
+
+    /* 오른쪽 버튼 메뉴 */
+    $('#root').addEventListener('contextmenu', function (e) {
+      var link = e.target.closest('.lk');
+      if (link && link.dataset.id) {
+        e.preventDefault(); closeCtx(); linkCtx(linkById(link.dataset.id), e.clientX, e.clientY); return;
+      }
+      var gh = e.target.closest('.grp-head');
+      if (gh) {
+        var g = gh.closest('.grp');
+        e.preventDefault(); closeCtx(); groupCtx(g.dataset.cat, g.dataset.group, e.clientX, e.clientY); return;
+      }
+      var ph = e.target.closest('.ph');
+      if (ph) {
+        var p = ph.closest('.panel');
+        e.preventDefault(); closeCtx(); categoryCtx(p.dataset.cat, e.clientX, e.clientY); return;
+      }
+      closeCtx();
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest || !e.target.closest('#ctxMenu')) closeCtx();
     });
 
     /* --- drag & drop --- */
