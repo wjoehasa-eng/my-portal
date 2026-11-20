@@ -1,6 +1,12 @@
 /**
- * 나만의 북마크 포털 — 구글 시트 백엔드 (Google Apps Script) v1.1.0
+ * 나만의 북마크 포털 — 구글 시트 백엔드 (Google Apps Script) v2.0.0
  * ==========================================================
+ * v2.0.0 (2026-11-20)
+ *  · 링크 탭에 8번째 열 「그룹」 추가 — 카테고리 안의 소그룹(하위 층위)
+ *  · 카테고리 설정에 소그룹 목록 추가: `업무|#3b82f6|수업 준비;행정·공문`
+ *  · 접힘 상태 저장: 설정 탭의 「접힘」(카테고리) / 「접힘그룹」(소그룹)
+ *  · 기존 7열 시트도 그대로 동작합니다(헤더가 없으면 자동으로 채웁니다).
+ *
  * 쓰는 법 (한 번만, 약 3분)
  *  1. 이 스크립트를 붙일 시트를 엽니다.
  *     (예: 드라이브의 「[비공개] 나만의 북마크 포털」)
@@ -16,10 +22,11 @@
  * 코드를 고친 뒤에는 반드시 배포 → 배포 관리 → 수정(연필) → 버전: 새 버전 → 배포.
  *
  * 시트 구성 (없으면 자동으로 만듭니다)
- *  · 링크 : 카테고리 | 이름 | 아이콘 | URL | 설명 | 순서 | 핀고정(Y/N)
+ *  · 링크 : 카테고리 | 이름 | 아이콘 | URL | 설명 | 순서 | 핀고정(Y/N) | 그룹
  *  · 설정 : 항목 | 값 | 비고
- *           포털제목 / 테마(auto·light·dark) / 카테고리 / 메모
- *           '카테고리' 값은 화면 순서대로 `수업·학급|#f97316, 도구|#3b82f6` 처럼 저장됩니다(색은 생략 가능).
+ *           포털제목 / 테마(auto·light·dark) / 카테고리 / 메모 / 접힘 / 접힘그룹
+ *           '카테고리' 값은 화면 순서대로 `수업·학급|#f97316|수업 준비;행정, 도구|#3b82f6` 처럼 저장됩니다
+ *           (색은 생략 가능, 세 번째 값은 그 카테고리의 소그룹 목록).
  *
  * API (브라우저는 JSONP GET 또는 text/plain POST 둘 다 사용할 수 있습니다)
  *  ?action=ping                         연결 확인
@@ -41,21 +48,21 @@
 /** 스프레드시트 ID. 시트에 붙인(컨테이너 바인딩) 스크립트라면 비워 두세요. */
 var SHEET_ID = '';
 
-var BACKEND_VERSION = '1.1.0';
+var BACKEND_VERSION = '2.0.0';
 
 var TABS = { links: '링크', settings: '설정' };
 
 var HEADERS = {
-  links: ['카테고리', '이름', '아이콘', 'URL', '설명', '순서', '핀고정'],
+  links: ['카테고리', '이름', '아이콘', 'URL', '설명', '순서', '핀고정', '그룹'],
   settings: ['항목', '값', '비고']
 };
 
 var DEFAULT_CATEGORIES = [
-  { name: '업무', color: '#3b82f6' },
-  { name: '학습', color: '#10b981' },
-  { name: '도구', color: '#8b5cf6' },
-  { name: '커뮤니티', color: '#f59e0b' },
-  { name: '개인', color: '#ec4899' }
+  { name: '업무', color: '#3b82f6', groups: [] },
+  { name: '학습', color: '#10b981', groups: [] },
+  { name: '도구', color: '#8b5cf6', groups: [] },
+  { name: '커뮤니티', color: '#f59e0b', groups: [] },
+  { name: '개인', color: '#ec4899', groups: [] }
 ];
 
 /* ------------------------------------------------------------------ 라우팅 */
@@ -162,6 +169,21 @@ function tab_(ss, name, headers) {
     sh.setFrozenRows(1);
     sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
   }
+  return ensureColumns_(sh, headers);
+}
+
+/** 예전 시트(열이 모자라거나 새 열이 생긴 경우)에도 헤더와 열을 맞춰 둡니다. */
+function ensureColumns_(sh, headers) {
+  var maxCols = sh.getMaxColumns();
+  if (maxCols < headers.length) sh.insertColumnsAfter(maxCols, headers.length - maxCols);
+  var cur = sh.getRange(1, 1, 1, headers.length).getValues()[0];
+  var changed = false;
+  headers.forEach(function (h, i) {
+    if (String(cur[i] || '').trim() !== h) { cur[i] = h; changed = true; }
+  });
+  if (changed) {
+    sh.getRange(1, 1, 1, headers.length).setValues([cur]).setFontWeight('bold');
+  }
   return sh;
 }
 
@@ -188,6 +210,8 @@ function setup_() {
   if (!have['테마']) add.push(['테마', 'auto', 'auto / light / dark']);
   if (!have['카테고리']) add.push(['카테고리', categoriesToText_(DEFAULT_CATEGORIES), '카테고리|색 순서 (왼쪽부터 화면 순서)']);
   if (!have['메모']) add.push(['메모', '', '자유 메모 (포털에는 표시되지 않음)']);
+  if (!have['접힘']) add.push(['접힘', '', '접힌 카테고리 이름 (; 로 구분, 화면 상태)']);
+  if (!have['접힘그룹']) add.push(['접힘그룹', '', '접힌 소그룹 키 (카테고리»소그룹, ; 로 구분)']);
   if (add.length) sh.getRange(sh.getLastRow() + 1, 1, add.length, 3).setValues(add);
   SpreadsheetApp.flush();
 }
@@ -209,7 +233,7 @@ function read_(action) {
   var settings = readSettings_(ss);
   var categories = parseCategories_(settings['카테고리']);
   var links = readLinks_(ss, categories);
-  categories = mergeCategories_(categories, links);
+  var merged = mergeCategories_(categories, links);
 
   return {
     ok: true,
@@ -220,10 +244,27 @@ function read_(action) {
     portalTitle: settings['포털제목'] || '나만의 포털',
     theme: settings['테마'] || 'auto',
     memo: settings['메모'] || '',
-    categories: categories,
+    collapsed: splitList_(settings['접힘']),
+    collapsedGroups: splitList_(settings['접힘그룹']),
+    categories: merged,
     links: links,
     now: new Date().toISOString()
   };
+}
+
+/** ';' 로 저장된 목록을 배열로. */
+function splitList_(raw) {
+  var out = [];
+  String(raw || '').split(/[;；]/).forEach(function (s) {
+    var v = String(s).trim();
+    if (v && out.indexOf(v) < 0) out.push(v);
+  });
+  return out;
+}
+
+/** 배열을 설정 셀에 넣을 ';' 목록으로. */
+function listToText_(list) {
+  return (list || []).map(function (v) { return clean_(v); }).filter(function (v) { return !!v; }).join('; ');
 }
 
 function readSettings_(ss) {
@@ -246,7 +287,7 @@ function readSettings_(ss) {
   return out;
 }
 
-/** '수업·학급|#f97316, 도구' → [{name:'수업·학급',color:'#f97316'},{name:'도구',color:''}] */
+/** '수업·학급|#f97316|수업 준비;행정, 도구' → [{name:'수업·학급',color:'#f97316',groups:['수업 준비','행정']},{name:'도구',color:'',groups:[]}] */
 function parseCategories_(raw) {
   var out = [];
   String(raw || '').split(/[,，]/).forEach(function (chunk) {
@@ -255,10 +296,15 @@ function parseCategories_(raw) {
     var parts = s.split('|');
     var name = String(parts[0] || '').trim();
     var color = String(parts[1] || '').trim();
+    var groups = [];
+    String(parts[2] || '').split(/[;；]/).forEach(function (g) {
+      var v = String(g).trim();
+      if (v && groups.indexOf(v) < 0) groups.push(v);
+    });
     if (!name) return;
     var dup = false;
     out.forEach(function (c) { if (c.name === name) dup = true; });
-    if (!dup) out.push({ name: name, color: color });
+    if (!dup) out.push({ name: name, color: color, groups: groups });
   });
   return out;
 }
@@ -267,7 +313,10 @@ function categoriesToText_(list) {
   return (list || []).map(function (c) {
     var name = typeof c === 'string' ? c : c.name;
     var color = typeof c === 'string' ? '' : (c.color || '');
-    return color ? name + '|' + color : name;
+    var groups = (typeof c === 'string' ? [] : (c.groups || [])).filter(function (g) { return !!String(g).trim(); });
+    var t = color ? name + '|' + color : name;
+    if (groups.length) t += '|' + groups.join(';');
+    return t;
   }).join(', ');
 }
 
@@ -278,7 +327,16 @@ function mergeCategories_(categories, links) {
     if (!l.category) return;
     var found = false;
     out.forEach(function (c) { if (c.name === l.category) found = true; });
-    if (!found) out.push({ name: l.category, color: '' });
+    if (!found) out.push({ name: l.category, color: '', groups: [] });
+  });
+  /* 링크에만 있는 소그룹도 카테고리 목록에 올립니다. */
+  links.forEach(function (l) {
+    if (!l.category || !l.group) return;
+    out.forEach(function (c) {
+      if (c.name !== l.category) return;
+      if (!c.groups) c.groups = [];
+      if (c.groups.indexOf(l.group) < 0) c.groups.push(l.group);
+    });
   });
   return out;
 }
@@ -291,7 +349,8 @@ function readLinks_(ss, categories) {
   if (last < 2) return [];
 
   var names = (categories || []).map(function (c) { return typeof c === 'string' ? c : c.name; });
-  var values = sh.getRange(2, 1, last - 1, HEADERS.links.length).getValues();
+  var width = Math.min(HEADERS.links.length, sh.getMaxColumns());
+  var values = sh.getRange(2, 1, last - 1, width).getValues();
 
   var rows = [];
   values.forEach(function (r, i) {
@@ -306,7 +365,8 @@ function readLinks_(ss, categories) {
       url: url,
       desc: String(r[4] || '').trim(),
       order: (r[5] === '' || r[5] === null || r[5] === undefined) ? null : number_(r[5]),
-      pin: isYes_(r[6])
+      pin: isYes_(r[6]),
+      group: String(r[7] || '').trim()
     });
   });
 
@@ -361,7 +421,8 @@ function saveAll_(req) {
       url,
       clean_(pick_(l, ['d', 'desc'])),
       counters[category],
-      isYes_(pick_(l, ['p', 'pin'])) ? 'Y' : 'N'
+      isYes_(pick_(l, ['p', 'pin'])) ? 'Y' : 'N',
+      clean_(pick_(l, ['g', 'group']))
     ]);
   });
 
@@ -384,6 +445,8 @@ function saveAll_(req) {
   if (req.theme !== undefined) set['테마'] = clean_(req.theme) || 'auto';
   if (req.categories !== undefined) set['카테고리'] = categoriesToText_(req.categories);
   if (req.memo !== undefined) set['메모'] = clean_(req.memo);
+  if (req.collapsed !== undefined) set['접힘'] = listToText_(req.collapsed);
+  if (req.collapsedGroups !== undefined) set['접힘그룹'] = listToText_(req.collapsedGroups);
   writeSettings_(ss, set);
 
   SpreadsheetApp.flush();
@@ -433,7 +496,8 @@ function add_(req) {
     url,
     clean_(req.desc),
     order,
-    isYes_(req.pin) ? 'Y' : 'N'
+    isYes_(req.pin) ? 'Y' : 'N',
+    clean_(req.group)
   ]);
   SpreadsheetApp.flush();
   return { ok: true, row: sh.getLastRow() };
@@ -445,7 +509,7 @@ function update_(req) {
   var row = rowNumber_(req.row, sh);
 
   var cur = sh.getRange(row, 1, 1, HEADERS.links.length).getValues()[0];
-  var next = [cur[0], cur[1], cur[2], cur[3], cur[4], cur[5], cur[6]];
+  var next = [cur[0], cur[1], cur[2], cur[3], cur[4], cur[5], cur[6], cur[7]];
 
   if (req.category !== undefined) next[0] = clean_(req.category) || '기타';
   if (req.name !== undefined) next[1] = clean_(req.name);
@@ -454,6 +518,7 @@ function update_(req) {
   if (req.desc !== undefined) next[4] = clean_(req.desc);
   if (req.order !== undefined && req.order !== null && req.order !== '') next[5] = number_(req.order);
   if (req.pin !== undefined) next[6] = isYes_(req.pin) ? 'Y' : 'N';
+  if (req.group !== undefined) next[7] = clean_(req.group);
 
   if (!String(next[3] || '').trim()) throw new Error('URL이 필요합니다.');
   if (!String(next[1] || '').trim()) next[1] = hostOf_(next[3]);
@@ -534,7 +599,8 @@ function bulkAdd_(req) {
       url,
       clean_(pick_(it, ['d', 'desc'])),
       maxByCat[category],
-      isYes_(pick_(it, ['p', 'pin'])) ? 'Y' : 'N'
+      isYes_(pick_(it, ['p', 'pin'])) ? 'Y' : 'N',
+      clean_(pick_(it, ['g', 'group']))
     ]);
   });
 
@@ -555,6 +621,8 @@ function setSettings_(req) {
   if (req.theme !== undefined) map['테마'] = clean_(req.theme);
   if (req.memo !== undefined) map['메모'] = clean_(req.memo);
   if (req.categories !== undefined) map['카테고리'] = categoriesToText_(req.categories);
+  if (req.collapsed !== undefined) map['접힘'] = listToText_(req.collapsed);
+  if (req.collapsedGroups !== undefined) map['접힘그룹'] = listToText_(req.collapsedGroups);
   writeSettings_(ss, map);
   SpreadsheetApp.flush();
   return { ok: true };
