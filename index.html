@@ -287,13 +287,17 @@
   }
   function uid() { return 'l' + Math.random().toString(36).slice(2, 10); }
 
-  /** 새 탭으로 열되, 팝업이 막히면 같은 탭에서 연다(Enter 로 열기). */
+  /** 새 탭에서 연다. (앵커 클릭 → 안 되면 같은 탭 이동) */
   function openLink(url) {
     if (!url) return;
-    var w = null;
-    try { w = window.open(url, '_blank'); } catch (e) {}
-    if (w) { try { w.opener = null; } catch (e) {} return; }
-    location.href = url;
+    var a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    try { a.click(); } catch (e) {}
+    setTimeout(function () { if (a.parentNode) a.parentNode.removeChild(a); }, 0);
   }
 
   /** URL만 보고 흔한 사이트의 아이콘을 추측합니다(가져오기용). */
