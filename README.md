@@ -57,4 +57,5 @@ Apps Script 웹 앱을 통해 읽고 씁니다. 그래서 공용 PC에서도, �
 - 읽기는 JSONP(`?callback=`), 쓰기는 `text/plain` POST(프리플라이트 없음) → 안 되면 숨은 폼 POST → JSONP GET 순으로 시도합니다.
 - 저장은 `saveAll`로 화면 상태 전체(카테고리 순서·색 + 링크 순서)를 한 번에 덮어씁니다. 디바운스 450ms, 연속 변경은 순차 처리.
 - `?demo=1` 로 예시 데이터 화면을 볼 수 있습니다.
+- 이 저장소는 GitHub Pages( `gh-pages` 브랜치 )로 게시됩니다. 내용을 고칠 때는 `main`과 `gh-pages` 두 브랜치를 같이 갱신하세요.
 - 저장 API: `saveAll`(전체 덮어쓰기), 그리고 낱개 `add`/`update`/`remove`/`move`/`bulkAdd`/`setSettings`.
