@@ -6,6 +6,9 @@ var q = new URLSearchParams(location.search);
 var w = parseInt(q.get('w') || '1280', 10), h = parseInt(q.get('h') || '800', 10);
 var f = document.getElementById('f');
 f.style.width = w + 'px'; f.style.height = h + 'px';
-f.src = (q.get('u') || 'index.html') + (q.get('demo') === '1' ? '?demo=1' : '');
+var p = [];
+if (q.get('demo') === '1') p.push('demo=1');
+if (q.get('v')) p.push('v=' + encodeURIComponent(q.get('v')));
+f.src = (q.get('u') || 'index.html') + (p.length ? '?' + p.join('&') : '');
 </script>
 </body></html>
