@@ -2077,8 +2077,12 @@
       if (!row) return;
       var k = row.getAttribute('data-k') || '';
       if (!!inp.checked === !isTabHidden(k)) return;
-      setTabHidden(k, !inp.checked);
-      renderTabManageList();
+      var ok = setTabHidden(k, !inp.checked);
+      /* 목록 전체를 다시 그리면(label 안 체크박스) 같은 클릭이 한 번 더 들어와
+         방금 숨긴 탭이 곧바로 되살아나는 일이 있어, 이 줄만 갱신합니다. */
+      if (ok) row.classList.toggle('off', inp.checked === false);
+      else inp.checked = true;
+      updateTmHint();
     });
     renderTabManageList();
   }
@@ -2107,9 +2111,19 @@
         '<button type="button" class="tm-btn" data-tm="down"' + (i === d.tabOrder.length - 1 ? ' disabled' : '') + ' title="아래로">↓</button>' +
         '</span></div>';
     });
-    h += '<p class="tm-hint">숨긴 탭은 상단의 <b>👁</b> 단추와 이 창에서 언제든 되살릴 수 있습니다. ' +
+    h += '<p class="tm-hint" id="tmHint">숨긴 탭은 상단의 <b>👁</b> 단추와 이 창에서 언제든 되살릴 수 있습니다. ' +
       '탭은 최소 하나가 남습니다. (지금 보이는 탭 ' + nVis + '개)</p>';
     box.innerHTML = h;
+  }
+
+  /** 탭 관리 창 아래 안내줄만 갱신(목록 전체를 다시 그리지 않음). */
+  function updateTmHint() {
+    var el = $('#tmHint');
+    if (!el) return;
+    var nHidden = ((state.data && state.data.hiddenTabs) || []).length;
+    el.innerHTML = '숨긴 탭은 상단의 <b>👁</b> 단추와 이 창에서 언제든 되살릴 수 있습니다. ' +
+      '탭은 최소 하나가 남습니다. (지금 보이는 탭 ' + visibleTabKeys().length + '개' +
+      (nHidden ? ' · 숨김 ' + nHidden + '개' : '') + ')';
   }
 
   /** 탭 관리 창의 ↑↓ — 숨긴 탭까지 포함한 전체 순서에서 한 칸 옮깁니다. */
