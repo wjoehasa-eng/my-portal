@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>drag check</title>
+<style>body{font:13px/1.5 monospace;padding:16px}pre{white-space:pre-wrap}</style>
+</head><body>
+<h1>드래그 자동 점검 (임시 페이지)</h1>
+<pre id="out">준비 중…</pre>
+<iframe id="f" src="index.html?demo=1" style="width:1280px;height:900px;border:1px solid #ccc"></iframe>
+<script>
+var out = document.getElementById('out');
+var log = [];
+function say(s) { log.push(s); out.textContent = log.join('\n'); }
+
+function ev(win, type, x, y, target) {
+  var e = new win.PointerEvent(type, {
+    bubbles: true, cancelable: true, composed: true,
+    clientX: x, clientY: y, pointerId: 1, pointerType: 'mouse',
+    button: 0, buttons: type === 'pointerup' ? 0 : 1, isPrimary: true
+  });
+  (target || win).dispatchEvent(e);
+}
+
+function tileByName(doc, name) {
+  var list = doc.querySelectorAll('.lk, .solo');
+  for (var i = 0; i < list.length; i++) {
+    var nm = list[i].querySelector('.nm');
+    if (nm && nm.textContent.trim() === name) return list[i];
+  }
+  return null;
+}
+function center(el) {
+  var r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2, r: r };
+}
+
+function dragTo(win, doc, fromEl, toPoint) {
+  var c = center(fromEl);
+  ev(win, 'pointerdown', c.x, c.y, fromEl);
+  var steps = 8;
+  for (var i = 1; i <= steps; i++) {
+    var x = c.x + (toPoint.x - c.x) * i / steps;
+    var y = c.y + (toPoint.y - c.y) * i / steps;
+    ev(win, 'pointermove', x, y, win);
+  }
+  ev(win, 'pointerup', toPoint.x, toPoint.y, win);
+}
+
+function snapshot(win, doc) {
+  var solos = [];
+  doc.querySelectorAll('.solo .nm').forEach(function (n) { solos.push(n.textContent.trim()); });
+  var cats = [];
+  doc.querySelectorAll('.panel').forEach(function (p) {
+    var h = p.querySelector('.ph .cnt');
+    cats.push((p.dataset.cat || '(pin)') + ':' + (h ? h.textContent.trim() : '?'));
+  });
+  var toast = '';
+  var t = doc.querySelector('#toasts .toast');
+  if (t) toast = t.textContent.trim();
+  return { solos: solos, cats: cats, toast: toast };
+}
+
+document.getElementById('f').addEventListener('load', function () {
+  var f = this, win = f.contentWindow, doc = f.contentDocument;
+  setTimeout(function () {
+    try {
+      var before = snapshot(win, doc);
+      say('== 시작 ==\n' + JSON.stringify(before));
+
+      /* A) 카테고리 안 링크 → 단독 타일 위로 끌기 */
+      var yt = tileByName(doc, '유튜브');
+      var solo = tileByName(doc, '구글 캘린더');
+      if (!yt || !solo) { say('A: 타일을 찾지 못함'); }
+      else {
+        var sc = center(solo);
+        dragTo(win, doc, yt, { x: sc.x, y: sc.r.top + 6 });   /* 위쪽 절반 = 앞 */
+        say('A(링크→단독): ' + JSON.stringify(snapshot(win, doc)));
+      }
+
+      setTimeout(function () {
+        /* B) 카테고리 머리글 끌어 순서 바꾸기: 업무 → 맨 뒤 */
+        var up = doc.querySelector('.panel[data-cat="업무"] .cat-grip') || doc.querySelector('.panel[data-cat="업무"] .ph');
+        var panels = doc.querySelectorAll('.panel');
+        var lastP = panels[panels.length - 1];
+        if (!up || !lastP) say('B: 카테고리 머리글을 찾지 못함');
+        else {
+          var lr = lastP.getBoundingClientRect();
+          dragTo(win, doc, up, { x: lr.left + lr.width / 2, y: lr.bottom - 8 });
+          say('B(카테고리 순서): ' + JSON.stringify(snapshot(win, doc)));
+        }
+
+        setTimeout(function () {
+          /* C) 단독 타일을 카테고리 안으로 끌기 */
+          var s2 = tileByName(doc, '구글 캘린더');
+          var target = doc.querySelector('.panel .plist .lk');
+          if (!s2 || !target) say('C: 대상을 찾지 못함');
+          else {
+            var tc = center(target);
+            dragTo(win, doc, s2, { x: tc.x, y: tc.y });
+            say('C(단독→카테고리): ' + JSON.stringify(snapshot(win, doc)));
+          }
+
+          setTimeout(function () {
+            /* D) 접기/펼치기 */
+            var col = doc.querySelector('.panel .collapser');
+            if (col) {
+              col.click();
+              say('D(접기): ' + JSON.stringify({ collapsed: doc.querySelector('.panel').classList.contains('is-collapsed'), tiles: doc.querySelectorAll('.panel .plist .lk').length }));
+              doc.querySelector('.panel .collapser').click();
+            }
+            say('== 끝 ==');
+          }, 400);
+        }, 400);
+      }, 400);
+    } catch (err) {
+      say('오류: ' + (err && err.message));
+    }
+  }, 900);
+});
+</script>
+</body></html>
