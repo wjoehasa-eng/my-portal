@@ -1921,6 +1921,7 @@
     if (key && tabKeysAll(state.data).indexOf(key) < 0) return false;
     state.data.defaultTab = key;
     saveTabPrefs();
+    renderTabManageList();      /* 「시작」 표시를 옮깁니다 */
     toast('시작 탭을 “' + tabLabel(key) + '”로 했습니다');
     return true;
   }
