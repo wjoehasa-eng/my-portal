@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
-<meta name="portal-version" content="3.3.2" />
+<meta name="portal-version" content="3.3.3" />
 <title>나만의 포털</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E" />
 <style>
@@ -116,8 +116,32 @@
   .eb-act{display:flex;gap:8px;flex:none}
 
   /* ---------- 알약형 카테고리 탭 ---------- */
-  .tabs{display:flex;align-items:center;gap:6px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .tabsbar{display:flex;align-items:flex-start;gap:6px;padding:2px 0 12px}
+  .tabs{display:flex;align-items:center;gap:6px;overflow-x:auto;flex:1;min-width:0;padding:0 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .tabs::-webkit-scrollbar{display:none}
+  .tabtools{display:flex;align-items:center;gap:5px;flex:none;padding-top:2px}
+  .tabtool{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 11px;border-radius:999px;
+    border:1px solid var(--line);background:var(--panel);color:var(--mut);font-size:12.5px;font-weight:750;white-space:nowrap;box-shadow:var(--shadow-sm);transition:background .14s,color .14s,border-color .14s}
+  .tabtool:hover{color:var(--acc);border-color:color-mix(in srgb,var(--acc) 40%,var(--line));background:var(--acc-soft)}
+  .tabtool.hid{color:#a16207;background:#fef7e0;border-color:#f2dfa5}
+  html[data-theme="dark"] .tabtool.hid{color:#fbbf24;background:#2a2413;border-color:#4a3d18}
+  @media (prefers-color-scheme: dark){ html[data-theme="auto"] .tabtool.hid{color:#fbbf24;background:#2a2413;border-color:#4a3d18} }
+  .tab.drop-src{opacity:.35}
+  .drag-ghost.tabgh{border-style:dashed;background:color-mix(in srgb,var(--acc) 8%,var(--panel))}
+  /* 탭 관리 창 */
+  .tm-list{display:flex;flex-direction:column;gap:4px;max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:13px;padding:6px;background:var(--panel2)}
+  .tm-row{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:9px;background:var(--panel);border:1px solid var(--line)}
+  .tm-row.off{opacity:.6;background:var(--panel2);border-style:dashed}
+  .tm-chk{display:flex;align-items:center;flex:none}
+  .tm-chk input{width:17px;height:17px;accent-color:var(--acc);cursor:pointer}
+  .tm-nm{flex:1;min-width:0;font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tm-note{font-size:11px;color:var(--mut);flex:none}
+  .tm-ord{display:flex;gap:4px;flex:none}
+  .tm-btn{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-size:11px;font-weight:800;color:var(--mut)}
+  .tm-btn:hover:not(:disabled){color:var(--acc);border-color:var(--acc);background:var(--acc-soft)}
+  .tm-btn:disabled{opacity:.3;cursor:default}
+  .tm-hint{font-size:11.5px;color:var(--mut);margin:8px 2px 0;line-height:1.45}
+  @media (max-width:820px){ .tabtool .tt-lbl{display:none} }
   .tab{flex:none;height:36px;padding:0 16px;border-radius:999px;font-size:13.5px;font-weight:750;letter-spacing:-.2px;
     color:var(--mut);background:transparent;border:1px solid transparent;white-space:nowrap;
     transition:background .14s,color .14s,border-color .14s,transform .06s}
@@ -1283,6 +1307,7 @@
       norm.collapsed = mergeCollapsed(norm, norm.collapsed);
       mergeCollapsedGroups(norm);
       loadTabCollapsed();
+      restoreTabsFromCache(norm, prevCache);
       /* 시트에 최상위 배치가 없으면(예전 백엔드) 이 브라우저의 마지막 배치를 살려 둡니다. */
       var prevBoard = parseBoardTokens((prevCache && prevCache.board) || []);
       if (!String(data.boardOrder || '').trim() && prevBoard.length) {
@@ -1358,9 +1383,28 @@
       if (!t) return;
       (c.groups || []).forEach(function (g) { if (t.groups.indexOf(g) < 0) t.groups.push(g); });
     });
-    (cached.collapsedGroups || []).forEach(function (k) {
-      if (norm.collapsedGroups.indexOf(k) < 0) norm.collapsedGroups.push(k);
-    });
+    restoreTabsFromCache(norm, cached);
+    return norm;
+  }
+  /** 시트에 「탭 순서·숨김」(__tabs)이 없을 때만 이 브라우저 캐시에서 살립니다. */
+  function restoreTabsFromCache(norm, cached) {
+    if (!norm || !cached) return norm;
+    /* 시트 쪽에 이미 사용자가 정한 순서·숨김이 있으면 그쪽이 이깁니다. */
+    var def = tabKeysAll(norm);
+    var isDefault = (norm.tabOrder || []).join('>') === def.join('>') && !((norm.hiddenTabs || []).length);
+    if (!isDefault) return norm;
+    var raw = cached.categories || [];
+    for (var i = 0; i < raw.length; i++) {
+      var c = raw[i];
+      if (!c || String(c.name || '') !== TAB_KEY) continue;
+      var gs = (c.groups || []).slice();
+      var dec = gs.length === 1 ? decodeListBlob(gs[0]) : null;
+      if (!Array.isArray(dec) || !Array.isArray(dec[0])) return norm;
+      norm.tabOrder = dec[0].map(function (k) { return String(k == null ? '' : k); });
+      norm.hiddenTabs = (Array.isArray(dec[1]) ? dec[1] : []).map(function (k) { return String(k == null ? '' : k); });
+      normalizeTabState(norm);
+      return norm;
+    }
     return norm;
   }
 
@@ -1374,7 +1418,9 @@
       d.links.map(function (l) { return [l.cat, l.group || '', l.name, l.icon, l.url, l.desc, l.pin ? 1 : 0].join('|'); }),
       (syncBoard(d) || []).join('\n'),
       (d.collapsed || []).join(','),
-      (d.collapsedGroups || []).join(',')
+      (d.collapsedGroups || []).join(','),
+      (d.tabOrder || []).join('>'),
+      (d.hiddenTabs || []).join('>')
     ]);
   }
 
@@ -1382,6 +1428,8 @@
     var cats = [];
     var soloGroups = [];
     var pinOrder = [];
+    var tabOrder = [];
+    var hiddenTabs = [];
     (raw.categories || raw.cats || []).forEach(function (c, i) {
       var name = typeof c === 'string' ? c : c.name;
       if (!name) return;
@@ -1403,6 +1451,19 @@
         });
         return;
       }
+      if (nm === TAB_KEY) {
+        /* 예약된 「상단 탭 순서·숨김」 — [순서[], 숨김[]] 한 조각으로 저장됩니다. */
+        var rawTab = ((typeof c === 'string' ? [] : (c.groups || [])) || []).slice();
+        var decTab = rawTab.length === 1 ? decodeListBlob(rawTab[0]) : null;
+        if (Array.isArray(decTab) && Array.isArray(decTab[0])) {
+          decTab[0].forEach(function (k) { var v = String(k == null ? '' : k); if (tabOrder.indexOf(v) < 0) tabOrder.push(v); });
+          (Array.isArray(decTab[1]) ? decTab[1] : []).forEach(function (k) {
+            var v = String(k == null ? '' : k);
+            if (hiddenTabs.indexOf(v) < 0) hiddenTabs.push(v);
+          });
+        }
+        return;
+      }
       if (cats.some(function (x) { return x.name === nm; })) return;
       var gs = [];
       ((typeof c === 'string' ? [] : (c.groups || [])) || []).forEach(function (g) {
@@ -1416,6 +1477,8 @@
       var url = normalizeUrl(l.url || l.u);
       if (!url) return;
       var cat = String(l.category || l.cat || l.c || '').trim();
+      /* 예약 이름(__solo·__pins·__tabs)을 카테고리로 쓴 링크는 단독 페이지로 읽습니다. */
+      if (cat === SOLO_KEY || cat === PIN_KEY || cat === TAB_KEY) cat = '';
       links.push({
         id: uid(),
         cat: cat,
@@ -1452,8 +1515,10 @@
       theme: ['auto', 'light', 'dark'].indexOf(raw.theme) >= 0 ? raw.theme : 'auto',
       cats: cats, links: links, collapsed: collapsed, collapsedGroups: collapsedGroups, memo: raw.memo || '',
       soloGroups: soloGroups, pinOrder: pinOrder,
+      tabOrder: tabOrder, hiddenTabs: hiddenTabs,
       board: parseBoardTokens(raw.board || raw.boardOrder)
     };
+    normalizeTabState(out);
     syncBoard(out);
     return out;
   }
@@ -1505,7 +1570,19 @@
     if (sg.length) out.push({ name: SOLO_KEY, color: '#000000', groups: [encodeListBlob(sg)] });
     var pins = prunePinOrder();
     if (pins.length) out.push({ name: PIN_KEY, color: '#000000', groups: [encodeListBlob(pins)] });
+    var tabs = tabWireState(d);
+    if (tabs) out.push({ name: TAB_KEY, color: '#000000', groups: [encodeListBlob(tabs)] });
     return out;
+  }
+
+  /** 탭 순서·숨김 중 기본값과 다른 것이 있을 때만 [순서, 숨김] 한 조각. */
+  function tabWireState(d) {
+    var t = normalizeTabState(d);
+    if (!t) return null;
+    var def = tabKeysAll(d);
+    var same = t.tabOrder.length === def.length && t.tabOrder.every(function (k, i) { return k === def[i]; });
+    if (same && !t.hiddenTabs.length) return null;
+    return [t.tabOrder.slice(), t.hiddenTabs.slice()];
   }
 
   function payloadOf(d) {
@@ -1656,7 +1733,7 @@
     var d = state.data;
     var root = $('#root');
     syncBoard(d);
-    if (state.tab && state.tab.indexOf('__') !== 0 && !catByName(state.tab)) state.tab = '';
+    ensureTabVisible();
     var tab = state.tab || '';
 
     if (!d.links.length && !d.cats.length) {
@@ -1699,21 +1776,296 @@
     root.innerHTML = html;
   }
 
-  /** 알약형 탭: 전체 · 즐겨찾기 · 단독 페이지 · 각 카테고리 */
+  /* ------------------------------------------------ 상단 탭 순서 · 숨기기
+     탭 키: ''(전체) · '__pin'(📌 즐겨찾기) · '__solo'(⚡ 단독 페이지) · 카테고리 이름
+     순서와 숨김은 시트 「카테고리」 설정에 예약 이름(__tabs)으로 함께 저장됩니다.
+     (Code.gs 2.1.0 수정 없이 기존 예약 행 방식 그대로 왕복합니다.) */
+  var TAB_KEY = '__tabs';
+  var TAB_DEFAULT = ['', '__pin', '__solo'];
+
+  function tabLabel(key) {
+    key = String(key == null ? '' : key);
+    if (key === '') return '전체';
+    if (key === '__pin') return '📌 즐겨찾기';
+    if (key === '__solo') return '⚡ 단독 페이지';
+    return key;
+  }
+
+  /** 지금 데이터에 있을 수 있는 모든 탭 키(기본 순서). */
+  function tabKeysAll(d) {
+    var out = TAB_DEFAULT.slice();
+    ((d && d.cats) || []).forEach(function (c) {
+      if (c && out.indexOf(c.name) < 0) out.push(String(c.name));
+    });
+    return out;
+  }
+
+  /** 저장된 순서를 지금 카테고리에 맞춰 정리합니다(없는 탭은 빼고, 새 카테고리는 뒤에 붙임). */
+  function normalizeTabState(d) {
+    d = d || state.data;
+    if (!d) return null;
+    if (!Array.isArray(d.tabOrder)) d.tabOrder = [];
+    if (!Array.isArray(d.hiddenTabs)) d.hiddenTabs = [];
+    var all = tabKeysAll(d);
+    var order = [];
+    d.tabOrder.forEach(function (k) {
+      k = String(k == null ? '' : k);
+      if (all.indexOf(k) >= 0 && order.indexOf(k) < 0) order.push(k);
+    });
+    all.forEach(function (k) { if (order.indexOf(k) < 0) order.push(k); });
+    d.tabOrder = order;
+    d.hiddenTabs = d.hiddenTabs.map(function (k) { return String(k == null ? '' : k); })
+      .filter(function (k) { return all.indexOf(k) >= 0; });
+    return d;
+  }
+
+  function isTabHidden(key) {
+    var d = state.data;
+    return !!d && Array.isArray(d.hiddenTabs) && d.hiddenTabs.indexOf(key) >= 0;
+  }
+
+  /** 이 탭을 지금 보여 줄 수 있는지(즐겨찾기 탭은 고정된 항목이 있을 때만). */
+  function tabAvailable(key) {
+    if (key === '__pin') return pinEntries().length > 0;
+    if (key === '__solo' || key === '') return true;
+    return !!catByName(key);
+  }
+
+  /** 상단 탭 바에 실제로 그릴 탭들 — 저장된 순서대로, 숨긴 탭과 빈 탭은 빼고. */
+  function visibleTabKeys() {
+    var d = normalizeTabState();
+    if (!d) return [];
+    return d.tabOrder.filter(function (k) { return !isTabHidden(k) && tabAvailable(k); });
+  }
+
+  /** 지금 보던 탭이 숨겨졌거나 사라졌으면 남아 있는 첫 탭으로 옮깁니다. */
+  function ensureTabVisible() {
+    var vis = visibleTabKeys();
+    if (!vis.length && state.data && (state.data.hiddenTabs || []).length) {
+      /* 안전장치: 탭이 하나도 안 남으면 숨김을 모두 풉니다. */
+      state.data.hiddenTabs = [];
+      vis = visibleTabKeys();
+    }
+    if (vis.indexOf(state.tab || '') < 0) state.tab = vis.length ? vis[0] : '';
+    return vis;
+  }
+
+  /** 탭 순서·숨김을 바꾼 뒤 저장(편집 중이면 [완료] 때 함께 저장). */
+  function saveTabPrefs() {
+    if (!state.data) return;
+    if (state.demo) { paintStatus(); return; }
+    if (state.edit) { state.editDirty = true; paintStatus(); renderEditBar(); return; }
+    scheduleSave();
+  }
+
+  /** 탭 하나를 숨기거나(true) 다시 보입니다(false). */
+  function setTabHidden(key, hidden) {
+    if (!state.data) return false;
+    key = String(key == null ? '' : key);
+    normalizeTabState();
+    var hid = state.data.hiddenTabs;
+    var i = hid.indexOf(key);
+    if (hidden) {
+      if (i >= 0) return false;
+      var vis = visibleTabKeys();
+      if (vis.length <= 1) {
+        toast('탭이 하나뿐이라 더 숨길 수 없습니다. 하나는 남겨 두어야 해요.', true);
+        return false;
+      }
+      hid.push(key);
+      var wasCurrent = (state.tab || '') === key;
+      ensureTabVisible();
+      renderAll();
+      saveTabPrefs();
+      toast('👁 “' + tabLabel(key) + '” 탭을 숨겼습니다' +
+        (wasCurrent ? ' · “' + tabLabel(state.tab) + '” 탭으로 옮겼습니다' : ''),
+        false, { label: '↩ 되살리기', fn: function () { setTabHidden(key, false); } });
+      return true;
+    }
+    if (i >= 0) hid.splice(i, 1);
+    renderAll();
+    saveTabPrefs();
+    toast('“' + tabLabel(key) + '” 탭을 다시 보입니다');
+    return true;
+  }
+
+  /** 탭 하나를 beforeKey 앞으로 옮깁니다(null·없는 키면 맨 뒤). */
+  function moveTabKey(key, beforeKey) {
+    if (!state.data) return false;
+    var d = normalizeTabState();
+    var o = d.tabOrder;
+    var i = o.indexOf(key);
+    if (i < 0 || beforeKey === key) return false;
+    o.splice(i, 1);
+    var j = (beforeKey === null || beforeKey === undefined) ? -1 : o.indexOf(beforeKey);
+    if (j < 0) o.push(key); else o.splice(j, 0, key);
+    return true;
+  }
+
+  /** 지금 보이는 탭 기준으로 한 칸 옮깁니다(숨긴 탭은 제자리에 둔 채). */
+  function moveTabBy(key, delta) {
+    if (!state.data) return false;
+    var vis = visibleTabKeys();
+    var i = vis.indexOf(key);
+    if (i < 0) return false;
+    var rest = vis.filter(function (k) { return k !== key; });
+    var to = i + delta;
+    if (to < 0 || to > rest.length) return false;
+    var before = to < rest.length ? rest[to] : null;
+    if (!moveTabKey(key, before)) return false;
+    renderAll();
+    saveTabPrefs();
+    toast('“' + tabLabel(key) + '” 탭 순서를 옮겼습니다');
+    return true;
+  }
+
+  function moveTabFirst(key) {
+    var rest = visibleTabKeys().filter(function (k) { return k !== key; });
+    if (!moveTabKey(key, rest.length ? rest[0] : null)) return false;
+    renderAll(); saveTabPrefs(); toast('“' + tabLabel(key) + '” 탭을 맨 앞으로 옮겼습니다');
+    return true;
+  }
+
+  function moveTabLast(key) {
+    if (!moveTabKey(key, null)) return false;
+    renderAll(); saveTabPrefs(); toast('“' + tabLabel(key) + '” 탭을 맨 뒤로 옮겼습니다');
+    return true;
+  }
+
+  /** 알약형 탭: 전체 · 즐겨찾기 · 단독 페이지 · 각 카테고리 (+ 오른쪽 끝 ⚙ 탭 관리) */
   function tabsHtml() {
-    var d = state.data, tab = state.tab || '';
-    var pins = pinEntries().length;
-    var solos = soloLinks().length + childGroups('', '').length;
-    var h = '<div class="tabs" id="tabs">';
-    h += tabBtn('', '전체', !tab);
-    if (pins) h += tabBtn('__pin', '📌 즐겨찾기', tab === '__pin');
-    h += tabBtn('__solo', '⚡ 단독 페이지', tab === '__solo');
-    d.cats.forEach(function (c) { h += tabBtn(c.name, c.name, tab === c.name); });
-    return h + '</div>';
+    var tab = state.tab || '';
+    var vis = visibleTabKeys();
+    var nHidden = (state.data.hiddenTabs || []).length;
+    var h = '<div class="tabsbar"><div class="tabs" id="tabs" role="tablist">';
+    vis.forEach(function (k) { h += tabBtn(k, tabLabel(k), tab === k); });
+    h += '</div><div class="tabtools">';
+    if (nHidden) {
+      h += '<button type="button" class="tabtool hid" data-tabtools="manage" title="숨긴 탭 ' + nHidden +
+        '개 — 눌러서 되살리기">👁 <b>' + nHidden + '</b></button>';
+    }
+    h += '<button type="button" class="tabtool" data-tabtools="manage" aria-label="탭 관리" ' +
+      'title="탭 관리 — 순서 바꾸기 · 숨기기">⚙<span class="tt-lbl">탭 관리</span></button>';
+    h += '</div></div>';
+    return h;
   }
 
   function tabBtn(key, label, on) {
-    return '<button class="tab' + (on ? ' on' : '') + '" data-tab="' + esc(key) + '" type="button">' + esc(label) + '</button>';
+    return '<button class="tab' + (on ? ' on' : '') + '" data-tab="' + esc(key) + '" type="button" role="tab"' +
+      (on ? ' aria-selected="true"' : ' aria-selected="false"') +
+      ' title="' + esc(label + '\n끌어서 순서 바꾸기 · 오른쪽 버튼으로 숨기기') + '">' + esc(label) + '</button>';
+  }
+
+  /* ------------------------------------------------ 탭 관리 창 */
+  function openTabManage() {
+    if (!state.data) return;
+    normalizeTabState();
+    openModal(
+      '<div class="sh-head"><h3>⚙ 탭 관리</h3><button class="x" id="mX">✕</button></div>' +
+      '<p style="font-size:12.5px;color:var(--mut);margin:0 0 12px;line-height:1.5">' +
+        '체크를 풀면 상단 탭 바에서 숨깁니다. <b>↑↓</b>로 순서를 바꾸고, 상단 탭을 <b>끌어서</b> 순서를 바꿀 수도 있어요.</p>' +
+      '<div class="tm-list" id="tmList"></div>' +
+      '<div class="sh-foot"><button class="btn" id="tmReset">↺ 처음 상태로</button>' +
+      '<button class="btn primary" id="tmDone">완료</button></div>'
+    );
+    $('#mX').onclick = $('#tmDone').onclick = closeModal;
+    $('#tmReset').onclick = function () {
+      state.data.tabOrder = tabKeysAll(state.data);
+      state.data.hiddenTabs = [];
+      ensureTabVisible();
+      renderAll();
+      saveTabPrefs();
+      renderTabManageList();
+      toast('탭 순서와 숨김을 처음 상태로 돌렸습니다');
+    };
+    $('#tmList').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-tm]');
+      if (!b) return;
+      e.preventDefault();
+      var row = b.closest('.tm-row');
+      if (!row) return;
+      var k = row.getAttribute('data-k') || '';
+      moveTabRow(k, b.getAttribute('data-tm') === 'up' ? -1 : 1);
+    });
+    $('#tmList').addEventListener('change', function (e) {
+      var inp = e.target;
+      if (!inp || !inp.dataset || inp.dataset.tm !== 'show') return;
+      var row = inp.closest('.tm-row');
+      if (!row) return;
+      var k = row.getAttribute('data-k') || '';
+      if (!!inp.checked === !isTabHidden(k)) return;
+      setTabHidden(k, !inp.checked);
+      renderTabManageList();
+    });
+    renderTabManageList();
+  }
+
+  function renderTabManageList() {
+    var box = $('#tmList');
+    if (!box || !state.data) return;
+    var d = normalizeTabState();
+    var nVis = visibleTabKeys().length;
+    var h = '';
+    d.tabOrder.forEach(function (k, i) {
+      var hidden = isTabHidden(k);
+      var avail = tabAvailable(k);
+      var note = '';
+      if (k === '__pin' && !avail) note = '고정된 항목 없음';
+      else if (!avail) note = '없는 카테고리';
+      h += '<div class="tm-row' + (hidden ? ' off' : '') + '" data-k="' + esc(k) + '">' +
+        '<label class="tm-chk"><input type="checkbox" data-tm="show"' + (hidden ? '' : ' checked') +
+          (avail || hidden ? '' : ' disabled') + ' aria-label="' + esc(tabLabel(k) + ' 표시') + '" /></label>' +
+        '<span class="tm-nm">' + esc(tabLabel(k)) + '</span>' +
+        (note ? '<span class="tm-note">' + esc(note) + '</span>' : '') +
+        '<span class="tm-ord">' +
+        '<button type="button" class="tm-btn" data-tm="up"' + (i === 0 ? ' disabled' : '') + ' title="위로">↑</button>' +
+        '<button type="button" class="tm-btn" data-tm="down"' + (i === d.tabOrder.length - 1 ? ' disabled' : '') + ' title="아래로">↓</button>' +
+        '</span></div>';
+    });
+    h += '<p class="tm-hint">숨긴 탭은 상단의 <b>👁</b> 단추와 이 창에서 언제든 되살릴 수 있습니다. ' +
+      '탭은 최소 하나가 남습니다. (지금 보이는 탭 ' + nVis + '개)</p>';
+    box.innerHTML = h;
+  }
+
+  /** 탭 관리 창의 ↑↓ — 숨긴 탭까지 포함한 전체 순서에서 한 칸 옮깁니다. */
+  function moveTabRow(key, delta) {
+    var d = normalizeTabState();
+    var o = d.tabOrder;
+    var i = o.indexOf(key);
+    var to = i + delta;
+    if (i < 0 || to < 0 || to >= o.length) return;
+    o.splice(i, 1);
+    o.splice(to, 0, key);
+    ensureTabVisible();
+    renderAll();
+    saveTabPrefs();
+    renderTabManageList();
+  }
+
+  /** 탭 우클릭 메뉴 */
+  function tabCtx(key, x, y) {
+    var nHidden = (state.data.hiddenTabs || []).length;
+    var vis = visibleTabKeys();
+    var items = [
+      { ic: '👁', label: '이 탭 숨기기', fn: function () { setTabHidden(key, true); } },
+      '-',
+      { ic: '←', label: '한 칸 왼쪽으로', fn: function () { moveTabBy(key, -1); } },
+      { ic: '→', label: '한 칸 오른쪽으로', fn: function () { moveTabBy(key, 1); } },
+      { ic: '⇤', label: '맨 앞으로', fn: function () { moveTabFirst(key); } },
+      { ic: '⇥', label: '맨 뒤로', fn: function () { moveTabLast(key); } }
+    ];
+    if (vis.length <= 1) items[0].danger = false;
+    if (nHidden) {
+      items.push('-', { ic: '👁', label: '숨긴 탭 ' + nHidden + '개 모두 보이기', fn: function () {
+        state.data.hiddenTabs = [];
+        ensureTabVisible();
+        renderAll();
+        saveTabPrefs();
+        toast('숨긴 탭을 모두 다시 보입니다');
+      } });
+    }
+    items.push('-', { ic: '⚙', label: '탭 관리…', fn: openTabManage });
+    openCtx(x, y, '🗂 ' + tabLabel(key), items);
   }
 
   /** 저장된 순서(board 토큰)대로 카테고리 밖 단독 페이지 목록. */
@@ -2308,6 +2660,13 @@
       if (state.snapshot.board) state.data.board = state.snapshot.board.slice();
       state.data.title = state.snapshot.title;
       state.data.theme = state.snapshot.theme;
+      /* 탭 순서·숨김, 즐겨찾기, 단독 폴더, 접힘도 편집 전으로 */
+      if (Array.isArray(state.snapshot.tabOrder)) state.data.tabOrder = state.snapshot.tabOrder.slice();
+      if (Array.isArray(state.snapshot.hiddenTabs)) state.data.hiddenTabs = state.snapshot.hiddenTabs.slice();
+      if (Array.isArray(state.snapshot.pinOrder)) state.data.pinOrder = state.snapshot.pinOrder.slice();
+      if (Array.isArray(state.snapshot.soloGroups)) state.data.soloGroups = state.snapshot.soloGroups.slice();
+      if (Array.isArray(state.snapshot.collapsed)) state.data.collapsed = state.snapshot.collapsed.slice();
+      if (Array.isArray(state.snapshot.collapsedGroups)) state.data.collapsedGroups = state.snapshot.collapsedGroups.slice();
       syncBoard(state.data);
     }
     state.edit = false;
@@ -2367,6 +2726,7 @@
     if (name === null) return;
     name = name.trim();
     if (!name) return;
+    if (name.indexOf('__') === 0) { toast('“__”로 시작하는 이름은 쓸 수 없습니다.', true); return; }
     if (catIndex(name) >= 0) { toast('이미 있는 카테고리입니다.', true); return; }
     state.data.cats.push({ name: name, color: COLORS[state.data.cats.length % COLORS.length] });
     syncBoard(state.data);
@@ -2406,10 +2766,14 @@
   function renameCategory(from, to) {
     to = String(to || '').trim();
     if (!to || to === from) return false;
+    if (to.indexOf('__') === 0) { toast('“__”로 시작하는 이름은 쓸 수 없습니다.', true); return false; }
     if (catIndex(to) >= 0) { toast('이미 있는 이름입니다.', true); return false; }
     var i = catIndex(from);
     if (i < 0) return false;
     state.data.cats[i].name = to;
+    /* 상단 탭 순서·숨김도 새 이름을 따라갑니다. */
+    state.data.tabOrder = (state.data.tabOrder || []).map(function (k) { return k === from ? to : k; });
+    state.data.hiddenTabs = (state.data.hiddenTabs || []).map(function (k) { return k === from ? to : k; });
     state.data.links.forEach(function (l) { if (l.cat === from) l.cat = to; });
     var ci = (state.data.collapsed || []).indexOf(from);
     if (ci >= 0) state.data.collapsed[ci] = to;
@@ -3703,7 +4067,7 @@
       var chain = folderChain(a);
       while (chain.length && ROOT_FOLDERS.indexOf(chain[0].toLowerCase()) >= 0) chain.shift();
       /* 1단계 폴더 = 카테고리, 그 아래는 폴더 경로(A/B/C), 최상위 직속 링크는 단독 페이지 */
-      var cat = chain.length ? chain[0].trim() : '';
+      var cat = chain.length ? chain[0].trim().replace(/^_+/, '') : '';
       var group = chain.slice(1).map(cleanLeaf).filter(Boolean).join('/');
       out.push({ cat: cat, group: group, name: name, url: href, icon: guessIcon(href, name) });
     });
@@ -3973,8 +4337,28 @@
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     var t = e.target;
     if (!t || !t.closest) return;
-    if (t.closest('.ctools,.collapser,.gchev-btn,.open-mini,.gbtn,.add-mini,.ed-head,.add-group,.dots,input,select,textarea,#ctxMenu,#ovl,.cat-name')) return;
+    if (t.closest('.ctools,.collapser,.gchev-btn,.open-mini,.gbtn,.add-mini,.ed-head,.add-group,.dots,input,select,textarea,#ctxMenu,#ovl,.cat-name,.tabtool')) return;
     if (state.query.trim() || !state.data) return;
+
+    /* 상단 탭 — 짧게 누르면 탭 전환(click), 끌면 순서 이동 */
+    var tabEl = t.closest('.tab');
+    if (tabEl && tabEl.dataset.tab !== undefined) {
+      pending = {
+        kind: 'tab', pointerType: e.pointerType || 'mouse',
+        startX: e.clientX, startY: e.clientY, lastX: e.clientX, lastY: e.clientY,
+        source: tabEl, key: tabEl.dataset.tab || '', panel: null, cat: '', group: null, id: null,
+        pointerId: e.pointerId
+      };
+      window.addEventListener('pointermove', onMove, { passive: false });
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onCancel);
+      if (pending.pointerType === 'touch') {
+        pending.timer = setTimeout(function () {
+          if (pending && !drag) beginDrag(pending.startX, pending.startY);
+        }, 230);
+      }
+      return;
+    }
 
     var chip = t.closest('.lk');
     var soloEl = t.closest('.solo');
@@ -4038,6 +4422,26 @@
 
     var target = drag.target;
     var kind = drag.kind;
+
+    /* 상단 탭 순서 이동 */
+    if (kind === 'tab') {
+      var tabMoved = false;
+      if (target && target.type === 'tab') {
+        var rest = visibleTabKeys().filter(function (k) { return k !== drag.key; });
+        var beforeTab = target.index < rest.length ? rest[target.index] : null;
+        var prevOrder = (state.data.tabOrder || []).join('\u0001');
+        if (moveTabKey(drag.key, beforeTab) && (state.data.tabOrder || []).join('\u0001') !== prevOrder) tabMoved = true;
+      }
+      endDrag();
+      state.suppressClick = Date.now() + 340;
+      if (tabMoved) {
+        renderAll();
+        saveTabPrefs();
+        toast('“' + tabLabel(drag.key) + '” 탭 순서를 옮겼습니다');
+      }
+      return;
+    }
+
     var autoCats = drag.autoCollapsed ? drag.autoCollapsed.slice() : [];
     var autoGroups = drag.autoGroups ? drag.autoGroups.slice() : [];
     var snap = null, res = null, msg = '';
@@ -4129,8 +4533,12 @@
     drag.rect = r;
 
     var g = document.createElement('div');
-    g.className = 'drag-ghost' + (drag.kind === 'cat' ? ' cat' : drag.kind === 'grp' ? ' grp' : '');
-    if (drag.kind === 'cat') {
+    g.className = 'drag-ghost' + (drag.kind === 'cat' ? ' cat' : drag.kind === 'grp' ? ' grp' : drag.kind === 'tab' ? ' tabgh' : '');
+    if (drag.kind === 'tab') {
+      g.innerHTML = '<span class="gl">⠿</span><span class="nm">' + esc(tabLabel(drag.key)) + '</span>';
+      g.style.width = Math.min(Math.max(r.width, 110), 250) + 'px';
+      g.style.height = '38px';
+    } else if (drag.kind === 'cat') {
       g.innerHTML = '<span class="gl">⠿</span><span class="nm">' + esc(drag.cat) + '</span>';
       g.style.width = Math.min(Math.max(r.width, 140), 280) + 'px';
       g.style.height = '42px';
@@ -4152,7 +4560,7 @@
     drag.offX = Math.min(r.width / 2, 150);
     drag.offY = Math.min(r.height, 60) + 28;
     moveGhost(x, y);
-    drag.raf = requestAnimationFrame(autoScroll);
+    if (drag.kind !== 'tab') drag.raf = requestAnimationFrame(autoScroll);
     if (drag.kind === 'link' && drag.cat) showSoloZone();
   }
 
@@ -4168,11 +4576,34 @@
   function updateTarget(x, y) {
     clearMarks();
     drag.target = null;
+    if (drag.kind === 'tab') { drag.target = tabTarget(x, y); return; }
     var under = document.elementFromPoint(x, y);
     if (!under || !under.closest) return;
     if (drag.kind === 'link') drag.target = linkTarget(under, x, y);
     else if (drag.kind === 'cat') drag.target = catTarget(under, x, y);
     else if (drag.kind === 'grp') drag.target = grpTarget(under, x, y);
+  }
+
+  /** 끌고 있는 탭이 들어갈 자리 — 탭 사이의 세로 삽입선으로 보여 줍니다. */
+  function tabTarget(x, y) {
+    var bar = $('#tabs');
+    if (!bar) return null;
+    var br = bar.getBoundingClientRect();
+    if (y < br.top - 46 || y > br.bottom + 26) return null;
+    var els = $$('.tab', bar).filter(function (el) { return el !== drag.source; });
+    if (!els.length) return null;
+    var idx = els.length, left = 0, top = br.top, height = 34;
+    for (var i = 0; i < els.length; i++) {
+      var r = els[i].getBoundingClientRect();
+      if (x < r.left + r.width / 2) { idx = i; left = r.left - 3; top = r.top; height = r.height; break; }
+    }
+    if (idx === els.length) {
+      var last = els[els.length - 1].getBoundingClientRect();
+      left = last.right + 3; top = last.top; height = last.height;
+    }
+    showVLine(left, top, height);
+    setBadge('↔ 탭 순서 이동', x, y);
+    return { type: 'tab', index: idx };
   }
 
   function autoExpandPanel(panel) {
@@ -4617,6 +5048,13 @@
     $('#root').addEventListener('click', function (e) {
       if (Date.now() < state.suppressClick) { e.preventDefault(); return; }
 
+      var toolEl = e.target.closest('[data-tabtools]');
+      if (toolEl) {
+        e.preventDefault();
+        openTabManage();
+        return;
+      }
+
       var tabEl = e.target.closest('[data-tab]');
       if (tabEl) {
         e.preventDefault();
@@ -4739,6 +5177,11 @@
     /* 오른쪽 버튼 메뉴 */
     $('#root').addEventListener('contextmenu', function (e) {
       if (drag && drag.active) { e.preventDefault(); return; }
+      /* 상단 탭 — 숨기기 · 순서 이동 · 탭 관리 */
+      var tabEl = e.target.closest('.tab');
+      if (tabEl && tabEl.dataset.tab !== undefined && state.data) {
+        e.preventDefault(); closeCtx(); tabCtx(tabEl.dataset.tab || '', e.clientX, e.clientY); return;
+      }
       var soloEl = e.target.closest('.solo');
       if (soloEl && soloEl.dataset.id) {
         e.preventDefault(); closeCtx(); linkCtx(linkById(soloEl.dataset.id), e.clientX, e.clientY); return;
