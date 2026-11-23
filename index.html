@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
-<meta name="portal-version" content="3.2.6" />
+<meta name="portal-version" content="3.2.7" />
 <title>나만의 포털</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E" />
 <style>
@@ -172,6 +172,8 @@
     background:var(--tile);opacity:0;transition:opacity .18s}
   .ico .fv.on{opacity:1}
   .ico .fv.uv{object-fit:cover;padding:0}
+  .ico .bdg{position:absolute;right:0;bottom:0;width:19px;height:19px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(9,14,20,.3);overflow:hidden;z-index:2}
+  .ico .bdg img{width:13px;height:13px;object-fit:contain;display:block}
   .lk img,.solo img,.ico img{-webkit-user-drag:none;user-select:none}
   .lk .nm,.solo .nm{font-size:12.5px;font-weight:650;letter-spacing:-.15px;text-align:center;
     width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
@@ -374,8 +376,13 @@
   .ico-row .ico-mini{width:42px;height:42px;border-radius:12px;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:21px;flex:none}
   .ico-row input{flex:1;min-width:0}
   .ico-row .btn{flex:none;height:38px;padding:0 11px}
+  .ico-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .ico-acts .btn{height:34px;padding:0 11px;font-size:12.5px}
   #mIconPrev.has-img{padding:0;overflow:hidden;background:var(--tile)}
   #mIconPrev.has-img img{width:100%;height:100%;object-fit:cover;display:block}
+  #mIconPrev{position:relative}
+  #mIconPrev .bdg{position:absolute;right:-2px;bottom:-2px;width:17px;height:17px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(9,14,20,.25);overflow:hidden}
+  #mIconPrev .bdg img{width:11px;height:11px;object-fit:contain;display:block}
   .ico-pick{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
   .ico-pick button{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);font-size:17px;display:flex;align-items:center;justify-content:center}
   .ico-pick button:hover{border-color:var(--acc)}
@@ -648,6 +655,158 @@
     [/링크|모음|포털|portal|북마크/i, '🧭']
   ];
   var AUTO_ICON = '🔗';
+
+  /* ------------------------------------------------ 제목 맞춤 아이콘 (자동 생성)
+     같은 구글 시트/독스라도 제목이 다르면 서로 다르게 보이도록, 제목 키워드로
+     색·심볼이 다른 SVG 아이콘을 그 자리에서 만듭니다(저장 안 함, 그릴 때마다 생성). */
+  var GLYPHS = {
+    board: '<rect x="3" y="4" width="18" height="11.5" rx="1.6"/><path d="M8 15.5v4M16 15.5v4"/><path d="M6.8 8h6M6.8 11.3h9.4"/>',
+    heart: '<path d="M12 20.2s-7-4.3-7-9.2a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 4.9-7 9.2-7 9.2z"/>',
+    check: '<rect x="4" y="4" width="16" height="16" rx="3.4"/><path d="M7.8 9.2l1.7 1.7 3-3.3"/><path d="M7.8 14.8h8.4M7.8 18h5.6"/>',
+    cal: '<rect x="3.6" y="5.4" width="16.8" height="15" rx="2.6"/><path d="M8 3.4v4M16 3.4v4M3.6 10h16.8"/><path d="M7.6 13.6h3M13.4 13.6h3M7.6 17h3"/>',
+    bubble: '<path d="M20 12.4c0 3.6-3.6 6.5-8 6.5-.9 0-1.8-.1-2.6-.3L5 21l1.2-3.3A6.1 6.1 0 0 1 4 12.4C4 8.8 7.6 5.9 12 5.9s8 2.9 8 6.5z"/>',
+    mega: '<path d="M3.6 10.3v3.4l3.3.6v-4.6z"/><path d="M6.9 9.7l10-4v12.6l-10-4z"/><path d="M17 8.6a3.9 3.9 0 0 1 0 6.8"/>',
+    stamp: '<path d="M6 3.8h7.6l4.4 4.4v12H6z"/><path d="M13.4 3.8v4.6h4.6"/><path d="M8.8 10.6h4.4M8.8 13.6h3"/><circle cx="15" cy="16.6" r="3.1"/>',
+    chart: '<path d="M4 20h16"/><rect x="5.8" y="12.4" width="3.1" height="5.6" rx="1"/><rect x="10.6" y="8.4" width="3.1" height="9.6" rx="1"/><rect x="15.4" y="5.4" width="3.1" height="12.6" rx="1"/>',
+    shield: '<path d="M12 3.4l7 2.8v5.4c0 4.2-3 7-7 8.8-4-1.8-7-4.6-7-8.8V6.2z"/><path d="M9.2 12l2 2 3.8-4"/>',
+    tray: '<path d="M4 11.6h16v1.6a8 8 0 0 1-16 0z"/><path d="M9 8.4c0-1 1-1.7 1-2.8M13.4 8.4c0-1 1-1.7 1-2.8"/>',
+    book: '<path d="M4 5.4h6a2.6 2.6 0 0 1 2.5 2.6v11A2 2 0 0 0 10.5 17H4z"/><path d="M20 5.4h-6A2.6 2.6 0 0 0 11.5 8v11A2 2 0 0 1 13.5 17H20z"/>',
+    cap: '<path d="M3 9.4L12 5l9 4.4-9 4.4z"/><path d="M7 11.4v3.9c0 1.5 2.2 2.7 5 2.7s5-1.2 5-2.7v-3.9"/>',
+    docs: '<path d="M6.4 3.6h7l4.2 4.2v12.6H6.4z"/><path d="M13.4 3.6v4.4h4.2"/><path d="M9 12h6M9 15.4h6"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 3.2v2.2M12 18.6v2.2M3.2 12h2.2M18.6 12h2.2M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/>',
+    flag: '<path d="M6.4 3.2v17.6"/><path d="M6.4 5.4c3-1.6 6.2 1.6 11.2 0v7.6c-5 1.6-8.2-1.6-11.2 0z"/>',
+    form: '<rect x="4" y="4" width="16" height="16" rx="3.2"/><path d="M7.8 9.4h8.4M7.8 13h8.4M7.8 16.6h4.4"/>',
+    bulb: '<path d="M9.6 18.4h4.8M10.2 21h3.6"/><path d="M12 3.4a6.1 6.1 0 0 0-3.6 11c.6.5 1 1.2 1.1 1.9h5c.1-.7.5-1.4 1.1-1.9A6.1 6.1 0 0 0 12 3.4z"/>',
+    leaf: '<path d="M5 19c0-8 6-13.2 14-13.2 0 8-5.2 13.2-13 13.2z"/><path d="M5 19c2-5 5-8.2 9-10.2"/>',
+    pc: '<rect x="3.4" y="4.8" width="17.2" height="11.2" rx="2"/><path d="M9 20h6M12 16v4"/>',
+    pen: '<path d="M4.4 19.6l1-4.2L15.9 4.9a2.2 2.2 0 0 1 3.2 3.1L8.6 18.6z"/><path d="M14.4 6.4l3.2 3.2"/>',
+    link: '<path d="M10.2 13.8a3.9 3.9 0 0 1 0-5.6l2.3-2.3a3.9 3.9 0 1 1 5.6 5.6l-1.5 1.5"/><path d="M13.8 10.2a3.9 3.9 0 0 1 0 5.6l-2.3 2.3a3.9 3.9 0 1 1-5.6-5.6l1.5-1.5"/>'
+  };
+
+  /* 제목 키워드 → 색·심볼. 위에서부터 먼저 맞는 것이 선택됩니다. */
+  var BADGE_KW = [
+    { re: /학급일지|학급 ?일지|학급|생활지도|생활 ?기록|상담|아동|학생 ?기록|친구/, a: '#fb7185', b: '#f97316', g: 'heart' },
+    { re: /수업일지|수업 ?기록|수업 ?일지|수업|교안|지도안|학습지|수업 ?자료|교수 ?학습|모의수업/, a: '#0ea5a4', b: '#0284c7', g: 'board' },
+    { re: /출석|출결|명렬|명단|결석|조퇴/, a: '#10b981', b: '#0d9488', g: 'check' },
+    { re: /시간표|일정|학사|달력|캘린더|월간|주간/, a: '#4f46e5', b: '#7c3aed', g: 'cal' },
+    { re: /회의|협의|회람|회의록|협의록/, a: '#8b5cf6', b: '#a855f7', g: 'bubble' },
+    { re: /가정통신|알림장|안내문|안내장|공지|소식지|가정 ?학습|학부모/, a: '#0ea5e9', b: '#38bdf8', g: 'mega' },
+    { re: /예산|품의|결재|에듀파인|지출|회계|정산|집행|계약/, a: '#f59e0b', b: '#d97706', g: 'stamp' },
+    { re: /평가|성적|채점|통계|점수|수행평가|결과 ?분석|진단/, a: '#14b8a6', b: '#0891b2', g: 'chart' },
+    { re: /학폭|안전|보건|응급|감염|재난|소방|학교폭력/, a: '#ef4444', b: '#be123c', g: 'shield' },
+    { re: /급식|식단|영양|조식|중식|석식/, a: '#fbbf24', b: '#f97316', g: 'tray' },
+    { re: /도서|독서|독후|책|도서관/, a: '#b45309', b: '#f59e0b', g: 'book' },
+    { re: /연수|교육 ?과정|강의|학습공동체|직무연수|연수회|교사 ?학습/, a: '#2563eb', b: '#3b82f6', g: 'cap' },
+    { re: /공문|시행|접수|문서|수신|발송/, a: '#475569', b: '#64748b', g: 'docs' },
+    { re: /방과후|돌봄|늘봄|엄마품|하교/, a: '#ec4899', b: '#f472b6', g: 'sun' },
+    { re: /동아리|자치|학생회|축제|행사|체육/, a: '#7c3aed', b: '#c026d3', g: 'flag' },
+    { re: /설문|신청|조사|만족도|폼|응답|수요/, a: '#22c55e', b: '#16a34a', g: 'form' },
+    { re: /프로젝트|탐구|주제|연구|메이커/, a: '#06b6d4', b: '#0ea5e9', g: 'bulb' },
+    { re: /환경|청소|분리수거|정리|학급 ?문고/, a: '#16a34a', b: '#65a30d', g: 'leaf' },
+    { re: /컴퓨터|정보|코딩|에듀테크|디지털|AI|인공지능/, a: '#3b82f6', b: '#6366f1', g: 'pc' },
+    { re: /일지|기록|로그|노트/, a: '#334155', b: '#475569', g: 'pen' },
+    { re: /링크|모음|북마크|포털|자료실|모아/, a: '#64748b', b: '#94a3b8', g: 'link' }
+  ];
+
+  /* 키워드에 안 걸리는 제목은 해시 컬러 + 첫 글자 아이콘 */
+  var BADGE_BG = [
+    ['#6366f1', '#8b5cf6'], ['#0ea5e9', '#22d3ee'], ['#f43f5e', '#fb7185'],
+    ['#10b981', '#34d399'], ['#f59e0b', '#fbbf24'], ['#14b8a6', '#06b6d4'],
+    ['#a855f7', '#d946ef'], ['#ef4444', '#f97316'], ['#3b82f6', '#6366f1'],
+    ['#84cc16', '#22c55e'], ['#e11d48', '#a21caf'], ['#0891b2', '#2563eb']
+  ];
+
+  function badgeHash(s) {
+    s = String(s || '');
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
+    return h;
+  }
+
+  /** 제목에 맞는 배지 색·심볼 */
+  function badgeSpecFor(name) {
+    var n = String(name || '');
+    if (!n) return null;
+    for (var i = 0; i < BADGE_KW.length; i++) if (BADGE_KW[i].re.test(n)) return BADGE_KW[i];
+    return null;
+  }
+
+  /** 배지 SVG를 data URI로. spec이 없으면 해시 색 + 첫 글자. */
+  function badgeSvg(name, spec) {
+    var a, b, glyph = '', text = '';
+    if (spec) { a = spec.a; b = spec.b; glyph = GLYPHS[spec.g] || ''; }
+    else {
+      var p = BADGE_BG[badgeHash(name || '링크') % BADGE_BG.length];
+      a = p[0]; b = p[1];
+      text = String(name || '').replace(/\s+/g, '').slice(0, 2) || '·';
+    }
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="96" height="96">' +
+      '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="' + a + '"/><stop offset="1" stop-color="' + b + '"/></linearGradient></defs>' +
+      '<rect width="48" height="48" fill="url(#g)"/>' +
+      (glyph
+        ? '<g transform="translate(12,12)" fill="none" stroke="#ffffff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">' + glyph + '</g>'
+        : '<text x="24" y="' + (text.length > 1 ? 30 : 31) + '" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Malgun Gothic,sans-serif" font-weight="800" font-size="' + (text.length > 1 ? 16 : 21) + '" fill="#ffffff">' + esc(text) + '</text>') +
+      '</svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+  /** 구글 문서·시트·드라이브·노션처럼 파비콘이 겹치는 주소인지 */
+  function isDocUrl(url) {
+    var u = String(url || '').toLowerCase();
+    if (/^https?:\/\/(docs|sheets|slides|forms|drive)\.google\.com/.test(u)) return true;
+    if (/^https?:\/\/(www\.)?notion\.(so|site)/.test(u)) return true;
+    if (/^https?:\/\/[^/]*google\.com\/(spreadsheets|document|presentation|forms)\//.test(u)) return true;
+    if (/^https?:\/\/([^/]*\.)?(sharepoint|onedrive|office)\.(com|live\.com)/.test(u)) return true;
+    return false;
+  }
+
+  /* 브랜드가 뚜렷한 사이트 — 제목도 그 브랜드면 파비콘을 그대로 씁니다. */
+  var BRAND_SITES = [
+    [/(^|\.)naver\.com$/, ['네이버', 'naver']],
+    [/(^|\.)youtube\.com$|^youtu\.be$/, ['유튜브', 'youtube']],
+    [/(^|\.)github\.(com|io)$/, ['깃허브', 'github']],
+    [/(^|\.)kakao\.com$/, ['카카오', 'kakao']],
+    [/(^|\.)toss\.im$/, ['토스', 'toss']],
+    [/(^|\.)coupang\.com$/, ['쿠팡', 'coupang']],
+    [/(^|\.)netflix\.com$/, ['넷플릭스', 'netflix']],
+    [/(^|\.)millie\.co\.kr$/, ['밀리', 'millie']],
+    [/(^|\.)garmin\.com$/, ['가민', 'garmin']],
+    [/(^|\.)indischool\.com$/, ['인디스쿨', 'indischool']],
+    [/(^|\.)neis\.go\.kr$/, ['나이스', 'neis']],
+    [/edufine/, ['에듀파인', 'edufine']],
+    [/^classroom\.google\.com$/, ['클래스룸', 'classroom']],
+    [/^calendar\.google\.com$/, ['캘린더', 'calendar']],
+    [/^mail\.google\.com$/, ['지메일', 'gmail', '메일']],
+    [/(^|\.)instagram\.com$/, ['인스타', 'instagram']],
+    [/(^|\.)tistory\.com$/, ['티스토리', 'tistory']],
+    [/(^|\.)melon\.com$|spotify\.com$/, ['멜론', '스포티파이', 'spotify']]
+  ];
+
+  function brandMatch(name, url) {
+    var host = hostOf(url).toLowerCase();
+    var n = String(name || '').toLowerCase();
+    for (var i = 0; i < BRAND_SITES.length; i++) {
+      if (!BRAND_SITES[i][0].test(host)) continue;
+      var ws = BRAND_SITES[i][1];
+      for (var k = 0; k < ws.length; k++) if (n.indexOf(ws[k]) >= 0) return true;
+      return false;
+    }
+    return false;
+  }
+
+  /** 자동 아이콘 계획 — 배지가 필요 없으면 null(파비콘 그대로). */
+  function autoBadgePlan(l) {
+    if (!l) return null;
+    var name = String(l.name || '').trim();
+    var url = String(l.url || '');
+    if (!name) return null;
+    if (brandMatch(name, url)) return null;
+    var spec = badgeSpecFor(name);
+    if (!spec && !isDocUrl(url)) return null;
+    return { src: badgeSvg(name, spec), brand: /^https?:/i.test(url) ? favUrl(url) : '', emoji: guessIcon(url, name) };
+  }
+
   function guessIcon(url, name) {
     var u = String(url || '').toLowerCase();
     var n = String(name || '');
@@ -1431,6 +1590,15 @@
       return '<span class="em on">' + esc(guessIcon(l.url, l.name)) + '</span>' +
         '<img class="fv uv" src="' + esc(ic) + '" alt="" decoding="async" ' +
         'onload="this.classList.add(\'on\')" onerror="this.remove()">';
+    }
+    var plan = autoIcon(l) ? autoBadgePlan(l) : null;
+    if (plan) {
+      /* 제목 맞춤 배지를 메인으로, 원 사이트 파비콘은 오른쪽 아래 작은 배지로만 */
+      var bh = '<span class="em on">' + esc(plan.emoji) + '</span>' +
+        '<img class="fv uv" src="' + esc(plan.src) + '" alt="" decoding="async" ' +
+        'onload="this.classList.add(\'on\')" onerror="this.remove()">';
+      if (plan.brand) bh += '<span class="bdg"><img src="' + esc(plan.brand) + '" alt="" onerror="this.parentNode.remove()"></span>';
+      return bh;
     }
     var em = esc(displayIcon(l));
     var src = (autoIcon(l) && /^https?:/i.test(l.url)) ? favUrl(l.url) : '';
@@ -2566,8 +2734,10 @@
       '<div class="ico-row"><input id="mImgUrl" value="' + esc(startImgUrl) + '" placeholder="이미지 주소 https://…" spellcheck="false" />' +
       '<button type="button" class="btn" id="mImgPick">🖼 파일</button>' +
       '<input type="file" id="mImgFile" accept="image/*" class="hidden" /></div>' +
-      '<span class="hint" id="mImgNote">이미지를 복사·캡처한 뒤 이 창에서 <b>Ctrl+V</b> / 파일 선택 / 이미지 주소 — 세 가지 다 됩니다. 파일·붙여넣기 이미지는 96×96으로 줄여 저장합니다.</span>' +
-      '<div style="margin-top:6px"><button type="button" class="btn ghost" id="mImgClear">↺ 자동 아이콘으로 되돌리기</button></div></div>' +
+      '<span class="hint" id="mImgNote">제목에 맞춰 자동으로 만드는 아이콘이 기본입니다. 바꾸려면 <b>Ctrl+V</b> 붙여넣기 / 파일 / 이미지 주소 / 이모지 — 언제든 1초면 됩니다.</span>' +
+      '<div class="ico-acts">' +
+      '<button type="button" class="btn" id="mIconAuto">✨ 제목으로 자동 생성</button>' +
+      '<button type="button" class="btn ghost" id="mImgClear">↺ 자동 아이콘으로 되돌리기</button></div></div>' +
       '<div class="field" style="margin-top:12px"><label for="mUrl">URL</label><input id="mUrl" value="' + esc(link ? link.url : '') + '" placeholder="https://…" spellcheck="false" /></div>' +
       '<div class="row2">' +
       '<div class="field"><label for="mCat">카테고리</label><select id="mCat">' + opts + '<option value="__new">＋ 새 카테고리…</option></select>' +
@@ -2587,7 +2757,7 @@
     /* 아이콘: 이모지 / 이미지 주소 / 파일 / 붙여넣기 — 이미지가 있으면 이미지가 우선입니다. */
     var iconVal = startIcon;
     var iconTouched = !!(link && !autoIcon(link)) || startIsImg;
-    var NOTE_DEF = '이미지를 복사·캡처한 뒤 이 창에서 <b>Ctrl+V</b> / 파일 선택 / 이미지 주소 — 세 가지 다 됩니다. 파일·붙여넣기 이미지는 96×96으로 줄여 저장합니다.';
+    var NOTE_DEF = '제목에 맞춰 자동으로 만드는 아이콘이 기본입니다. 바꾸려면 <b>Ctrl+V</b> 붙여넣기 / 파일 / 이미지 주소 / 이모지 — 언제든 1초면 됩니다.';
     function setImgNote(v) {
       var n = $('#mImgNote');
       if (n) n.innerHTML = v || NOTE_DEF;
@@ -2596,16 +2766,28 @@
       var pv = $('#mIconPrev');
       if (!pv) return;
       pv.innerHTML = '';
-      if (isImageIcon(v)) {
+      var src = '', brand = '';
+      if (v && typeof v === 'object') { src = v.src || ''; brand = v.brand || ''; }
+      else if (isImageIcon(v)) src = v;
+      if (src) {
         var im = document.createElement('img');
         im.alt = '';
-        im.src = v;
+        im.src = src;
         im.onerror = function () {
           pv.classList.remove('has-img');
           pv.textContent = '🔗';
         };
         pv.appendChild(im);
         pv.classList.add('has-img');
+        if (brand) {
+          var bd = document.createElement('span');
+          bd.className = 'bdg';
+          var bi = document.createElement('img');
+          bi.alt = ''; bi.src = brand;
+          bi.onerror = function () { bd.remove(); };
+          bd.appendChild(bi);
+          pv.appendChild(bd);
+        }
       } else {
         pv.classList.remove('has-img');
         pv.textContent = v || '🔗';
@@ -2618,7 +2800,9 @@
       var g = guessIcon(us, nm);
       iconVal = g;
       if ($('#mIcon')) $('#mIcon').value = g;
-      setIconPreview(g);
+      /* 제목에 맞춰 만든 배지가 있으면 그걸 미리 보여줍니다. */
+      var plan = autoBadgePlan({ name: nm || us, url: us });
+      setIconPreview(plan ? { src: plan.src, brand: plan.brand } : g);
     }
     function useEmoji(v) {
       if ($('#mImgUrl')) $('#mImgUrl').value = '';
@@ -2668,6 +2852,19 @@
       setImgNote('');
     });
     if ($('#mImgPick')) $('#mImgPick').onclick = function () { if ($('#mImgFile')) $('#mImgFile').click(); };
+    if ($('#mIconAuto')) $('#mIconAuto').onclick = function () {
+      var nm = ($('#mName') ? $('#mName').value : '').trim();
+      var us = ($('#mUrl') ? $('#mUrl').value : '').trim();
+      if (!nm && !us) { toast('먼저 이름이나 주소를 넣어 주세요.', true); return; }
+      var plan = autoBadgePlan({ name: nm || us, url: us });
+      if (!plan) plan = { src: badgeSvg(nm || us, null), brand: /^https?:/i.test(us) ? favUrl(us) : '', emoji: '' };
+      iconTouched = true;
+      iconVal = plan.src;                       /* 지금 모양으로 고정 */
+      if ($('#mIcon')) $('#mIcon').value = '';
+      if ($('#mImgUrl')) $('#mImgUrl').value = '';
+      setIconPreview(plan.src);
+      setImgNote('✨ “' + esc(nm || us) + '” 제목으로 만든 아이콘입니다 · 저장하면 이 모양으로 고정됩니다.');
+    };
     if ($('#mImgFile')) $('#mImgFile').onchange = function () { takeFile(this.files && this.files[0]); };
     if ($('#mImgClear')) $('#mImgClear').onclick = function () {
       iconTouched = false; iconVal = '';
