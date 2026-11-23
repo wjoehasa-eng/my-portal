@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
-<meta name="portal-version" content="3.0.0" />
+<meta name="portal-version" content="3.1.0" />
 <title>나만의 포털</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E" />
 <style>
@@ -224,6 +224,28 @@
   .ctools button:hover{background:color-mix(in srgb,var(--txt) 8%,transparent);opacity:1}
   .ctools button.on{opacity:1;background:color-mix(in srgb,var(--acc) 16%,transparent)}
   .ctools button.del:hover{color:var(--danger);background:color-mix(in srgb,var(--danger) 12%,transparent)}
+
+  /* ---------- 단독 페이지 (카테고리 밖) ---------- */
+  .solo{position:relative;display:flex;align-items:center;gap:12px;min-height:78px;padding:13px 14px 13px 16px;
+    background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 9%,var(--panel)),var(--panel) 64%);
+    border:1px solid color-mix(in srgb,var(--acc) 26%,var(--line));border-radius:var(--r);box-shadow:var(--shadow-sm);
+    cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+    transition:transform .12s,box-shadow .18s,border-color .18s}
+  .solo:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--acc) 52%,var(--line));box-shadow:var(--shadow)}
+  .solo:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+  .solo .s-ico{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:23px;line-height:1;
+    background:color-mix(in srgb,var(--acc) 13%,transparent);flex:none}
+  .solo .s-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+  .solo .s-nm{font-size:15.5px;font-weight:750;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .solo .s-ds{font-size:11.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .solo .s-go{font-size:13px;color:var(--mut);opacity:.45;flex:none;transition:opacity .12s,color .12s}
+  .solo:hover .s-go{opacity:.95;color:var(--acc)}
+  .solo.drop-src{opacity:.28;border-style:dashed;border-color:color-mix(in srgb,var(--acc) 60%,transparent);background:var(--acc-soft)}
+  .solo.drop-into{border-style:dashed;border-color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 18%,transparent)}
+  body.editing .solo{border-style:dashed}
+  #soloZone{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:170;display:none;pointer-events:none;
+    padding:13px 22px;border:2px dashed var(--ok);border-radius:14px;background:color-mix(in srgb,var(--ok) 14%,var(--panel));
+    color:var(--ok);font-size:13.5px;font-weight:800;box-shadow:var(--shadow);white-space:nowrap}
 
   /* ---------- drop indicators ---------- */
   .lk.drop-before::before,.lk.drop-after::after{
@@ -455,6 +477,7 @@
 <div id="dropLine" aria-hidden="true"></div>
 <div id="dropBadge" class="hidden" aria-hidden="true"></div>
 <div id="promoteZone" aria-hidden="true">⬆ 여기에 놓으면 독립 카테고리로 꺼내기</div>
+<div id="soloZone" aria-hidden="true">⬆ 카테고리 밖 단독 페이지로 빼기</div>
 <div id="ctxMenu" class="hidden" role="menu"></div>
 <div id="toasts"></div>
 <input type="file" id="fileInput" accept=".html,.htm,text/html" class="hidden" />
@@ -488,6 +511,79 @@
   }
   function uid() { return 'l' + Math.random().toString(36).slice(2, 10); }
   function clone(o) { try { return JSON.parse(JSON.stringify(o)); } catch (e) { return null; } }
+
+  /* ---------- 카테고리 밖 단독 페이지 ----------
+     링크의 cat 이 '' 이면 어떤 카테고리에도 묶이지 않고 최상위 그리드에
+     단독 카드로 놓입니다. 최상위 순서(카테고리 카드 + 단독 카드가 섞인 순서)는
+     data.board 에 토큰('c:카테고리이름' / 's:주소') 목록으로 보관합니다. */
+  function normKey(u) { return String(u || '').trim().replace(/\/+$/, ''); }
+  function soloToken(l) { return 's:' + normKey(l && l.url); }
+  function isSolo(l) { return !!l && !String(l.cat || '').trim(); }
+
+  function parseBoardTokens(raw) {
+    if (Array.isArray(raw)) return raw.map(function (t) { return String(t || '').trim(); }).filter(Boolean);
+    var s = String(raw == null ? '' : raw);
+    if (!s.trim()) return [];
+    return s.split(/[\r\n]+/).map(function (t) { return String(t).trim(); }).filter(Boolean);
+  }
+
+  /** data.board 를 실제 카테고리·단독 링크에 맞춰 정리합니다(없는 것은 버리고, 빠진 것은 뒤에 붙임). */
+  function syncBoard(d) {
+    if (!d) return [];
+    var catExists = {}, soloByKey = {}, catSeen = {}, soloSeen = {}, out = [];
+    (d.cats || []).forEach(function (c) { if (c && c.name) catExists[c.name] = 1; });
+    (d.links || []).forEach(function (l) {
+      if (!isSolo(l)) return;
+      var k = normKey(l.url);
+      if (k && !soloByKey[k]) soloByKey[k] = 1;
+    });
+    (Array.isArray(d.board) ? d.board : []).forEach(function (tok) {
+      tok = String(tok || '');
+      if (tok.indexOf('c:') === 0) {
+        var n = tok.slice(2);
+        if (!catExists[n] || catSeen[n]) return;
+        catSeen[n] = 1; out.push('c:' + n);
+      } else if (tok.indexOf('s:') === 0) {
+        var kk = normKey(tok.slice(2));
+        if (!soloByKey[kk] || soloSeen[kk]) return;
+        soloSeen[kk] = 1; out.push('s:' + kk);
+      }
+    });
+    (d.cats || []).forEach(function (c) {
+      if (!c || !c.name || catSeen[c.name]) return;
+      catSeen[c.name] = 1; out.push('c:' + c.name);
+    });
+    (d.links || []).forEach(function (l) {
+      if (!isSolo(l)) return;
+      var k = normKey(l.url);
+      if (!k || soloSeen[k]) return;
+      soloSeen[k] = 1; out.push('s:' + k);
+    });
+    d.board = out;
+    return out;
+  }
+
+  /** 카테고리 배열 순서를 최상위 배치 순서와 맞춥니다(시트의 카테고리 순서도 같이 유지). */
+  function syncCatsOrder() {
+    var d = state.data;
+    if (!d) return;
+    var b = syncBoard(d);
+    var pos = {};
+    b.forEach(function (t, i) { if (t.indexOf('c:') === 0) pos[t.slice(2)] = i; });
+    d.cats.sort(function (a, b2) {
+      var ia = pos[a.name], ib = pos[b2.name];
+      return (ia == null ? 9999 : ia) - (ib == null ? 9999 : ib);
+    });
+  }
+
+  function soloLinkByKey(key) {
+    key = normKey(key);
+    var arr = (state.data && state.data.links) || [];
+    for (var i = 0; i < arr.length; i++) {
+      if (isSolo(arr[i]) && normKey(arr[i].url) === key) return arr[i];
+    }
+    return null;
+  }
 
   /** 새 탭에서 연다. (앵커 클릭 → 안 되면 같은 탭 이동) */
   function openLink(url) {
@@ -552,7 +648,8 @@
     query: '', sel: -1, hits: [],
     save: 'idle', sync: 'idle',
     dirty: false, inFlight: false, again: false, clearAllowed: false,
-    banner: false, sheetUrl: '', suppressClick: 0, remote: null, backendVersion: '', backendOld: false
+    banner: false, sheetUrl: '', suppressClick: 0, remote: null, backendVersion: '', backendOld: false,
+    backendSolo: false
   };
   var drag = null, pending = null;
 
@@ -560,6 +657,8 @@
   var DEMO = {
     portalTitle: '나만의 포털',
     theme: 'auto',
+    /* 최상위 배치: 단독 카드 하나가 카테고리 카드들 사이에 섞여 있는 모습 */
+    board: ['s:https://calendar.google.com', 'c:업무', 'c:학습', 'c:도구', 'c:커뮤니티', 'c:개인'],
     categories: [
       { name: '업무', color: '#3b82f6', groups: ['수업 준비', '행정·공문'] },
       { name: '학습', color: '#10b981', groups: ['교재·자료'] },
@@ -569,8 +668,8 @@
     ],
     collapsedGroups: [],
     links: [
-      { cat: '업무', group: '', name: '구글 캘린더', icon: '📅', url: 'https://calendar.google.com', desc: '일정', pin: true },
-      { cat: '업무', group: '수업 준비', name: '구글 드라이브', icon: '📁', url: 'https://drive.google.com', desc: '문서 보관', pin: false },
+      { cat: '', group: '', name: '구글 캘린더', icon: '📅', url: 'https://calendar.google.com', desc: '카테고리 밖 단독 카드', pin: true },
+      { cat: '업무', group: '', name: '드라이브', icon: '📁', url: 'https://drive.google.com', desc: '문서 보관', pin: false },
       { cat: '업무', group: '수업 준비', name: '슬라이드', icon: '📽️', url: 'https://slides.google.com', desc: '수업 자료', pin: false },
       { cat: '업무', group: '행정·공문', name: '지메일', icon: '✉️', url: 'https://mail.google.com', desc: '', pin: false },
       { cat: '업무', group: '행정·공문', name: '슬랙', icon: '💬', url: 'https://slack.com', desc: '팀 메신저', pin: false },
@@ -722,6 +821,7 @@
         portalTitle: d.title, theme: d.theme, sheetUrl: state.sheetUrl,
         collapsed: d.collapsed, collapsedGroups: d.collapsedGroups,
         categories: d.cats.map(function (c) { return { name: c.name, color: c.color, groups: c.groups || [] }; }),
+        board: (d.board || []).slice(),
         links: d.links.map(function (l) {
           return { category: l.cat, group: l.group || '', name: l.name, icon: l.icon, url: l.url, desc: l.desc, pin: l.pin ? 'Y' : 'N' };
         }),
@@ -855,8 +955,15 @@
       state.sheetUrl = data.sheetUrl || state.sheetUrl;
       state.backendVersion = data.backendVersion || '';
       state.backendOld = !state.backendVersion || versionLt(state.backendVersion, '2.0.0');
+      state.backendSolo = !!state.backendVersion && !versionLt(state.backendVersion, '2.1.0');
       norm.collapsed = mergeCollapsed(norm, norm.collapsed);
       mergeCollapsedGroups(norm);
+      /* 시트에 최상위 배치가 없으면(예전 백엔드) 이 브라우저의 마지막 배치를 살려 둡니다. */
+      var prevBoard = parseBoardTokens((prevCache && prevCache.board) || []);
+      if (!String(data.boardOrder || '').trim() && prevBoard.length) {
+        norm.board = prevBoard;
+        syncBoard(norm);
+      }
       /* 시트에 소그룹 정보가 하나도 없으면 이 브라우저의 마지막 배치를 살려 둡니다. */
       var anyGroup = norm.links.some(function (l) { return !!l.group; });
       if (!anyGroup) mergeFromCache(norm, prevCache);
@@ -922,6 +1029,7 @@
       d.title, d.theme,
       d.cats.map(function (c) { return c.name + '|' + (c.color || '') + '|' + (c.groups || []).join(';'); }),
       d.links.map(function (l) { return [l.cat, l.group || '', l.name, l.icon, l.url, l.desc, l.pin ? 1 : 0].join('|'); }),
+      (syncBoard(d) || []).join('\n'),
       (d.collapsed || []).join(','),
       (d.collapsedGroups || []).join(',')
     ]);
@@ -945,7 +1053,7 @@
     (raw.links || []).forEach(function (l) {
       var url = normalizeUrl(l.url || l.u);
       if (!url) return;
-      var cat = String(l.category || l.cat || l.c || '').trim() || (cats[0] ? cats[0].name : '기타');
+      var cat = String(l.category || l.cat || l.c || '').trim();
       links.push({
         id: uid(),
         cat: cat,
@@ -956,7 +1064,7 @@
         desc: String(l.desc || l.d || '').trim(),
         pin: l.pin === true || l.pin === 'Y' || l.p === 'Y' || l.p === true
       });
-      if (!cats.some(function (c) { return c.name === cat; })) cats.push({ name: cat, color: COLORS[cats.length % COLORS.length], groups: [] });
+      if (cat && !cats.some(function (c) { return c.name === cat; })) cats.push({ name: cat, color: COLORS[cats.length % COLORS.length], groups: [] });
     });
     /* 링크에만 있는 소그룹도 카테고리 목록에 올려 둡니다. */
     links.forEach(function (l) {
@@ -976,11 +1084,14 @@
       if (s && collapsedGroups.indexOf(s) < 0) collapsedGroups.push(s);
     });
     if (raw.sheetUrl) state.sheetUrl = raw.sheetUrl;
-    return {
+    var out = {
       title: String(raw.portalTitle || '나만의 포털'),
       theme: ['auto', 'light', 'dark'].indexOf(raw.theme) >= 0 ? raw.theme : 'auto',
-      cats: cats, links: links, collapsed: collapsed, collapsedGroups: collapsedGroups, memo: raw.memo || ''
+      cats: cats, links: links, collapsed: collapsed, collapsedGroups: collapsedGroups, memo: raw.memo || '',
+      board: parseBoardTokens(raw.board || raw.boardOrder)
     };
+    syncBoard(out);
+    return out;
   }
 
   /* ---------------------------------------------------------------- save */
@@ -1017,6 +1128,7 @@
       categories: d.cats.map(function (c) { return { name: c.name, color: c.color, groups: c.groups || [] }; }),
       collapsed: d.collapsed || [],
       collapsedGroups: d.collapsedGroups || [],
+      boardOrder: (syncBoard(d) || []).join('\n'),
       links: links
     };
     if (!links.length && state.clearAllowed) p.clear = true;
@@ -1112,7 +1224,7 @@
       '<div class="eb-txt"><b>편집 중</b> — 여기서는 마음껏 바꿔도 시트에 바로 저장되지 않습니다.' +
       '<span class="eb-sub">' + (state.editDirty
         ? '변경사항이 있습니다. <b>완료</b>를 눌러야 시트에 저장됩니다.'
-        : '카드를 끌어 배치를 바꾸고, 🗑 삭제·✏️ 수정을 하세요.') + '</span></div>' +
+        : '카드를 끌어 배치를 바꾸고, 🗑 삭제·✏️ 수정을 하세요. 카테고리 밖으로 끌면 단독 페이지가 됩니다.') + '</span></div>' +
       '<div class="eb-act">' +
       '<button class="btn" id="ebCancel">↩ 취소 (원래대로)</button>' +
       '<button class="btn primary" id="ebDone">✓ 완료</button>' +
@@ -1152,6 +1264,7 @@
   function renderBoard() {
     var d = state.data;
     var root = $('#root');
+    syncBoard(d);
     var pins = d.links.filter(function (l) { return l.pin; });
     var html = '';
 
@@ -1180,11 +1293,37 @@
       return;
     }
 
-    html += '<div class="board" id="board">';
-    d.cats.forEach(function (c) { html += panelHtml(c); });
+    html += '<div class="board" id="grid">';
+    d.board.forEach(function (tok) {
+      if (tok.indexOf('c:') === 0) {
+        var c = catByName(tok.slice(2));
+        if (c) html += panelHtml(c);
+      } else {
+        var l = soloLinkByKey(tok.slice(2));
+        if (l) html += soloHtml(l);
+      }
+    });
     if (state.edit) html += '<button class="addcat-tile" data-act="addcat">＋ 새 카테고리</button>';
     html += '</div>';
     root.innerHTML = html;
+  }
+
+  /** 카테고리 밖 단독 페이지 카드 — 클릭 한 번에 바로 열립니다. */
+  function soloHtml(l) {
+    var h = '<div class="solo" data-id="' + l.id + '" data-solo="1" data-cat="" data-url="' + esc(l.url) + '" role="link" tabindex="0" ' +
+      'title="' + esc(l.name + (l.desc ? ' — ' + l.desc : '') + '\n카테고리 밖 단독 페이지\n' + l.url) + '">' +
+      '<span class="s-ico">' + esc(l.icon) + '</span>' +
+      '<span class="s-txt"><span class="s-nm">' + esc(l.name) + '</span>' +
+      '<span class="s-ds">' + esc(l.desc || '단독 페이지') + '</span></span>' +
+      '<span class="s-go">↗</span>';
+    if (state.edit) {
+      h += '<div class="ctools">' +
+        '<button data-act="pin" class="' + (l.pin ? 'on' : '') + '" title="상단 고정">📌</button>' +
+        '<button data-act="edit" title="수정">✏️</button>' +
+        '<button data-act="del" class="del" title="삭제">🗑</button>' +
+        '</div>';
+    }
+    return h + '</div>';
   }
 
   function panelHtml(c) {
@@ -1297,7 +1436,7 @@
     hits.forEach(function (l, i) {
       html += '<a class="res' + (i === state.sel ? ' sel' : '') + '" data-i="' + i + '" href="' + esc(safeUrl(l.url) || '#') + '" target="_blank" rel="noopener noreferrer" style="--c:' + esc(catColor(l.cat)) + '">' +
         '<span class="ico">' + esc(l.icon) + '</span><span class="nm">' + esc(l.name) + '</span>' +
-        '<span class="tag">' + esc(l.cat) + '</span>' +
+        '<span class="tag">' + esc(l.cat || '단독') + '</span>' +
         (l.desc ? '<span class="ds">' + esc(l.desc) + '</span>' : '') +
         '<span class="k">' + (i === 0 ? 'Enter ↵' : '') + '</span></a>';
     });
@@ -1307,10 +1446,15 @@
   function renderFoot() {
     if (!state.data) { $('#foot').innerHTML = ''; return; }
     var n = state.data.links.length, c = state.data.cats.length;
-    var html = '<span>링크 <b>' + n + '</b>개 · 카테고리 <b>' + c + '</b>개</span><span class="sep">|</span>';
+    var solos = state.data.links.filter(isSolo).length;
+    var html = '<span>링크 <b>' + n + '</b>개 · 카테고리 <b>' + c + '</b>개' +
+      (solos ? ' · 단독 <b>' + solos + '</b>개' : '') + '</span><span class="sep">|</span>';
     var hasGroups = state.data.links.some(function (l) { return !!l.group; });
     if (hasGroups && state.backendOld && !state.demo) {
-      html += '<span style="color:var(--danger)" title="지금 연결된 Apps Script가 예전 버전이라 소그룹 열을 저장하지 못합니다. apps-script/Code.gs(2.0.0)를 붙여 넣고 새 버전으로 배포하면 시트에도 저장됩니다.">⚠ 소그룹은 이 기기에만 보관 중</span><span class="sep">|</span>';
+      html += '<span style="color:var(--danger)" title="지금 연결된 Apps Script가 예전 버전이라 소그룹 열을 저장하지 못합니다. apps-script/Code.gs(2.1.0)를 붙여 넣고 새 버전으로 배포하면 시트에도 저장됩니다.">⚠ 소그룹은 이 기기에만 보관 중</span><span class="sep">|</span>';
+    }
+    if (solos && !state.demo && !state.backendSolo) {
+      html += '<span style="color:var(--danger)" title="지금 연결된 Apps Script가 2.1.0 보다 예전이라 단독 페이지(빈 카테고리)를 저장하지 못합니다. 시트의 확장 프로그램 → Apps Script 에 apps-script/Code.gs(2.1.0)를 붙여 넣고 배포 → 배포 관리를 새 버전으로 바꾸면 시트에도 저장됩니다.">⚠ 단독 페이지는 이 기기에만 보관 중</span><span class="sep">|</span>';
     }
     html += '<a href="#" id="fRefresh">↻ 새로고침</a>';
     if (!state.demo) html += '<span class="sep">|</span><a href="#" id="fSheet">▦ 시트 열기</a>';
@@ -1434,8 +1578,10 @@
     if (state.snapshot) {
       state.data.cats = state.snapshot.cats;
       state.data.links = state.snapshot.links;
+      if (state.snapshot.board) state.data.board = state.snapshot.board.slice();
       state.data.title = state.snapshot.title;
       state.data.theme = state.snapshot.theme;
+      syncBoard(state.data);
     }
     state.edit = false;
     state.editDirty = false;
@@ -1453,6 +1599,7 @@
     if (!confirm('“' + l.name + '” 링크를 지울까요?' + (state.edit ? '\n\n완료를 누르면 시트에도 반영됩니다.' : '\n\n지운 내용은 바로 저장됩니다.'))) return;
     var snap = undoSnapshot();
     state.data.links = state.data.links.filter(function (x) { return x.id !== id; });
+    syncBoard(state.data);
     if (!state.data.links.length) state.clearAllowed = true;
     renderAll();
     changed();
@@ -1474,6 +1621,7 @@
     if (!name) return;
     if (catIndex(name) >= 0) { toast('이미 있는 카테고리입니다.', true); return; }
     state.data.cats.push({ name: name, color: COLORS[state.data.cats.length % COLORS.length] });
+    syncBoard(state.data);
     renderAll();
     changed();
   }
@@ -1492,6 +1640,7 @@
     state.data.links = state.data.links.filter(function (l) { return l.cat !== name; });
     state.data.collapsed = (state.data.collapsed || []).filter(function (x) { return x !== name; });
     state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (k) { return k.indexOf(name + '»') !== 0; });
+    syncBoard(state.data);
     if (!state.data.links.length) state.clearAllowed = true;
     renderAll();
     changed();
@@ -1511,6 +1660,7 @@
     state.data.collapsedGroups = (state.data.collapsedGroups || []).map(function (k) {
       return k.indexOf(from + '»') === 0 ? to + '»' + k.slice(from.length + 1) : k;
     });
+    state.data.board = syncBoard(state.data).map(function (t) { return t === 'c:' + from ? 'c:' + to : t; });
     return true;
   }
 
@@ -1657,6 +1807,7 @@
     return {
       cats: clone(state.data.cats),
       links: clone(state.data.links),
+      board: (syncBoard(state.data) || []).slice(),
       collapsed: (state.data.collapsed || []).slice(),
       collapsedGroups: (state.data.collapsedGroups || []).slice()
     };
@@ -1667,8 +1818,10 @@
     toast(msg, false, { label: '↩ 되돌리기', fn: function () {
       state.data.cats = snap.cats;
       state.data.links = snap.links;
+      if (snap.board) state.data.board = snap.board.slice();
       state.data.collapsed = snap.collapsed;
       state.data.collapsedGroups = snap.collapsedGroups;
+      syncBoard(state.data);
       renderAll();
       changed();
       toast('되돌렸습니다');
@@ -1693,6 +1846,112 @@
   /* ------------------------------------------------ 소그룹 이동 · 승격 */
   function catByName(name) {
     return state.data.cats.filter(function (c) { return c.name === name; })[0] || null;
+  }
+
+  /* ------------------------------------------------ 최상위 배치 · 단독 페이지 */
+  /** 최상위 그리드의 카드들(카테고리 패널 + 단독 카드)을 화면 순서대로. */
+  function boardItemEls() {
+    var g = $('#grid');
+    if (!g) return [];
+    return Array.prototype.slice.call(g.children).filter(function (el) {
+      return el.classList && (el.classList.contains('panel') || el.classList.contains('solo'));
+    });
+  }
+
+  function boardIndexOfEl(el) { return boardItemEls().indexOf(el); }
+
+  /** 포인터 자리에 놓을 최상위 삽입 위치(카드 사이 몇 번째). */
+  function boardIndexAtPoint(x, y) {
+    var els = boardItemEls();
+    if (!els.length) return 0;
+    for (var i = 0; i < els.length; i++) {
+      var r = els[i].getBoundingClientRect();
+      if (y < r.top) return i;
+      if (y <= r.bottom) return x < r.left + r.width / 2 ? i : i + 1;
+    }
+    return els.length;
+  }
+
+  function showBoardLine(index) {
+    var els = boardItemEls();
+    if (!els.length) return;
+    if (index >= els.length) {
+      var last = els[els.length - 1].getBoundingClientRect();
+      showVLine(last.right + 4, last.top, last.height);
+      return;
+    }
+    var r = els[index].getBoundingClientRect();
+    showVLine(r.left - 4, r.top, r.height);
+  }
+
+  /** 최상위 카드 하나(카테고리 또는 단독)를 index 자리로 옮깁니다. */
+  function moveBoardItem(token, index) {
+    var b = syncBoard(state.data);
+    var i = b.indexOf(token);
+    if (i < 0) return false;
+    if (index === i || index === i + 1) return false;
+    b.splice(i, 1);
+    if (index > i) index--;
+    index = Math.max(0, Math.min(index, b.length));
+    b.splice(index, 0, token);
+    syncCatsOrder();
+    return true;
+  }
+
+  /** 링크를 카테고리 밖 단독 페이지로 빼거나, 단독 카드 위치를 옮깁니다. */
+  function moveLinkToSolo(id, index) {
+    var l = linkById(id);
+    if (!l) return { ok: false };
+    var wasSolo = isSolo(l);
+    var b = syncBoard(state.data);
+    var tok = soloToken(l);
+    var cur = b.indexOf(tok);
+    var target = (index === null || index === undefined) ? b.length : index;
+    if (cur >= 0) {
+      b.splice(cur, 1);
+      if (target > cur) target--;
+    }
+    l.cat = '';
+    l.group = '';
+    target = Math.max(0, Math.min(target, b.length));
+    b.splice(target, 0, tok);
+    if (wasSolo && target === cur) {
+      l.cat = '';
+      return { ok: false, moved: true };
+    }
+    syncCatsOrder();
+    return { ok: true, msg: wasSolo ? '단독 페이지 위치를 옮겼습니다' : '“' + l.name + '”을(를) 단독 페이지로 뺐습니다' };
+  }
+
+  /** 링크의 카테고리를 바꾸고 최상위 배치 토큰도 맞춥니다. */
+  function setLinkCat(link, cat, group, atIndex) {
+    if (!link) return;
+    var b = syncBoard(state.data);
+    var tok = soloToken(link);
+    var i = b.indexOf(tok);
+    if (i >= 0) b.splice(i, 1);
+    link.cat = cat || '';
+    link.group = link.cat ? (group || '') : '';
+    if (!link.cat) {
+      var at = (atIndex === null || atIndex === undefined) ? b.length : Math.max(0, Math.min(atIndex, b.length));
+      b.splice(at, 0, tok);
+    }
+    syncBoard(state.data);
+    syncCatsOrder();
+  }
+
+  /** 우클릭 메뉴: 카테고리 안 링크를 단독 페이지로 빼기(원래 카테고리 바로 뒤 자리로). */
+  function extractToSolo(link) {
+    if (!link) return;
+    if (isSolo(link)) { toast('이미 단독 페이지입니다.', true); return; }
+    var snap = undoSnapshot();
+    var b = syncBoard(state.data);
+    var at = b.indexOf('c:' + link.cat);
+    var pos = at < 0 ? b.length : at + 1;
+    setLinkCat(link, '', '', pos);
+    renderAll();
+    changed();
+    offerUndo(snap, '“' + link.name + '”을(를) 단독 페이지로 뺐습니다');
   }
 
   /** 소그룹을 다른 카테고리로 옮기거나 같은 카테고리 안에서 순서를 바꿉니다. */
@@ -1832,17 +2091,20 @@
   }
 
   function linkCtx(link, x, y) {
+    if (!link) return;
+    var solo = isSolo(link);
     var items = [
       { ic: '↗', label: '새 탭에서 열기', fn: function () { openLink(link.url); } },
       { ic: '📋', label: '주소(URL) 복사', fn: function () { copyText(link.url, '주소를 복사했습니다'); } },
       '-',
       { ic: '✏️', label: '이름·주소 수정', fn: function () { openLinkModal(link, null); } },
-      { ic: '📁', label: '다른 폴더로 이동', fn: function () { openMoveModal(link); } },
+      { ic: '📁', label: solo ? '카테고리로 넣기' : '다른 폴더로 이동', fn: function () { openMoveModal(link); } },
+      solo ? null : { ic: '📤', label: '단독 페이지로 빼기', fn: function () { extractToSolo(link); } },
       { ic: '📌', label: link.pin ? '즐겨찾기 고정 해제' : '즐겨찾기 고정', fn: function () { togglePin(link.id); } },
       '-',
       { ic: '🗑', label: '삭제', danger: true, fn: function () { deleteLink(link.id); } }
-    ];
-    openCtx(x, y, link.name, items);
+    ].filter(Boolean);
+    openCtx(x, y, (solo ? '⚡ ' : '') + link.name, items);
   }
 
   function categoryCtx(cat, x, y) {
@@ -1884,28 +2146,33 @@
     else fallback();
   }
 
-  /** 링크를 다른 카테고리·소그룹으로 옮기는 작은 창. */
+  /** 링크를 다른 카테고리·소그룹으로 옮기거나 카테고리 밖 단독 페이지로 만드는 작은 창. */
   function openMoveModal(link) {
     if (!link) return;
     var cats = state.data.cats;
+    var solo = isSolo(link);
     openModal(
-      '<div class="sh-head"><h3>다른 폴더로 이동</h3><button class="x" id="mX">✕</button></div>' +
+      '<div class="sh-head"><h3>' + (solo ? '카테고리로 넣기 / 이동' : '다른 폴더로 이동') + '</h3><button class="x" id="mX">✕</button></div>' +
       '<p style="font-size:13px;color:var(--mut);margin:0 0 12px">“' + esc(link.name) + '”</p>' +
       '<div class="row2">' +
-      '<div class="field"><label for="mvCat">카테고리</label><select id="mvCat">' + cats.map(function (c) { return '<option value="' + esc(c.name) + '"' + (c.name === link.cat ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="mvCat">카테고리</label><select id="mvCat">' +
+      '<option value=""' + (solo ? ' selected' : '') + '>(없음 · 단독 페이지)</option>' +
+      cats.map(function (c) { return '<option value="' + esc(c.name) + '"' + (!solo && c.name === link.cat ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') +
+      '</select></div>' +
       '<div class="field"><label for="mvGroup">소그룹</label><select id="mvGroup"></select></div>' +
       '</div>' +
       '<div class="sh-foot"><button class="btn" id="mCancel">취소</button><button class="btn primary" id="mvGo">이동</button></div>'
     );
     $('#mX').onclick = $('#mCancel').onclick = closeModal;
     function fill(catName, selected) {
+      if (!catName) { $('#mvGroup').innerHTML = '<option value="">(단독 페이지에는 소그룹이 없습니다)</option>'; return; }
       var gs = groupsOf(catName);
       var html = '<option value="">그룹 없음</option>';
       gs.forEach(function (g) { html += '<option value="' + esc(g) + '"' + (g === selected ? ' selected' : '') + '>' + esc(g) + '</option>'; });
       html += '<option value="__new">＋ 새 소그룹…</option>';
       $('#mvGroup').innerHTML = html;
     }
-    fill(link.cat, link.group);
+    fill(solo ? '' : link.cat, solo ? '' : link.group);
     $('#mvCat').onchange = function () { fill(this.value, ''); };
     $('#mvGroup').onchange = function () {
       if (this.value !== '__new') return;
@@ -1919,14 +2186,23 @@
     };
     $('#mvGo').onclick = function () {
       var toCat = $('#mvCat').value;
-      var toGroup = $('#mvGroup').value;
+      var toGroup = toCat ? $('#mvGroup').value : '';
       if (toGroup === '__new') toGroup = '';
-      if (toCat === link.cat && toGroup === (link.group || '')) { closeModal(); return; }
+      if (toCat === (link.cat || '') && toGroup === (link.group || '')) { closeModal(); return; }
       var snap = undoSnapshot();
+      if (!toCat) {
+        closeModal();
+        var r = moveLinkToSolo(link.id, null);
+        renderAll();
+        changed();
+        offerUndo(snap, r.msg || '단독 페이지로 뺐습니다');
+        return;
+      }
       ensureGroup(toCat, toGroup);
-      link.cat = toCat; link.group = toGroup;
       var arr = state.data.links, at = arr.indexOf(link);
+      link.cat = toCat; link.group = toGroup;
       if (at >= 0) { arr.splice(at, 1); arr.splice(destIndex(toCat, toGroup), 0, link); }
+      syncBoard(state.data);
       closeModal();
       renderAll();
       changed();
@@ -1942,13 +2218,14 @@
     if (!state.data) return;
     var cats = state.data.cats;
     var isNew = !link;
-    var cat = link ? link.cat : (presetCat || (cats[0] && cats[0].name) || '기타');
-    var opts = cats.map(function (c) {
-      return '<option value="' + esc(c.name) + '"' + (c.name === cat ? ' selected' : '') + '>' + esc(c.name) + '</option>';
-    }).join('');
+    var cat = link ? (link.cat || '') : (presetCat || (cats[0] && cats[0].name) || '기타');
+    var opts = '<option value=""' + (cat ? '' : ' selected') + '>(없음 · 단독 페이지)</option>' +
+      cats.map(function (c) {
+        return '<option value="' + esc(c.name) + '"' + (c.name === cat ? ' selected' : '') + '>' + esc(c.name) + '</option>';
+      }).join('');
 
     var posHtml = '';
-    if (!isNew) {
+    if (!isNew && link.cat) {
       var sibs = state.data.links.filter(function (l) { return l.cat === link.cat; });
       posHtml = '<div class="field"><label>이 카테고리에서 위치</label><select id="mPos">' +
         sibs.map(function (l, i) {
@@ -1965,7 +2242,8 @@
       '<div class="ico-pick" id="mEmoji">' + EMOJIS.map(function (e) { return '<button data-e="' + e + '">' + e + '</button>'; }).join('') + '</div>' +
       '<div class="field" style="margin-top:12px"><label for="mUrl">URL</label><input id="mUrl" value="' + esc(link ? link.url : '') + '" placeholder="https://…" spellcheck="false" /></div>' +
       '<div class="row2">' +
-      '<div class="field"><label for="mCat">카테고리</label><select id="mCat">' + opts + '<option value="__new">＋ 새 카테고리…</option></select></div>' +
+      '<div class="field"><label for="mCat">카테고리</label><select id="mCat">' + opts + '<option value="__new">＋ 새 카테고리…</option></select>' +
+      '<span class="hint" style="margin-top:-3px">“(없음 · 단독 페이지)”는 카테고리에 묶지 않고 첫 화면에 바로 꺼내 둡니다.</span></div>' +
       '<div class="field"><label for="mGroup">소그룹</label><select id="mGroup"></select></div>' +
       '</div>' +
       '<div class="field"><label for="mDesc">설명 (선택)</label><input id="mDesc" value="' + esc(link ? link.desc : '') + '" placeholder="한 줄 메모" /></div>' + posHtml +
@@ -2034,38 +2312,49 @@
       if (c === '__new') c = cat;
       var g = $('#mGroup') ? $('#mGroup').value : '';
       if (g === '__new') g = '';
+      if (!c) g = '';
       if (!url) { toast('URL을 넣어 주세요.', true); $('#mUrl').focus(); return; }
       if (!name) name = hostOf(url);
       var icon = ($('#mIcon').value || '🔗').trim() || '🔗';
       var desc = $('#mDesc').value.trim();
       var pin = $('#mPin').checked;
-      ensureGroup(c, g);
+      if (c) ensureGroup(c, g);
 
       if (isNew) {
         state.data.links.push({ id: uid(), cat: c, group: g, name: name, icon: icon, url: url, desc: desc, pin: pin });
+        syncBoard(state.data);
       } else {
-        link.name = name; link.icon = icon; link.url = url; link.desc = desc; link.pin = pin;
-        link.group = g;
+        var wasSolo = isSolo(link);
+        var oldCat = link.cat;
         var newPos = $('#mPos') ? parseInt($('#mPos').value, 10) : -1;
-        if (link.cat !== c) {
+        link.name = name; link.icon = icon; link.url = url; link.desc = desc; link.pin = pin;
+
+        if (!c) {
+          /* 카테고리 밖 단독 페이지로 */
+          var bd = syncBoard(state.data);
+          var atc = bd.indexOf('c:' + oldCat);
+          var pos = wasSolo ? null : (atc < 0 ? bd.length : atc + 1);
+          setLinkCat(link, '', '', pos);
+        } else if (wasSolo || oldCat !== c) {
+          /* 단독 → 카테고리, 또는 다른 카테고리로 */
+          var arr = state.data.links, at = arr.indexOf(link);
           var sibs = state.data.links.filter(function (x) { return x.cat === c && x !== link; });
           var before = (newPos >= 0 && sibs[newPos]) ? sibs[newPos] : null;
-          var from = link.cat;
-          var arr = state.data.links;
-          var at = arr.indexOf(link);
           if (at >= 0) arr.splice(at, 1);
-          link.cat = c;
+          setLinkCat(link, c, g);
           if (before) arr.splice(arr.indexOf(before), 0, link);
           else arr.splice(endOfCatIndex(c), 0, link);
-          void from;
-        } else if (newPos >= 0) {
+        } else {
+          link.group = g;
           var sibs2 = state.data.links.filter(function (x) { return x.cat === c; });
-          var target = sibs2[newPos];
-          if (target && target !== link) {
-            var arr2 = state.data.links;
-            var at2 = arr2.indexOf(link);
-            if (at2 >= 0) arr2.splice(at2, 1);
-            arr2.splice(arr2.indexOf(target), 0, link);
+          if (newPos >= 0) {
+            var target = sibs2[newPos];
+            if (target && target !== link) {
+              var arr2 = state.data.links;
+              var at2 = arr2.indexOf(link);
+              if (at2 >= 0) arr2.splice(at2, 1);
+              arr2.splice(arr2.indexOf(target), 0, link);
+            }
           }
         }
       }
@@ -2255,6 +2544,19 @@
     if (z) z.style.display = 'block';
   }
 
+  function showSoloZone() {
+    var z = $('#soloZone');
+    if (z) z.style.display = 'block';
+  }
+
+  /** 화면 아래 고정된 「단독 페이지로 빼기」 존 위에 포인터가 있는지. */
+  function overSoloZone(x, y) {
+    var z = $('#soloZone');
+    if (!z || z.style.display === 'none') return false;
+    var r = z.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+
   function onDown(e) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     var t = e.target;
@@ -2263,27 +2565,29 @@
     if (state.query.trim() || !state.data) return;
 
     var chip = t.closest('.lk');
+    var soloEl = t.closest('.solo');
     var ghead = t.closest('.grp-head');
     var grip = t.closest('.cat-grip');
     var head = t.closest('.ph');
-    var anchor = chip || ghead || grip || head;
+    var anchor = chip || soloEl || ghead || grip || head;
     var panel = anchor ? anchor.closest('.panel') : null;
-    if (!panel) return;
+    if (!anchor) return;
+    if (!panel && !soloEl) return;
     var grpEl = ghead ? ghead.closest('.grp') : null;
-    var kind = chip ? 'link' : grpEl ? 'grp' : (grip || head) ? 'cat' : null;
+    var kind = soloEl ? 'link' : chip ? 'link' : grpEl ? 'grp' : (grip || head) ? 'cat' : null;
     if (!kind) return;
-    if (kind === 'link' && !chip.dataset.id) return;
+    if (kind === 'link' && !(soloEl || chip).dataset.id) return;
 
     pending = {
       kind: kind,
       pointerType: e.pointerType || 'mouse',
       startX: e.clientX, startY: e.clientY,
       lastX: e.clientX, lastY: e.clientY,
-      source: chip || grpEl || panel,
+      source: chip || soloEl || grpEl || panel,
       panel: panel,
-      id: chip ? chip.dataset.id : null,
-      cat: panel.dataset.cat,
-      group: chip ? (chip.dataset.group || '') : grpEl ? (grpEl.dataset.group || '') : null,
+      id: (soloEl || chip) ? (soloEl || chip).dataset.id : null,
+      cat: soloEl ? '' : (panel ? panel.dataset.cat : ''),
+      group: soloEl ? '' : chip ? (chip.dataset.group || '') : grpEl ? (grpEl.dataset.group || '') : null,
       pointerId: e.pointerId
     };
     window.addEventListener('pointermove', onMove, { passive: false });
@@ -2327,7 +2631,11 @@
 
     if (target) {
       snap = undoSnapshot();
-      if (kind === 'link') {
+      if (kind === 'link' && target.type === 'solo') {
+        var sres = moveLinkToSolo(drag.id, target.index);
+        if (sres.ok) msg = sres.msg;
+        else snap = null;
+      } else if (kind === 'link') {
         var moved = moveLinkTo(drag.id, target.cat, target.group, target.beforeId, target.after);
         if (moved) msg = '링크를 “' + target.cat + (target.group ? ' › ' + target.group : '') + '”로 옮겼습니다';
         else snap = null;
@@ -2417,7 +2725,7 @@
       g.style.width = Math.min(Math.max(r.width, 130), 250) + 'px';
       g.style.height = '38px';
     } else {
-      var ico = el.querySelector('.ico'), nm = el.querySelector('.nm');
+      var ico = el.querySelector('.ico,.s-ico'), nm = el.querySelector('.nm,.s-nm');
       g.innerHTML = '<span class="ico">' + esc(ico ? ico.textContent : '🔗') + '</span>' +
         '<span class="nm">' + esc(nm ? nm.textContent : '') + '</span>';
       g.style.width = r.width + 'px';
@@ -2430,6 +2738,7 @@
     drag.offY = Math.min(r.height, 60) + 28;
     moveGhost(x, y);
     drag.raf = requestAnimationFrame(autoScroll);
+    if (drag.kind === 'link' && drag.cat) showSoloZone();
   }
 
   function moveGhost(x, y) {
@@ -2476,8 +2785,38 @@
   }
 
   function linkTarget(under, x, y) {
+    var soloEl = under.closest('.solo');
     var panel = under.closest('.panel');
-    if (!panel) return null;
+
+    /* 단독 카드 위 → 그 카드 앞/뒤 자리로 */
+    if (soloEl && !panel) {
+      if (soloEl === drag.source) return null;
+      var sr = soloEl.getBoundingClientRect();
+      var afterSolo = (y - sr.top) > sr.height / 2;
+      showHLine(sr.left, sr.width, afterSolo ? sr.bottom : sr.top);
+      setBadge(drag.cat ? '📤 단독 페이지로 빼기' : '↕ 단독 페이지 위치 이동', x, y, drag.cat ? 'out' : '');
+      return { type: 'solo', index: boardIndexOfEl(soloEl) + (afterSolo ? 1 : 0) };
+    }
+
+    /* 화면 아래 「단독 페이지로 빼기」 존 */
+    if (overSoloZone(x, y)) {
+      var n0 = boardItemEls().length;
+      showBoardLine(n0);
+      setBadge('📤 카테고리 밖 단독 페이지로 빼기', x, y, 'out');
+      return { type: 'solo', index: n0, zone: true };
+    }
+
+    /* 최상위 그리드의 빈 곳 → 그 자리에 단독 카드 */
+    if (!panel) {
+      if (under.closest('#grid') || under === $('#root')) {
+        var idx = boardIndexAtPoint(x, y);
+        showBoardLine(idx);
+        setBadge(drag.cat ? '📤 단독 페이지로 빼기' : '↕ 위치 이동', x, y, drag.cat ? 'out' : '');
+        return { type: 'solo', index: idx };
+      }
+      return null;
+    }
+
     autoExpandPanel(panel);
     var cat = panel.dataset.cat;
     var grp = under.closest('.grp');
@@ -2522,7 +2861,6 @@
     setBadge(linkAction(cat, ''), x, y, cat !== drag.cat ? 'into' : '');
     return { type: 'link', cat: cat, group: '', beforeId: null, after: true };
   }
-
   function linkAction(cat, group) {
     if (cat !== drag.cat) return '📂 “' + cat + (group ? ' › ' + group : '') + '”로 이동';
     var from = drag.group == null ? '' : drag.group;
@@ -2549,8 +2887,8 @@
 
   function catTarget(under, x, y) {
     var panel = under.closest('.panel');
-    var panels = $$('.panel');
-    if (!panels.length) return null;
+    var items = boardItemEls();
+    if (!items.length) return null;
 
     if (panel && panel.dataset.cat === drag.cat) return null;
 
@@ -2558,14 +2896,15 @@
       autoExpandPanel(panel);
       var cat = panel.dataset.cat;
       var pr = panel.getBoundingClientRect();
-      var idx = panels.indexOf(panel);
+      var idx = boardIndexOfEl(panel);
+      if (idx < 0) idx = items.length;
       var edge = Math.min(30, pr.width * 0.16);
 
       /* 카드의 좌/우 가장자리 = 그 앞/뒤로 순서 이동 (세로 삽입선) */
       if (x - pr.left < edge || pr.right - x < edge) {
         var leftSide = (x - pr.left) < (pr.right - x);
         showVLine(leftSide ? pr.left : pr.right, pr.top, pr.height);
-        setBadge('↔ 카테고리 순서 이동', x, y);
+        setBadge('↔ 최상위 순서 이동', x, y);
         return { type: 'cat', index: idx + (leftSide ? 0 : 1) };
       }
 
@@ -2581,54 +2920,54 @@
       var hr = headEl ? headEl.getBoundingClientRect() : pr;
       var before = y < hr.top + hr.height / 2;
       showHLine(pr.left + 4, pr.width - 8, before ? pr.top : pr.bottom);
-      setBadge('↕ 카테고리 순서 이동', x, y);
+      setBadge('↕ 최상위 순서 이동', x, y);
       return { type: 'cat', index: idx + (before ? 0 : 1) };
     }
 
-    return catGapTarget(panels, x, y);
+    return catGapTarget(items, x, y);
   }
 
-  function catGapTarget(panels, x, y) {
-    var rows = rowsOfPanels(panels);
+  function catGapTarget(items, x, y) {
+    var rows = rowsOfPanels(items);
     if (!rows.length) return null;
     var first = rows[0], last = rows[rows.length - 1];
     if (y > last.bottom + 4) {
       showHLine(last.left, last.right - last.left, last.bottom + 6);
-      setBadge('↕ 카테고리 맨 뒤로', x, y);
-      return { type: 'cat', index: panels.length };
+      setBadge('↕ 최상위 맨 뒤로', x, y);
+      return { type: 'cat', index: items.length };
     }
     if (y < first.top - 4) {
       showHLine(first.left, first.right - first.left, first.top - 6);
-      setBadge('↕ 카테고리 맨 앞으로', x, y);
+      setBadge('↕ 최상위 맨 앞으로', x, y);
       return { type: 'cat', index: 0 };
     }
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
       if (y >= row.top - 8 && y <= row.bottom + 8) {
-        var items = row.items;
-        for (var j = 0; j < items.length; j++) {
-          var it = items[j];
+        var rowItems = row.items;
+        for (var j = 0; j < rowItems.length; j++) {
+          var it = rowItems[j];
           if (x < it.rect.left) {
             showVLine(it.rect.left - 4, row.top, row.bottom - row.top);
-            setBadge('↔ 카테고리 순서 이동', x, y);
+            setBadge('↔ 최상위 순서 이동', x, y);
             return { type: 'cat', index: it.index };
           }
           if (x <= it.rect.right) {
             var rightSide = (x - it.rect.left) > it.rect.width / 2;
             showVLine(rightSide ? it.rect.right : it.rect.left, row.top, row.bottom - row.top);
-            setBadge('↔ 카테고리 순서 이동', x, y);
+            setBadge('↔ 최상위 순서 이동', x, y);
             return { type: 'cat', index: it.index + (rightSide ? 1 : 0) };
           }
         }
-        var end = items[items.length - 1];
-        showVLine(end.rect.right, row.top, row.bottom - row.top);
-        setBadge('↔ 카테고리 순서 이동', x, y);
-        return { type: 'cat', index: end.index + 1 };
+        var end2 = rowItems[rowItems.length - 1];
+        showVLine(end2.rect.right, row.top, row.bottom - row.top);
+        setBadge('↔ 최상위 순서 이동', x, y);
+        return { type: 'cat', index: end2.index + 1 };
       }
       var next = rows[i + 1];
       if (next && y > row.bottom && y < next.top) {
         showHLine(next.left, next.right - next.left, (row.bottom + next.top) / 2);
-        setBadge('↕ 카테고리 순서 이동', x, y);
+        setBadge('↕ 최상위 순서 이동', x, y);
         return { type: 'cat', index: next.items[0].index };
       }
     }
@@ -2687,6 +3026,7 @@
     if (drag && drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost);
     $$('.drop-src').forEach(function (el) { el.classList.remove('drop-src'); });
     clearMarks();
+    var sz = $('#soloZone'); if (sz) sz.style.display = 'none';
     document.documentElement.classList.remove('dragging');
     drag = null;
   }
@@ -2694,10 +3034,12 @@
   function moveLinkTo(id, cat, group, beforeId, after) {
     var item = linkById(id);
     if (!item) return false;
+    if (!cat) return false;
     var arr = state.data.links;
     var at = arr.indexOf(item);
     if (at < 0) return false;
-    var before = item.cat + '|' + (item.group || '') + '|' + at;
+    var wasSolo = isSolo(item);
+    var before = (item.cat || '') + '|' + (item.group || '') + '|' + at;
     arr.splice(at, 1);
     item.cat = cat;
     item.group = group || '';
@@ -2709,8 +3051,9 @@
     if (dest > arr.length) dest = arr.length;
     arr.splice(dest, 0, item);
     ensureGroup(cat, item.group);
-    var now = item.cat + '|' + (item.group || '') + '|' + arr.indexOf(item);
-    return before !== now;
+    syncBoard(state.data);
+    var now = (item.cat || '') + '|' + (item.group || '') + '|' + arr.indexOf(item);
+    return before !== now || wasSolo;
   }
 
   /** 카테고리 안에서 해당 소그룹의 마지막 링크 다음 자리. */
@@ -2724,15 +3067,7 @@
   }
 
   function moveCategoryToIndex(from, index) {
-    var cats = state.data.cats;
-    var fi = catIndex(from);
-    if (fi < 0) return false;
-    if (index === fi || index === fi + 1) return false;
-    var c = cats.splice(fi, 1)[0];
-    if (index > fi) index--;
-    index = Math.max(0, Math.min(cats.length, index));
-    cats.splice(index, 0, c);
-    return true;
+    return moveBoardItem('c:' + from, index);
   }
 
   /* ---------------------------------------------------------------- events */
@@ -2826,7 +3161,8 @@
         if (state.edit) { cancelEdit(); return; }
       }
       if (e.key === 'Enter' && !typing) {
-        var chip = document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('lk') ? document.activeElement : null;
+        var ae = document.activeElement;
+        var chip = ae && ae.classList && (ae.classList.contains('lk') || ae.classList.contains('solo')) ? ae : null;
         if (chip && !state.edit) { e.preventDefault(); openLink(chip.dataset.url); }
       }
     });
@@ -2858,7 +3194,7 @@
           else removeGroup(grp.dataset.cat, grp.dataset.group);
           return;
         }
-        var lk = actEl.closest('.lk');
+        var lk = actEl.closest('.lk,.solo');
         if (!lk) return;
         if (a === 'pin') { togglePin(lk.dataset.id); return; }
         if (a === 'edit') { openLinkModal(linkById(lk.dataset.id), null); return; }
@@ -2875,7 +3211,7 @@
         return;
       }
 
-      var chip = e.target.closest('.lk');
+      var chip = e.target.closest('.lk,.solo');
       if (chip && !state.edit) openLink(chip.dataset.url);
     });
 
@@ -2914,6 +3250,10 @@
     /* 오른쪽 버튼 메뉴 */
     $('#root').addEventListener('contextmenu', function (e) {
       if (drag && drag.active) { e.preventDefault(); return; }
+      var soloEl = e.target.closest('.solo');
+      if (soloEl && soloEl.dataset.id) {
+        e.preventDefault(); closeCtx(); linkCtx(linkById(soloEl.dataset.id), e.clientX, e.clientY); return;
+      }
       var link = e.target.closest('.lk');
       if (link && link.dataset.id) {
         e.preventDefault(); closeCtx(); linkCtx(linkById(link.dataset.id), e.clientX, e.clientY); return;

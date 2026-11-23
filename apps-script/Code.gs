@@ -1,6 +1,13 @@
 /**
- * 나만의 북마크 포털 — 구글 시트 백엔드 (Google Apps Script) v2.0.0
+ * 나만의 북마크 포털 — 구글 시트 백엔드 (Google Apps Script) v2.1.0
  * ==========================================================
+ * v2.1.0 (2026-11-23)
+ *  · 「카테고리 밖 단독 페이지」 지원 — 링크의 카테고리 칸이 비어 있으면
+ *    단독 페이지로 읽고 그대로 저장합니다(예전엔 '기타'로 바뀌었음).
+ *  · 최상위 배치 순서 저장: 설정 탭의 「배치」
+ *      `c:업무` = 카테고리 카드, `s:https://주소` = 단독 페이지 카드, 줄바꿈으로 구분.
+ *  · 시트 열 구성은 v2.0.0과 같습니다(기존 시트 그대로 사용).
+ *
  * v2.0.0 (2026-11-20)
  *  · 링크 탭에 8번째 열 「그룹」 추가 — 카테고리 안의 소그룹(하위 층위)
  *  · 카테고리 설정에 소그룹 목록 추가: `업무|#3b82f6|수업 준비;행정·공문`
@@ -23,16 +30,20 @@
  *
  * 시트 구성 (없으면 자동으로 만듭니다)
  *  · 링크 : 카테고리 | 이름 | 아이콘 | URL | 설명 | 순서 | 핀고정(Y/N) | 그룹
+ *           카테고리 칸이 비어 있는 행 = 카테고리 밖 「단독 페이지」
  *  · 설정 : 항목 | 값 | 비고
- *           포털제목 / 테마(auto·light·dark) / 카테고리 / 메모 / 접힘 / 접힘그룹
+ *           포털제목 / 테마(auto·light·dark) / 카테고리 / 메모 / 접힘 / 접힘그룹 / 배치
  *           '카테고리' 값은 화면 순서대로 `수업·학급|#f97316|수업 준비;행정, 도구|#3b82f6` 처럼 저장됩니다
  *           (색은 생략 가능, 세 번째 값은 그 카테고리의 소그룹 목록).
+ *           '배치' 값은 첫 화면의 최상위 순서입니다: `c:업무`(카테고리 카드) /
+ *           `s:https://calendar.google.com`(단독 페이지 카드) 를 줄바꿈으로 연결.
  *
  * API (브라우저는 JSONP GET 또는 text/plain POST 둘 다 사용할 수 있습니다)
  *  ?action=ping                         연결 확인
  *  ?action=load                         전체 읽기 (설정 + 카테고리 + 링크)
- *  ?action=saveAll  {portalTitle, theme, categories:[{name,color}], links:[...]}
+ *  ?action=saveAll  {portalTitle, theme, categories:[{name,color}], links:[...], boardOrder}
  *                                       화면 상태 전체를 시트에 한 번에 저장(드래그·편집 반영)
+ *                                       links[].c 가 빈 문자열이면 카테고리 밖 단독 페이지
  *  ?action=add / update / remove / move / bulkAdd / setSettings
  *                                       링크 하나씩 다루는 낱개 API (가져오기·보조용)
  *  ?callback=함수이름                     JSONP 로 감싸서 응답
@@ -48,7 +59,7 @@
 /** 스프레드시트 ID. 시트에 붙인(컨테이너 바인딩) 스크립트라면 비워 두세요. */
 var SHEET_ID = '';
 
-var BACKEND_VERSION = '2.0.0';
+var BACKEND_VERSION = '2.1.0';
 
 var TABS = { links: '링크', settings: '설정' };
 
@@ -212,6 +223,7 @@ function setup_() {
   if (!have['메모']) add.push(['메모', '', '자유 메모 (포털에는 표시되지 않음)']);
   if (!have['접힘']) add.push(['접힘', '', '접힌 카테고리 이름 (; 로 구분, 화면 상태)']);
   if (!have['접힘그룹']) add.push(['접힘그룹', '', '접힌 소그룹 키 (카테고리»소그룹, ; 로 구분)']);
+  if (!have['배치']) add.push(['배치', '', '첫 화면 최상위 순서 (c:카테고리 / s:주소 · 줄바꿈 구분, 비어 있으면 자동)']);
   if (add.length) sh.getRange(sh.getLastRow() + 1, 1, add.length, 3).setValues(add);
   SpreadsheetApp.flush();
 }
@@ -246,6 +258,7 @@ function read_(action) {
     memo: settings['메모'] || '',
     collapsed: splitList_(settings['접힘']),
     collapsedGroups: splitList_(settings['접힘그룹']),
+    boardOrder: settings['배치'] || '',
     categories: merged,
     links: links,
     now: new Date().toISOString()
@@ -359,7 +372,8 @@ function readLinks_(ss, categories) {
     if (!name && !url) return;
     rows.push({
       row: i + 2,
-      category: String(r[0] || '').trim() || '기타',
+      /* 카테고리 칸이 비어 있으면 카테고리 밖 단독 페이지입니다. */
+      category: String(r[0] || '').trim(),
       name: name || hostOf_(url),
       icon: String(r[2] || '').trim() || '🔗',
       url: url,
@@ -412,7 +426,8 @@ function saveAll_(req) {
   incoming.forEach(function (l) {
     var url = normalizeUrl_(pick_(l, ['u', 'url']));
     if (!url) return;
-    var category = clean_(pick_(l, ['c', 'category'])) || '기타';
+    /* 빈 카테고리 = 카테고리 밖 단독 페이지(그대로 비워 저장). */
+    var category = clean_(pick_(l, ['c', 'category']));
     counters[category] = (counters[category] || 0) + 10;
     rows.push([
       category,
@@ -447,6 +462,7 @@ function saveAll_(req) {
   if (req.memo !== undefined) set['메모'] = clean_(req.memo);
   if (req.collapsed !== undefined) set['접힘'] = listToText_(req.collapsed);
   if (req.collapsedGroups !== undefined) set['접힘그룹'] = listToText_(req.collapsedGroups);
+  if (req.boardOrder !== undefined) set['배치'] = clean_(req.boardOrder);
   writeSettings_(ss, set);
 
   SpreadsheetApp.flush();
@@ -479,7 +495,7 @@ function writeSettings_(ss, map) {
 function add_(req) {
   var ss = ss_();
   var sh = tab_(ss, TABS.links, HEADERS.links);
-  var category = clean_(req.category) || '기타';
+  var category = clean_(req.category);
   var url = normalizeUrl_(req.url);
   if (!url) throw new Error('URL이 필요합니다.');
 
@@ -511,7 +527,7 @@ function update_(req) {
   var cur = sh.getRange(row, 1, 1, HEADERS.links.length).getValues()[0];
   var next = [cur[0], cur[1], cur[2], cur[3], cur[4], cur[5], cur[6], cur[7]];
 
-  if (req.category !== undefined) next[0] = clean_(req.category) || '기타';
+  if (req.category !== undefined) next[0] = clean_(req.category);
   if (req.name !== undefined) next[1] = clean_(req.name);
   if (req.icon !== undefined) next[2] = clean_(req.icon) || '🔗';
   if (req.url !== undefined) next[3] = normalizeUrl_(req.url);
@@ -590,7 +606,7 @@ function bulkAdd_(req) {
   items.slice(0, 500).forEach(function (it) {
     var url = normalizeUrl_(pick_(it, ['u', 'url']));
     if (!url) return;
-    var category = clean_(pick_(it, ['c', 'category'])) || '기타';
+    var category = clean_(pick_(it, ['c', 'category']));
     maxByCat[category] = (maxByCat[category] || 0) + 10;
     rows.push([
       category,
@@ -623,6 +639,7 @@ function setSettings_(req) {
   if (req.categories !== undefined) map['카테고리'] = categoriesToText_(req.categories);
   if (req.collapsed !== undefined) map['접힘'] = listToText_(req.collapsed);
   if (req.collapsedGroups !== undefined) map['접힘그룹'] = listToText_(req.collapsedGroups);
+  if (req.boardOrder !== undefined) map['배치'] = clean_(req.boardOrder);
   writeSettings_(ss, map);
   SpreadsheetApp.flush();
   return { ok: true };
