@@ -1,3 +1,4 @@
 _tmp/
 *안내*.md
 deploy.sh
+.portal.js
