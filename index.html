@@ -172,6 +172,7 @@
     background:var(--tile);opacity:0;transition:opacity .18s}
   .ico .fv.on{opacity:1}
   .ico .fv.uv{object-fit:cover;padding:0}
+  .lk img,.solo img,.ico img{-webkit-user-drag:none;user-select:none}
   .lk .nm,.solo .nm{font-size:12.5px;font-weight:650;letter-spacing:-.15px;text-align:center;
     width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
   .lk .go,.solo .go{display:none}
@@ -3558,7 +3559,9 @@
     /* --- drag & drop --- */
     $('#root').addEventListener('pointerdown', onDown);
     $('#root').addEventListener('dragstart', function (e) {
-      if (e.target.closest('a')) e.preventDefault();
+      /* 타일 안의 파비콘·이미지 아이콘·글자가 브라우저 기본 드래그로 끌려가면
+         포인터 이벤트가 끊겨 앱의 드래그가 시작되지 않습니다. 보드 안에서는 항상 막습니다. */
+      e.preventDefault();
     });
     document.addEventListener('touchmove', function (e) {
       if (drag && drag.active && e.cancelable) e.preventDefault();
