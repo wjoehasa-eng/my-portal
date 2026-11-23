@@ -2895,7 +2895,19 @@
     if (fromCat === toCat && targetGroup === g) return false;
     var destParent = (append || !targetGroup) ? '' : dirOf(targetGroup);
     var newPath = joinPath(destParent, leafOf(g));
-    if (newPath === g) return false;
+    if (newPath === g) {
+      /* 같은 자리(같은 부모·같은 이름) — 같은 영역 안이면 순서만 바꿔 줍니다. */
+      if (fromCat !== toCat || !targetGroup || append) return false;
+      var ord = toList.filter(function (x) { return !pathUnder(x, g); });
+      var ti0 = ord.indexOf(targetGroup);
+      if (ti0 < 0) return false;
+      var block = toList.filter(function (x) { return pathUnder(x, g); });
+      var at0 = after ? ti0 + 1 : ti0;
+      ord.splice.apply(ord, [at0, 0].concat(block));
+      toList.length = 0;
+      ord.forEach(function (x) { toList.push(x); });
+      return { moved: 0, merged: false, reordered: true };
+    }
     if (pathUnder(newPath, g)) return false;
     var sameName = groupsOf(toCat).indexOf(newPath) >= 0;
 
@@ -4065,7 +4077,7 @@
       } else if (kind === 'grp' && target.type === 'grp') {
         var m = moveGroupTo(drag.cat, drag.group, target.cat, target.group, target.after, target.append);
         if (m) msg = target.cat === drag.cat
-          ? '“' + drag.group + '” 소그룹 순서를 옮겼습니다' + (m.moved ? ' · 링크 ' + m.moved + '개' : '')
+          ? '“' + drag.group + '” ' + (target.cat ? '소그룹' : '폴더') + ' 순서를 옮겼습니다' + (m.moved ? ' · 링크 ' + m.moved + '개' : '')
           : '소그룹 “' + drag.group + '”' + josaEul(drag.group) + ' “' + target.cat + '”로 옮겼습니다' +
             (m.merged ? ' · 같은 이름 소그룹에 합쳤습니다' : '') + (m.moved ? ' · 링크 ' + m.moved + '개' : '');
         else snap = null;
