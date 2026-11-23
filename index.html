@@ -1396,7 +1396,9 @@
   /** 자동 아이콘인지(사용자가 직접 고른 이모지가 아닌지) */
   function autoIcon(l) {
     var ic = String(l.icon || '').trim();
-    return !ic || ic === AUTO_ICON;
+    if (!ic || ic === AUTO_ICON) return true;
+    /* 예전에 자동으로 붙었던 아이콘(지금 규칙으로 추측한 값과 같은 것)도 자동으로 봅니다. */
+    return ic === guessIcon(l.url, l.name);
   }
 
   /** 타일에 보일 아이콘 글자 — 사용자가 고른 이모지 → 키워드 자동 매칭 */
