@@ -3230,10 +3230,11 @@
       );
       $('#mX').onclick = $('#mCancel').onclick = closeModal;
       var goBtn = $('#impGo'), warnEl = $('#impWarn');
+      var reDefault = $('#impRe') ? $('#impRe').checked : false;
       function refreshReset() {
         var on = $('#impReset').checked;
         var re = $('#impRe');
-        if (re) { re.disabled = on; if (on) re.checked = false; }
+        if (re) { re.disabled = on; re.checked = on ? false : reDefault; }
         if ($('#impReWrap')) $('#impReWrap').classList.toggle('dis', on);
         var pin = $('#impPin');
         pin.disabled = on;
