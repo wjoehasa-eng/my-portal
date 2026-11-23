@@ -3084,25 +3084,27 @@
 
   /** 그리드(여러 열)에서 포인터가 가리키는 '꽂을 자리'를 고릅니다.
    *  index = (끌고 있는 타일을 뺀 목록에서) 그 자리 앞에 오는 타일의 번호.
-   *  타일의 왼쪽/오른쪽 가장자리를 후보로 두고 가장 가까운 곳을 씁니다. */
+   *  읽는 순서대로 훑어 — 위 줄은 지나가고, 같은 줄에서 포인터보다 오른쪽이면 지나가고,
+   *  처음 만나는 타일 앞에 꽃힙니다. (그리드 전체에서 한 번에 결정됩니다) */
   function pickSlot(els, x, y, box) {
-    var best = null;
-    for (var i = 0; i < els.length; i++) {
-      var r = els[i].getBoundingClientRect();
+    var n = els.length, idx = n, i, r;
+    for (i = 0; i < n; i++) {
+      r = els[i].getBoundingClientRect();
       if (!r.width && !r.height) continue;
-      var cy = r.top + r.height / 2;
-      var h = Math.max(26, r.height - 4);
-      var cands = [
-        { index: i, left: r.left, top: r.top + 2, height: h },
-        { index: i + 1, left: r.right, top: r.top + 2, height: h }
-      ];
-      for (var k = 0; k < 2; k++) {
-        /* 같은 줄을 먼저 보도록 세로 거리에 가중치를 크게 둡니다. */
-        var d = Math.abs(x - cands[k].left) + Math.abs(y - cy) * 3;
-        if (!best || d < best.d) { cands[k].d = d; best = cands[k]; }
-      }
+      if (y > r.bottom) continue;                                  /* 앞 줄 */
+      if (y >= r.top && x > r.left + r.width / 2) continue;         /* 같은 줄의 오른쪽 */
+      idx = i;
+      break;
     }
-    if (best) return best;
+    if (n) {
+      var ref = els[idx < n ? idx : n - 1].getBoundingClientRect();
+      return {
+        index: idx,
+        left: idx < n ? ref.left : ref.right,
+        top: ref.top + 2,
+        height: Math.max(26, ref.height - 4)
+      };
+    }
     var br = box ? box.getBoundingClientRect() : null;
     return {
       index: 0,
