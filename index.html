@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
-<meta name="portal-version" content="3.1.0" />
+<meta name="portal-version" content="3.2.0" />
 <title>나만의 포털</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E" />
 <style>
@@ -143,7 +143,7 @@
   .ph .ph-sp{flex:1;min-width:4px}
   .cnt{font-size:11px;font-weight:800;color:var(--mut);background:var(--panel2);border-radius:999px;padding:1px 8px;flex:none;line-height:1.6}
   .collapser{width:26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center;
-    font-size:10px;font-weight:900;color:var(--mut);flex:none;transition:background .12s,color .12s,transform .08s}
+    font-size:11px;font-weight:900;color:var(--mut);flex:none;transition:background .12s,color .12s,transform .08s}
   .collapser:hover{background:var(--acc-soft);color:var(--acc)}
   .collapser:active{transform:scale(.9)}
   .cat-grip{width:18px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--mut);opacity:.25;cursor:grab;flex:none;touch-action:none;user-select:none}
@@ -155,7 +155,7 @@
   .add-mini:hover{background:var(--panel2);color:var(--txt)}
 
   /* ---------- 아이콘 타일 그리드 (웨일 새 탭 느낌) ---------- */
-  .plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:2px;padding:2px 0 12px;align-items:start}
+  .plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px 4px;padding:2px 0 12px;align-items:start}
   .plist>.grp{grid-column:1/-1}
   .lk,.solo{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;
     padding:8px 4px 7px;border-radius:16px;border:1px solid transparent;cursor:pointer;
@@ -164,10 +164,10 @@
   .lk:hover,.solo:hover{background:var(--panel2);border-color:var(--line)}
   .lk:active,.solo:active{transform:scale(.985)}
   .lk:focus-visible,.solo:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
-  .lk .ico,.solo .ico{position:relative;width:56px;height:56px;border-radius:17px;background:var(--tile);
-    display:flex;align-items:center;justify-content:center;font-size:23px;line-height:1;flex:none;overflow:hidden}
-  .ico .fv{width:30px;height:30px;object-fit:contain;display:block}
-  .ico .em{display:block;font-size:23px;line-height:1}
+  .lk .ico,.solo .ico{position:relative;width:60px;height:60px;border-radius:18px;background:var(--tile);
+    display:flex;align-items:center;justify-content:center;font-size:25px;line-height:1;flex:none;overflow:hidden}
+  .ico .fv{width:32px;height:32px;object-fit:contain;display:block}
+  .ico .em{display:block;font-size:25px;line-height:1}
   .lk .nm,.solo .nm{font-size:12.5px;font-weight:650;letter-spacing:-.15px;text-align:center;
     width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
   .lk .go,.solo .go{display:none}
@@ -202,7 +202,7 @@
   .grp-head .gbtn.gopen:hover{color:var(--acc)}
   .grp-head .gbtn.del:hover{color:var(--danger)}
   .grp.drop-into .grp-head{border-style:solid;border-color:var(--acc);background:var(--acc-soft);color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 16%,transparent)}
-  .grp-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:2px;padding:2px 0 2px 6px;margin-left:2px}
+  .grp-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px 4px;padding:4px 0 4px 6px;margin-left:2px}
   .grp.drop-src{opacity:.4}
   .grp-body:empty{min-height:4px}
   body.editing .grp-body:empty{min-height:44px;border:1.5px dashed var(--line);border-radius:14px;background:color-mix(in srgb,var(--acc) 3%,transparent)}
@@ -233,7 +233,7 @@
   .ed-head .mini:disabled{opacity:.35}
 
   /* ---------- 단독 페이지 (카테고리 밖 · surface 상단) ---------- */
-  .solo-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:2px;padding:2px 0 10px;align-items:start}
+  .solo-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px 4px;padding:4px 0 12px;align-items:start}
   .solo-strip.has-cats{border-bottom:1px dashed var(--line);margin-bottom:4px}
   .solo.drop-into{border-style:dashed;border-color:var(--acc);background:var(--acc-soft)}
   #soloZone{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:170;display:none;pointer-events:none;
@@ -1352,7 +1352,7 @@
     var src = (!custom && /^https?:/i.test(l.url)) ? favUrl(l.url) : '';
     var inner;
     if (src) {
-      inner = '<img class="fv" src="' + esc(src) + '" alt="" loading="lazy" decoding="async" ' +
+      inner = '<img class="fv" src="' + esc(src) + '" alt="" decoding="async" ' +
         'onerror="this.style.display=\'none\';var n=this.nextElementSibling;if(n)n.style.display=\'block\'">' +
         '<span class="em" style="display:none">' + em + '</span>';
     } else {
