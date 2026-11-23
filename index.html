@@ -1729,7 +1729,7 @@
     if (!state.data.links.length) state.clearAllowed = true;
     renderAll();
     changed();
-    offerUndo(snap, '“' + l.name + '”을(를) 지웠습니다');
+    offerUndo(snap, '“' + l.name + '”' + josaEul(l.name) + ' 지웠습니다');
   }
 
   function togglePin(id) {
@@ -1939,6 +1939,15 @@
     };
   }
 
+  /** 받침 유무에 맞는 조사 (을/를) */
+  function josaEul(word) {
+    var s = String(word || '').replace(/[^0-9A-Za-z\uAC00-\uD7A3]+$/, '');
+    if (!s) return '을';
+    var c = s.charCodeAt(s.length - 1);
+    if (c >= 0xAC00 && c <= 0xD7A3) return (c - 0xAC00) % 28 ? '을' : '를';
+    return '을';
+  }
+
   function offerUndo(snap, msg) {
     if (!snap) { toast(msg); return; }
     toast(msg, false, { label: '↩ 되돌리기', fn: function () {
@@ -1996,7 +2005,7 @@
     solos.splice(target, 0, tok);
     setSoloTokens(d, solos);
     if (wasSolo && target === cur) return { ok: false, moved: true };
-    return { ok: true, msg: wasSolo ? '단독 페이지 위치를 옮겼습니다' : '“' + l.name + '”을(를) 단독 페이지로 뺐습니다' };
+    return { ok: true, msg: wasSolo ? '단독 페이지 위치를 옮겼습니다' : '“' + l.name + '”' + josaEul(l.name) + ' 단독 페이지로 뺐습니다' };
   }
 
   /** 링크의 카테고리를 바꾸고 단독 페이지 순서 토큰도 맞춥니다. */
@@ -2024,7 +2033,7 @@
     setLinkCat(link, '', '', null);
     renderAll();
     changed();
-    offerUndo(snap, '“' + link.name + '”을(를) 단독 페이지로 뺐습니다');
+    offerUndo(snap, '“' + link.name + '”' + josaEul(link.name) + ' 단독 페이지로 뺐습니다');
   }
 
   /** 소그룹을 다른 카테고리로 옮기거나 같은 카테고리 안에서 순서를 바꿉니다. */
@@ -2279,7 +2288,7 @@
       closeModal();
       renderAll();
       changed();
-      offerUndo(snap, '“' + link.name + '”을(를) “' + toCat + (toGroup ? ' › ' + toGroup : '') + '”로 옮겼습니다');
+      offerUndo(snap, '“' + link.name + '”' + josaEul(link.name) + ' “' + toCat + (toGroup ? ' › ' + toGroup : '') + '”로 옮겼습니다');
     };
   }
 
@@ -2929,7 +2938,7 @@
         var moved = moveLinkTo(drag.id, target.cat, target.group, target.beforeId, target.after, target.index);
         if (moved) msg = stayed
           ? '“' + (item0 ? item0.name : '링크') + '” 순서를 옮겼습니다'
-          : '“' + (item0 ? item0.name : '링크') + '”을(를) “' + target.cat + (target.group ? ' › ' + target.group : '') + '”로 옮겼습니다';
+          : '“' + (item0 ? item0.name : '링크') + '”' + josaEul(item0 ? item0.name : '링크') + ' “' + target.cat + (target.group ? ' › ' + target.group : '') + '”로 옮겼습니다';
         else snap = null;
       } else if (kind === 'cat' && target.type === 'demote') {
         var d = demoteCategoryToGroup(drag.cat, target.cat);
@@ -2942,13 +2951,13 @@
         else snap = null;
       } else if (kind === 'grp' && target.type === 'promote') {
         var p = promoteGroupToCategory(drag.cat, drag.group);
-        if (p) msg = '“' + drag.group + '”을(를) 독립 카테고리로 꺼냈습니다' + (p.merged ? ' · 같은 이름 카테고리에 합쳤습니다' : '') + (p.n ? ' · 링크 ' + p.n + '개' : '');
+        if (p) msg = '“' + drag.group + '”' + josaEul(drag.group) + ' 독립 카테고리로 꺼냈습니다' + (p.merged ? ' · 같은 이름 카테고리에 합쳤습니다' : '') + (p.n ? ' · 링크 ' + p.n + '개' : '');
         else snap = null;
       } else if (kind === 'grp' && target.type === 'grp') {
         var m = moveGroupTo(drag.cat, drag.group, target.cat, target.group, target.after, target.append);
         if (m) msg = target.cat === drag.cat
           ? '“' + drag.group + '” 소그룹 순서를 옮겼습니다' + (m.moved ? ' · 링크 ' + m.moved + '개' : '')
-          : '소그룹 “' + drag.group + '”을(를) “' + target.cat + '”로 옮겼습니다' +
+          : '소그룹 “' + drag.group + '”' + josaEul(drag.group) + ' “' + target.cat + '”로 옮겼습니다' +
             (m.merged ? ' · 같은 이름 소그룹에 합쳤습니다' : '') + (m.moved ? ' · 링크 ' + m.moved + '개' : '');
         else snap = null;
       }
