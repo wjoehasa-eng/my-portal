@@ -1856,10 +1856,8 @@
     });
     all.forEach(function (k) { if (order.indexOf(k) < 0) order.push(k); });
     d.tabOrder = order;
-    if (d === state.data) state._n0 = d.hiddenTabs.slice();
     d.hiddenTabs = d.hiddenTabs.map(function (k) { return String(k == null ? '' : k); })
       .filter(function (k) { return all.indexOf(k) >= 0; });
-    if (d === state.data) state._n1 = d.hiddenTabs.slice();
     /* 시작 탭: null = 아직 정하지 않음(= '📌 즐겨찾기'), '' = 전체, 그 밖의 탭 키 */
     if (d.defaultTab === undefined) d.defaultTab = null;
     else if (d.defaultTab !== null) {
@@ -1898,7 +1896,6 @@
   /** 지금 보던 탭이 숨겨졌거나 사라졌으면 남아 있는 첫 탭으로 옮깁니다. */
   function ensureTabVisible() {
     var vis = visibleTabKeys();
-    state._e = (state.data && state.data.hiddenTabs || []).slice();
     if (!vis.length && state.data && (state.data.hiddenTabs || []).length) {
       /* 안전장치: 탭이 하나도 안 남으면 숨김을 모두 풉니다. */
       state.data.hiddenTabs = [];
@@ -1933,17 +1930,14 @@
     if (!state.data) return false;
     key = String(key == null ? '' : key);
     normalizeTabState();
-    var hid = state.data.hiddenTabs;
-    var i = hid.indexOf(key);
     if (hidden) {
-      if (i >= 0) return false;
-      var vis = visibleTabKeys();
+      if (isTabHidden(key)) return false;
+      var vis = visibleTabKeys();      /* ← 이 안에서 hiddenTabs 배열이 새로 만들어질 수 있음 */
       if (vis.length <= 1) {
         toast('탭이 하나뿐이라 더 숨길 수 없습니다. 하나는 남겨 두어야 해요.', true);
         return false;
       }
-      hid.push(key);
-      state._d1 = state.data.hiddenTabs.slice();
+      state.data.hiddenTabs.push(key);
       var wasCurrent = (state.tab || '') === key;
       ensureTabVisible();
       renderAll();
@@ -1953,7 +1947,8 @@
         false, { label: '↩ 되살리기', fn: function () { setTabHidden(key, false); } });
       return true;
     }
-    if (i >= 0) hid.splice(i, 1);
+    var i = state.data.hiddenTabs.indexOf(key);
+    if (i >= 0) state.data.hiddenTabs.splice(i, 1);
     renderAll();
     saveTabPrefs();
     toast('“' + tabLabel(key) + '” 탭을 다시 보입니다');
@@ -2127,7 +2122,7 @@
     var nHidden = ((state.data && state.data.hiddenTabs) || []).length;
     el.innerHTML = '숨긴 탭은 상단의 <b>👁</b> 단추와 이 창에서 언제든 되살릴 수 있습니다. ' +
       '탭은 최소 하나가 남습니다. (지금 보이는 탭 ' + visibleTabKeys().length + '개' +
-      (nHidden ? ' · 숨김 ' + nHidden + '개' : '') + ') [DBG d1=' + JSON.stringify(state._d1) + ' n0=' + JSON.stringify(state._n0) + ' n1=' + JSON.stringify(state._n1) + ' e=' + JSON.stringify(state._e) + ' now=' + JSON.stringify(state.data.hiddenTabs) + ']';
+      (nHidden ? ' · 숨김 ' + nHidden + '개' : '') + ')';
   }
 
   /** 탭 관리 창의 ↑↓ — 숨긴 탭까지 포함한 전체 순서에서 한 칸 옮깁니다. */
