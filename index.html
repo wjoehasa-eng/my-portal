@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
-<meta name="portal-version" content="3.4.0" />
+<meta name="portal-version" content="3.5.0" />
 <title>나만의 포털</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E" />
 <style>
@@ -185,8 +185,13 @@
   .add-mini:hover{background:var(--panel2);color:var(--txt)}
 
   /* ---------- 아이콘 타일 그리드 (웨일 새 탭 느낌) ---------- */
-  .plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px 2px;padding:2px 0 10px;align-items:start}
-  .plist>.grp{grid-column:1/-1}
+  /* ---------- 타일 줄 · 구역(색 박스) 폭 ----------
+     타일은 정해진 한 칸 폭으로 놓고, 구역(폴더·색 박스)은 **안에 든 타일 수만큼만** 넓어집니다.
+     (이전에는 가로 100%로 늘어나 2~3개짜리 구역도 오른쪽이 비어 있었습니다.)
+     한 줄에 여러 구역이 나란히 놓이고, 화면 폭을 넘으면 자연스럽게 줄바꿈됩니다. */
+  .plist,.grp-body,.solo-strip{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start}
+  .plist{--tw:96px;gap:6px 2px;padding:2px 0 10px}
+  .lk,.solo{width:var(--tw,96px)}
   .lk,.solo{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;
     padding:8px 4px 7px;border-radius:16px;border:1px solid transparent;cursor:pointer;
     user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
@@ -208,7 +213,7 @@
     width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
   .lk .go,.solo .go{display:none}
   .lk.drop-src,.solo.drop-src{opacity:.3;border-style:dashed;border-color:color-mix(in srgb,var(--acc) 55%,transparent);background:var(--acc-soft)}
-  .plist>.empty-msg{grid-column:1/-1;font-size:12.5px;color:var(--mut);padding:18px 8px;text-align:center;border:1.5px dashed var(--line);border-radius:16px;margin:2px 0 8px}
+  .plist>.empty-msg{flex:1 1 100%;font-size:12.5px;color:var(--mut);padding:18px 8px;text-align:center;border:1.5px dashed var(--line);border-radius:16px;margin:2px 0 8px}
   .panel.is-collapsed .plist,.panel.is-collapsed .ed-head,.panel.is-collapsed .add-group{display:none}
   .panel.is-collapsed .ph{padding-bottom:8px}
 
@@ -222,7 +227,7 @@
   .lk .ctools button:hover,.solo .ctools button:hover{background:var(--panel2);opacity:1}
 
   /* ---------- 소그룹(하위 층위) ---------- */
-  .grp{position:relative;grid-column:1/-1;margin:2px 0 8px}
+  .grp{position:relative;width:fit-content;max-width:100%;margin:2px 0 8px}
   .grp+.grp{margin-top:2px}
   .grp-head{display:flex;align-items:center;gap:6px;width:100%;padding:3px 8px 3px 3px;border-radius:10px;text-align:left;
     background:var(--panel2);border:1px solid var(--line);
@@ -245,7 +250,7 @@
   .pin-panel .pin-cat>.grp-head{background:color-mix(in srgb,var(--c,var(--acc)) 10%,var(--panel2));border-style:solid}
   .pin-panel .pin-grp>.grp-head{border-style:solid}
   .grp.drop-into .grp-head{border-style:solid;border-color:var(--acc);background:var(--acc-soft);color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 16%,transparent)}
-  .grp-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px 4px;padding:4px 0 4px 6px;margin-left:2px}
+  .grp-body{--tw:100px;gap:8px 4px;padding:4px 0 4px 6px;margin-left:2px}
   .grp-body>.grp{margin:2px 0 6px 8px;padding-left:7px;border-left:2px solid color-mix(in srgb,var(--c,var(--acc)) 16%,transparent)}
   .grp-body>.grp>.grp-head{background:color-mix(in srgb,var(--c,var(--acc)) 5%,var(--panel2))}
 
@@ -254,6 +259,9 @@
     border:1.5px solid color-mix(in srgb,var(--zc) 42%,var(--line));
     background:color-mix(in srgb,var(--zc) 10%,var(--panel))}
   .grp.zc+.grp.zc{margin-top:8px}
+  .grp.zc{min-width:118px}
+  /* 즐겨찾기 탭의 색 박스(구역) — 빈 구역도 끌어다 놓을 자리가 보이게 */
+  .pin-panel .fz>.grp-body:empty{min-height:42px;min-width:100px;border:1.5px dashed color-mix(in srgb,var(--zc) 40%,var(--line));border-radius:12px;margin-left:0;padding-left:0}
   .grp.zc>.grp-head{background:transparent;border-color:transparent;padding:2px 6px 2px 2px}
   .grp.zc>.grp-head:hover{background:color-mix(in srgb,var(--zc) 16%,transparent);border-color:color-mix(in srgb,var(--zc) 32%,transparent)}
   .grp.zc>.grp-body{padding-left:2px}
@@ -286,7 +294,7 @@
   .zw .zw-btn.on{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
   .add-row{display:flex;gap:6px}
   .add-row>.add-group{flex:1}
-  .solo-strip>.add-row{grid-column:1/-1;margin:2px 0 8px}
+  .solo-strip>.add-row{flex:1 1 100%;margin:2px 0 8px}
   .grp[data-depth="3"]>.grp-head,.grp[data-depth="4"]>.grp-head,.grp[data-depth="5"]>.grp-head{font-size:11px}
   .grp.drop-src{opacity:.4}
   .grp-body:empty{min-height:4px}
@@ -318,12 +326,12 @@
   .ed-head .mini:disabled{opacity:.35}
 
   /* ---------- 단독 페이지 (카테고리 밖 · surface 상단) ---------- */
-  .solo-strip{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px 4px;padding:4px 0 12px;align-items:start}
+  .solo-strip{--tw:100px;gap:8px 4px;padding:4px 0 12px}
   .solo-strip.has-cats{border-bottom:1px dashed var(--line);margin-bottom:4px}
   .solo-strip.has-folders{padding-bottom:14px}
   .solo-strip>.grp{margin:2px 0 8px}
-  .solo-strip>.add-group{grid-column:1/-1;margin:2px 0 8px}
-  .solo-strip>.empty-msg{grid-column:1/-1;font-size:12.5px;color:var(--mut);padding:16px 10px;text-align:center;
+  .solo-strip>.add-group{flex:1 1 100%;margin:2px 0 8px}
+  .solo-strip>.empty-msg{flex:1 1 100%;font-size:12.5px;color:var(--mut);padding:16px 10px;text-align:center;
     border:1.5px dashed var(--line);border-radius:16px;margin:2px 0 8px}
   /* 단독 페이지 영역의 폴더 머리 — 카테고리 안 폴더와 같은 톤, 살짝 다른 점선 테두리 */
   .solo-strip>.grp>.grp-head{border-style:dashed}
@@ -545,7 +553,8 @@
   @media (max-width:720px){
     .lk,.solo{height:auto}
     .lk .ctools button,.solo .ctools button{width:20px;height:20px;font-size:10px}
-    .plist,.solo-strip,.grp-body{grid-template-columns:repeat(auto-fill,minmax(86px,1fr))}
+    .plist{--tw:86px}
+    .solo-strip,.grp-body{--tw:90px}
     .lk .ico,.solo .ico{width:52px;height:52px;border-radius:16px}
     .ico .fv{width:28px;height:28px}
     .ph h2{font-size:14.5px}
@@ -688,7 +697,7 @@
     if (id) m[k] = id; else delete m[k];
     renderAll();
     changed();
-    toast(id ? '🎨 ' + zonePresetOf(id).label + '으로 바꿨습니다' : '공간 색을 기본으로 되돌렸습니다');
+    toast(id ? '🎨 ' + zonePresetOf(id).label + josaRo(zonePresetOf(id).label) + ' 바꿨습니다' : '공간 색을 기본으로 되돌렸습니다');
   }
   function setGroupTitleHidden(cat, g, yes) {
     if (!state.data || !g) return;
@@ -1591,7 +1600,8 @@
       (d.groupNoTitle || []).join(','),
       (d.tabOrder || []).join('>'),
       (d.hiddenTabs || []).join('>'),
-      String(startTabKey(d))
+      String(startTabKey(d)),
+      JSON.stringify(d.favZones || [])
     ]);
   }
 
@@ -1604,6 +1614,7 @@
     var defaultTab = null;
     var groupColors = {};
     var groupNoTitle = [];
+    var favZones = [];
     (raw.categories || raw.cats || []).forEach(function (c, i) {
       var name = typeof c === 'string' ? c : c.name;
       if (!name) return;
@@ -1641,6 +1652,28 @@
         });
         return;
       }
+      if (nm === FZONE_KEY) {
+        /* 예약된 「즐겨찾기 색 박스(구역)」 — [{ id, name, color, noTitle, tokens[] }] 한 조각. */
+        var rawFz = ((typeof c === 'string' ? [] : (c.groups || [])) || []).slice();
+        var decFz = rawFz.length === 1 ? decodeListBlob(rawFz[0]) : null;
+        if (Array.isArray(decFz)) {
+          decFz.forEach(function (z) {
+            if (!z || typeof z !== 'object') return;
+            var fid = String(z.id || z.i || '').trim();
+            if (!fid || favZones.some(function (x) { return x.id === fid; })) return;
+            var fcol = String(z.c || z.color || '');
+            favZones.push({
+              id: fid,
+              name: String(z.n || z.name || '').trim(),
+              color: zonePresetOf(fcol).id === fcol ? fcol : '',
+              noTitle: !!(z.h || z.noTitle),
+              tokens: (Array.isArray(z.t || z.tokens) ? (z.t || z.tokens) : [])
+                .map(function (t) { return String(t || '').trim(); }).filter(Boolean)
+            });
+          });
+        }
+        return;
+      }
       if (nm === TAB_KEY) {
         /* 예약된 「상단 탭 순서·숨김」 — [순서[], 숨김[]] 한 조각으로 저장됩니다. */
         var rawTab = ((typeof c === 'string' ? [] : (c.groups || [])) || []).slice();
@@ -1670,8 +1703,8 @@
       var url = normalizeUrl(l.url || l.u);
       if (!url) return;
       var cat = String(l.category || l.cat || l.c || '').trim();
-      /* 예약 이름(__solo·__pins·__tabs·__colors)을 카테고리로 쓴 링크는 단독 페이지로 읽습니다. */
-      if (cat === SOLO_KEY || cat === PIN_KEY || cat === TAB_KEY || cat === COLOR_KEY) cat = '';
+      /* 예약 이름(__solo·__pins·__tabs·__colors·__fzones)을 카테고리로 쓴 링크는 단독 페이지로 읽습니다. */
+      if (cat === SOLO_KEY || cat === PIN_KEY || cat === TAB_KEY || cat === COLOR_KEY || cat === FZONE_KEY) cat = '';
       links.push({
         id: uid(),
         cat: cat,
@@ -1709,7 +1742,7 @@
       cats: cats, links: links, collapsed: collapsed, collapsedGroups: collapsedGroups, memo: raw.memo || '',
       soloGroups: soloGroups, pinOrder: pinOrder,
       tabOrder: tabOrder, hiddenTabs: hiddenTabs, defaultTab: defaultTab,
-      groupColors: groupColors, groupNoTitle: groupNoTitle,
+      groupColors: groupColors, groupNoTitle: groupNoTitle, favZones: favZones,
       board: parseBoardTokens(raw.board || raw.boardOrder)
     };
     normalizeTabState(out);
@@ -1764,6 +1797,13 @@
     if (sg.length) out.push({ name: SOLO_KEY, color: '#000000', groups: [encodeListBlob(sg)] });
     var pins = prunePinOrder();
     if (pins.length) out.push({ name: PIN_KEY, color: '#000000', groups: [encodeListBlob(pins)] });
+    /* 즐겨찾기 색 박스(구역) — 항목이 있거나 구역이 하나라도 있으면 한 행. */
+    var fz = favZonesStore();
+    if (fz.length) {
+      out.push({ name: FZONE_KEY, color: '#000000', groups: [encodeListBlob(fz.map(function (z) {
+        return { id: z.id, n: z.name || '', c: favZoneColorId(z), h: z.noTitle ? 1 : 0, t: (z.tokens || []).slice() };
+      }))] });
+    }
     var tabs = tabWireState(d);
     if (tabs) out.push({ name: TAB_KEY, color: '#000000', groups: [encodeListBlob(tabs)] });
     /* 공간(구역) 색·제목 숨김 — 폴더 키 기준. 지정된 것이 있을 때만 한 행. */
@@ -2414,18 +2454,28 @@
   function prunePinOrder() {
     var list = pinEntries().map(function (e) { return e.token; });
     if (state.data) state.data.pinOrder = list;
+    pruneFavZones();
     return list;
   }
 
   function isFolderPinned(cat, g) { return pinOrderArr().indexOf(pinFolderToken(cat, g)) >= 0; }
   function isCatPinned(cat) { return pinOrderArr().indexOf(pinCatToken(cat)) >= 0; }
 
+  /** 즐겨찾기 순서(pinOrder)와 즐겨찾기 구역의 토큰을 한 번에 바꿉니다(이름 변경 등). */
+  function remapPinTokens(fn) {
+    if (!state.data) return;
+    state.data.pinOrder = pinOrderArr().map(fn);
+    favZonesStore().forEach(function (z) { z.tokens = (z.tokens || []).map(fn); });
+  }
+
   /** 즐겨찾기 항목 하나를 다른 항목 앞으로 옮깁니다. beforeTok이 null이면 맨 뒤로. */
   function movePinEntry(tok, beforeTok) {
     if (!tok || tok === beforeTok) return { ok: false };
     var e = resolvePinToken(tok);
     if (!e) return { ok: false };
-    var arr = pinOrderArr();
+    /* 아직 순서 목록(pinOrder)에 들어 있지 않은 고정 타일도 있습니다.
+       그대로 두면 자리 계산이 맨 앞으로 튀므로, 먼저 지금 화면 순서를 목록으로 확정합니다. */
+    var arr = prunePinOrder();
     var i = arr.indexOf(tok);
     if (i >= 0) arr.splice(i, 1);
     var at = beforeTok ? arr.indexOf(beforeTok) : -1;
@@ -2485,6 +2535,192 @@
     }
   }
 
+  /* ------------------------------------------------ 즐겨찾기 색 박스(구역)
+     `📌 즐겨찾기` 탭 안에서도 카테고리처럼 파스텔 색 박스로 고정된 항목을 묶습니다.
+     즐겨찾기 타일·폴더·카테고리를 구역 안으로 끌어넣거나 밖으로 빼면 그대로 기억되고,
+     구역 색·이름(숨김)·순서를 바꿀 수 있습니다.
+     목록은 시트 「카테고리」 설정에 예약 이름(__fzones) 한 행으로 저장되어
+     Code.gs 2.1.0 수정 없이 모든 기기에서 같은 화면이 열립니다.
+       [{ id, name, color, noTitle, tokens: ['l:…','f:카테고리»폴더경로','c:카테고리'] }]
+     tokens 는 즐겨찾기 순서(pinOrder)에 있는 토큰만 유지됩니다. */
+  var FZONE_KEY = '__fzones';
+  function favZonesStore() {
+    if (!state.data) return [];
+    if (!Array.isArray(state.data.favZones)) state.data.favZones = [];
+    return state.data.favZones;
+  }
+  function newFzoneId() { return 'z' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+  function fzoneById(id) {
+    id = String(id || '');
+    var zs = favZonesStore();
+    for (var i = 0; i < zs.length; i++) if (zs[i].id === id) return zs[i];
+    return null;
+  }
+  /** 토큰이 들어 있는 구역(없으면 null). */
+  function fzoneOfToken(tok) {
+    tok = String(tok || '');
+    if (!tok) return null;
+    var zs = favZonesStore();
+    for (var i = 0; i < zs.length; i++) if ((zs[i].tokens || []).indexOf(tok) >= 0) return zs[i];
+    return null;
+  }
+  /** 구역 안 항목들 — 즐겨찾기 순서 그대로. */
+  function fzoneEntries(z) {
+    if (!z) return [];
+    var set = {};
+    (z.tokens || []).forEach(function (t) { set[t] = 1; });
+    return pinEntries().filter(function (e) { return set[e.token]; });
+  }
+  /** 즐겨찾기 순서에 없는 토큰은 구역에서도 정리합니다(저장·캐시 전). */
+  function pruneFavZones() {
+    if (!state.data) return;
+    var inOrder = {};
+    (state.data.pinOrder || []).forEach(function (t) { inOrder[t] = 1; });
+    var seen = {};
+    favZonesStore().forEach(function (z) {
+      var keep = [];
+      (z.tokens || []).forEach(function (t) {
+        t = String(t || '');
+        if (!t || !inOrder[t] || seen[t]) return;   /* 한 항목은 한 구역에만 */
+        seen[t] = 1; keep.push(t);
+      });
+      z.tokens = keep;
+    });
+  }
+  function favZoneColorId(z) {
+    var v = String((z && z.color) || '');
+    return zonePresetOf(v).id === v ? v : '';
+  }
+
+  function setFavZoneColor(id, cid) {
+    var z = fzoneById(id);
+    if (!z) return;
+    cid = zonePresetOf(cid).id;
+    z.color = cid;
+    renderAll();
+    changed();
+    toast(cid ? '🎨 ' + zonePresetOf(cid).label + josaRo(zonePresetOf(cid).label) + ' 바꿨습니다' : '구역 색을 기본으로 되돌렸습니다');
+  }
+
+  function setFavZoneTitleHidden(id, yes) {
+    var z = fzoneById(id);
+    if (!z) return;
+    z.noTitle = !!yes;
+    renderAll();
+    changed();
+    toast(yes ? '구역 이름을 숨겼습니다 (색 박스만 보입니다)' : '구역 이름을 다시 보입니다');
+  }
+
+  /** 즐겨찾기 구역 하나를 만듭니다. 이름을 비우면 제목 없이 색 박스만. */
+  function createFavZone(name, colorId, hideTitle) {
+    if (!state.data) return false;
+    var nm = String(name == null ? '' : name).trim();
+    var color = zonePresetOf(colorId).id;
+    var snap = undoSnapshot();
+    favZonesStore().push({ id: newFzoneId(), name: nm, color: color, noTitle: !!hideTitle || !nm, tokens: [] });
+    renderAll();
+    changed();
+    offerUndo(snap, '🎨 즐겨찾기 구역' + (nm ? ' “' + nm + '”' : '') + josaEul(nm) + ' 만들었습니다 — 즐겨찾기 타일을 끌어다 넣어 보세요');
+    return true;
+  }
+
+  function renameFavZoneTo(id, name) {
+    var z = fzoneById(id);
+    if (!z) return false;
+    var nm = String(name == null ? '' : name).trim();
+    if (nm === z.name) return false;
+    var wasEmpty = !z.name;
+    z.name = nm;
+    if (!nm) z.noTitle = true;          /* 이름을 비우면 색 박스만 */
+    else if (wasEmpty) z.noTitle = false;   /* 이름 없는 구역에 이름을 붙이면 보입니다 */
+    renderAll();
+    changed();
+    return true;
+  }
+
+  function removeFavZone(id) {
+    var z = fzoneById(id);
+    if (!z) return false;
+    var snap = undoSnapshot();
+    state.data.favZones = favZonesStore().filter(function (x) { return x.id !== id; });
+    renderAll();
+    changed();
+    offerUndo(snap, '즐겨찾기 구역' + (z.name ? ' “' + z.name + '”' : '') + josaEul(z.name) + ' 지웠습니다 (안의 타일은 즐겨찾기에 그대로 남습니다)');
+    return true;
+  }
+
+  /** 항목 하나를 구역 안(zid) 또는 구역 밖('')으로 옮깁니다. */
+  function setTokenFavZone(tok, zid) {
+    tok = String(tok || '');
+    if (!tok) return false;
+    var cur = fzoneOfToken(tok);
+    var curId = cur ? cur.id : '';
+    if (curId === (zid || '')) return false;
+    favZonesStore().forEach(function (z) {
+      var i = (z.tokens || []).indexOf(tok);
+      if (i >= 0) z.tokens.splice(i, 1);
+    });
+    if (zid) {
+      var z = fzoneById(zid);
+      if (!z) return false;
+      if (!Array.isArray(z.tokens)) z.tokens = [];
+      z.tokens.push(tok);
+    }
+    return true;
+  }
+
+  /** 구역 순서를 beforeId 앞으로 옮깁니다(null 이면 맨 뒤). */
+  function moveFavZone(id, beforeId) {
+    var zs = favZonesStore();
+    var i = -1;
+    for (var k = 0; k < zs.length; k++) if (zs[k].id === id) { i = k; break; }
+    if (i < 0 || id === beforeId) return false;
+    var z = zs.splice(i, 1)[0];
+    var at = -1;
+    if (beforeId) for (var j = 0; j < zs.length; j++) if (zs[j].id === beforeId) { at = j; break; }
+    if (at < 0) at = zs.length;
+    zs.splice(at, 0, z);
+    return true;
+  }
+
+  function isFzCollapsed(id) { return !!(state.pinCollapsed && state.pinCollapsed['fz:' + id]); }
+  function toggleFzCollapsed(id) {
+    var k = 'fz:' + id;
+    if (!state.pinCollapsed) state.pinCollapsed = {};
+    if (state.pinCollapsed[k]) delete state.pinCollapsed[k]; else state.pinCollapsed[k] = 1;
+    var el = $('.fz[data-fzone="' + cssEsc(id) + '"]');
+    if (el) {
+      el.classList.toggle('is-collapsed', !!state.pinCollapsed[k]);
+      var ch = el.querySelector('.gchev-btn');
+      if (ch) { ch.textContent = state.pinCollapsed[k] ? '▸' : '▾'; ch.setAttribute('aria-expanded', state.pinCollapsed[k] ? 'false' : 'true'); }
+    }
+  }
+
+  /** 즐겨찾기 구역 하나를 그립니다(파스텔 색 박스). */
+  function fzoneHtml(z) {
+    var id = z.id;
+    var zp = zonePresetOf(favZoneColorId(z));
+    var coll = isFzCollapsed(id);
+    var entries = fzoneEntries(z);
+    var nm = String(z.name || '').trim();
+    var h = '<div class="grp zc fz' + (coll ? ' is-collapsed' : '') + (z.noTitle || !nm ? ' no-title' : '') + '"' +
+      ' data-fzone="' + esc(id) + '" data-cat="" data-group="" data-depth="1"' +
+      ' style="--zc:' + (zp.hex || 'transparent') + '">';
+    h += '<div class="grp-head" data-act="fz-fold" title="' + esc((nm || '즐겨찾기 구역') + '\n접기 / 펼치기 · 끌어서 구역 순서 바꾸기') + '">' +
+      '<button class="gchev-btn" data-act="fz-fold" aria-expanded="' + (coll ? 'false' : 'true') + '" title="접기 / 펼치기">' + (coll ? '▸' : '▾') + '</button>' +
+      '<button class="gdot' + (zp.id ? '' : ' none') + '" data-act="fz-color" title="🎨 구역 색 바꾸기" aria-label="구역 색 바꾸기"></button>' +
+      '<span class="gname" title="' + esc((nm || '구역') + '\n두 번 누르면 이름 바꾸기') + '">' + esc(nm || '구역') + '</span>' +
+      '<span class="gcnt">' + entries.length + '</span>' +
+      (entries.length ? '<button class="gbtn gopen" data-act="fz-open" title="이 구역의 링크를 모두 새 탭에서 열기">↗</button>' : '') +
+      (state.edit ? '<button class="gbtn" data-act="fz-ren" title="구역 이름 바꾸기">✏️</button>' +
+        '<button class="gbtn del" data-act="fz-del" title="구역 삭제">🗑</button>' : '') +
+      '</div>';
+    h += '<div class="grp-body">';
+    entries.forEach(function (e) { h += pinEntryHtml(e); });
+    h += '</div></div>';
+    return h;
+  }
+
   /** 즐겨찾기에 고정된 카테고리 하나 — 안의 링크·폴더를 그대로 펼쳐 보여줍니다. */
   function pinCatHtml(cat) {
     var c = catByName(cat);
@@ -2521,19 +2757,27 @@
     return '';
   }
 
-  /** 즐겨찾기만 모아 보는 탭. */
+  /** 즐겨찾기만 모아 보는 탭. 안에서 색 박스(구역)로 묶어 정리할 수 있습니다. */
   function pinPanelHtml() {
     var entries = pinEntries();
+    var zones = favZonesStore();
+    var zoned = {};
+    zones.forEach(function (z) { (z.tokens || []).forEach(function (t) { zoned[t] = 1; }); });
+    var loose = entries.filter(function (e) { return !zoned[e.token]; });
     var h = '<section class="panel pin-panel" data-cat="" data-pin="1" style="--c:var(--acc)">' +
       '<div class="ph"><h2>📌 즐겨찾기</h2><span class="cnt">' + entries.length + '</span>' +
       '<span class="ph-sp"></span>' +
+      (state.edit ? '<button class="open-mini" data-act="fz-add" title="새 구역(색상 박스) 만들기">🎨</button>' : '') +
       '<button class="open-mini" data-act="open-all-pins" title="즐겨찾기를 모두 새 탭에서 열기">↗</button></div>';
-    h += '<div class="plist">';
-    if (!entries.length && !state.edit) {
+    h += '<div class="plist pin-list">';
+    if (!entries.length && !zones.length && !state.edit) {
       h += '<div class="empty-msg">즐겨찾기한 타일·폴더가 없습니다. 타일이나 폴더 머리에서 오른쪽 버튼 → 📌 즐겨찾기로 고정하세요.</div>';
     }
-    entries.forEach(function (e) { h += pinEntryHtml(e); });
-    h += '</div></section>';
+    zones.forEach(function (z) { h += fzoneHtml(z); });
+    loose.forEach(function (e) { h += pinEntryHtml(e); });
+    h += '</div>';
+    if (state.edit) h += '<div class="add-row"><button class="add-group" data-act="fz-add">＋ 구역(색상 박스)</button></div>';
+    h += '</section>';
     return h;
   }
 
@@ -3005,6 +3249,7 @@
       if (Array.isArray(state.snapshot.tabOrder)) state.data.tabOrder = state.snapshot.tabOrder.slice();
       if (Array.isArray(state.snapshot.hiddenTabs)) state.data.hiddenTabs = state.snapshot.hiddenTabs.slice();
       if (Array.isArray(state.snapshot.pinOrder)) state.data.pinOrder = state.snapshot.pinOrder.slice();
+      state.data.favZones = clone(state.snapshot.favZones || []);
       if (Array.isArray(state.snapshot.soloGroups)) state.data.soloGroups = state.snapshot.soloGroups.slice();
       if (Array.isArray(state.snapshot.collapsed)) state.data.collapsed = state.snapshot.collapsed.slice();
       if (Array.isArray(state.snapshot.collapsedGroups)) state.data.collapsedGroups = state.snapshot.collapsedGroups.slice();
@@ -3098,6 +3343,7 @@
     if (Array.isArray(state.data.pinOrder)) {
       state.data.pinOrder = state.data.pinOrder.filter(function (t) { return t !== ctok && t.indexOf(ftok) !== 0; });
     }
+    pruneFavZones();
     syncBoard(state.data);
     if (!state.data.links.length) state.clearAllowed = true;
     renderAll();
@@ -3127,10 +3373,10 @@
     });
     state.data.board = syncBoard(state.data).map(function (t) { return t === 'c:' + from ? 'c:' + to : t; });
     renameCatStyleKeys(from, to);
-    /* 즐겨찾기 토큰(카테고리·그 안 폴더)도 새 이름을 따라갑니다. */
+    /* 즐겨찾기 토큰(카테고리·그 안 폴더)도 새 이름을 따라갑니다 — 즐겨찾기 구역 토큰까지. */
     var fPre = pinCatToken(from), tPre = pinCatToken(to);
     var gPre = pinFolderToken(from, ''), gNew = pinFolderToken(to, '');
-    state.data.pinOrder = pinOrderArr().map(function (t) {
+    remapPinTokens(function (t) {
       if (t === fPre) return tPre;
       if (t.indexOf(gPre) === 0) return gNew + t.slice(gPre.length);
       return t;
@@ -3402,7 +3648,7 @@
     });
     /* 즐겨찾기 토큰도 새 폴더 이름을 따라갑니다. */
     var oldTok = pinFolderToken(cat, g), newTok = pinFolderToken(cat, newPath);
-    state.data.pinOrder = pinOrderArr().map(function (t) {
+    remapPinTokens(function (t) {
       if (t === oldTok) return newTok;
       if (t.indexOf(oldTok + '/') === 0) return newTok + t.slice(oldTok.length);
       return t;
@@ -3433,6 +3679,7 @@
     if (Array.isArray(state.data.pinOrder)) {
       state.data.pinOrder = state.data.pinOrder.filter(function (t) { return !(t === tokPre || t.indexOf(tokPre + '/') === 0); });
     }
+    pruneFavZones();
     state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (k) {
       var i = String(k).indexOf('»');
       if (i < 0) return true;
@@ -3467,7 +3714,9 @@
       collapsed: (state.data.collapsed || []).slice(),
       collapsedGroups: (state.data.collapsedGroups || []).slice(),
       groupColors: clone(state.data.groupColors || {}),
-      groupNoTitle: (state.data.groupNoTitle || []).slice()
+      groupNoTitle: (state.data.groupNoTitle || []).slice(),
+      pinOrder: (state.data.pinOrder || []).slice(),
+      favZones: clone(state.data.favZones || [])
     };
   }
 
@@ -3480,6 +3729,15 @@
     return '을';
   }
 
+  /** 받침 유무에 맞는 조사 (으로/로) */
+  function josaRo(word) {
+    var s = String(word || '').replace(/[^0-9A-Za-z\uAC00-\uD7A3]+$/, '');
+    if (!s) return '로';
+    var c = s.charCodeAt(s.length - 1);
+    if (c >= 0xAC00 && c <= 0xD7A3) return (c - 0xAC00) % 28 ? '으로' : '로';
+    return '로';
+  }
+
   function offerUndo(snap, msg) {
     if (!snap) { toast(msg); return; }
     toast(msg, false, { label: '↩ 되돌리기', fn: function () {
@@ -3490,6 +3748,8 @@
       state.data.collapsedGroups = snap.collapsedGroups;
       if (snap.groupColors) state.data.groupColors = snap.groupColors;
       if (snap.groupNoTitle) state.data.groupNoTitle = snap.groupNoTitle;
+      if (snap.pinOrder) state.data.pinOrder = snap.pinOrder.slice();
+      if (snap.favZones) state.data.favZones = snap.favZones;
       syncBoard(state.data);
       renderAll();
       changed();
@@ -3558,19 +3818,38 @@
     return { ok: true, msg: '‘' + l.name + '’' + josaEul(l.name) + ' ' + where + (group ? '로 옮겼습니다' : '로 뺐습니다') };
   }
 
-  /** 즐겨찾기 패널 안의 꽂을 자리 — 항목(타일·폴더·카테고리) 사이의 세로 삽입선. */
+  /** 즐겨찾기 패널 안의 꽂을 자리 — 항목(타일·폴더·카테고리) 사이의 세로 삽입선.
+   *  색 박스(구역) 안이면 그 구역 안의 자리로, 구역 밖이면 구역에서 빼는 자리로 잡습니다. */
   function pinTarget(under, x, y) {
     var panel = under.closest('.panel');
     if (!panel || panel.dataset.pin !== '1') return null;
     var src = drag && drag.source;
-    if (!src || !src.getAttribute || !src.getAttribute('data-pin-token')) return null;
-    var plist = panel.querySelector('.plist') || panel;
-    var entries = listTiles($$(':scope > .lk, :scope > .grp', plist));
-    var slot = pickSlot(entries, x, y, plist);
+    if (!src || !src.getAttribute) return null;
+    var srcTok = src.getAttribute('data-pin-token') || '';
+    if (!srcTok) return null;
+    var cur = fzoneOfToken(srcTok);
+    var curId = cur ? cur.id : '';
+    var fzEl = under.closest('.fz');
+    if (fzEl === drag.source) return null;
+
+    var box, entries, zid = '';
+    if (fzEl) {
+      zid = fzEl.getAttribute('data-fzone') || '';
+      box = fzEl.querySelector('.grp-body');
+      if (!box) return null;
+      entries = listTiles($$(':scope > .lk, :scope > .grp', box));
+    } else {
+      box = panel.querySelector('.pin-list') || panel.querySelector('.plist') || panel;
+      entries = listTiles($$(':scope > .lk, :scope > .grp:not(.fz)', box));
+    }
+    var slot = pickSlot(entries, x, y, box);
     showVLine(slot.left, slot.top, slot.height);
-    setBadge('↕ 즐겨찾기 순서 이동', x, y);
+    var same = zid === curId;
+    setBadge(zid ? (same ? '↕ 즐겨찾기 순서 이동' : '🎨 구역으로 넣기')
+      : (curId ? '↕ 구역 밖으로 빼기' : '↕ 즐겨찾기 순서 이동'),
+      x, y, (!same && zid) ? 'into' : '');
     var beforeTok = slot.index < entries.length ? entries[slot.index].getAttribute('data-pin-token') : null;
-    return { type: 'pin', beforeTok: beforeTok };
+    return { type: 'pin', beforeTok: beforeTok, zone: zid };
   }
 
   /** 링크의 카테고리를 바꾸고 단독 페이지 순서 토큰도 맞춥니다. */
@@ -3996,6 +4275,124 @@
       closeModal();
       createZone(cat, v, picked, !v);
     };
+  }
+
+  /** 즐겨찾기 구역에서 아직 많이 쓰지 않은 파스텔 색. */
+  function nextFavZoneColor() {
+    var used = {};
+    favZonesStore().forEach(function (z) { var c = favZoneColorId(z); if (c) used[c] = (used[c] || 0) + 1; });
+    var best = '', bestN = Infinity;
+    ZONE_PRESETS.forEach(function (p) {
+      if (!p.id) return;
+      var n = used[p.id] || 0;
+      if (n < bestN) { bestN = n; best = p.id; }
+    });
+    return best || 'blue';
+  }
+
+  /** 즐겨찾기 탭에 새 색 박스(구역)를 만드는 창. */
+  function openFzoneModal() {
+    if (!state.data) return;
+    var picked = nextFavZoneColor();
+    var sw = '<div class="zw">';
+    ZONE_PRESETS.forEach(function (p) {
+      sw += '<button type="button" class="zw-btn' + (p.id === picked ? ' on' : '') + (p.id ? '' : ' none') + '" data-zp="' + esc(p.id) + '"' +
+        (p.hex ? ' style="--zc:' + p.hex + '"' : '') + ' title="' + esc(p.label) + '"><span class="c"></span></button>';
+    });
+    sw += '</div>';
+    openModal(
+      '<div class="sh-head"><h3>🎨 즐겨찾기 구역 (색상 박스)</h3><button class="x" data-x="1" aria-label="닫기">✕</button></div>' +
+      '<div class="field"><label for="fzName">구역 이름</label>' +
+      '<input id="fzName" placeholder="예: 매일 쓰는 · 수업 · 집안일 (비우면 제목 없이 색 박스만)" spellcheck="false" />' +
+      '<span class="hint">이름을 비우면 색 배경·테두리만 있는 박스로 만들어집니다. 즐겨찾기 타일을 끌어다 넣으면 됩니다.</span></div>' +
+      '<div class="field"><label>공간 색</label>' + sw +
+      '<span class="hint">구역끼리 색으로 구별됩니다. 나중에 구역 머리의 색 점을 눌러 언제든 바꿀 수 있습니다.</span></div>' +
+      '<div class="sh-foot"><button class="btn" data-x="1">취소</button><button class="btn primary" id="fzOk">구역 만들기</button></div>'
+    );
+    $$('.zw [data-zp]').forEach(function (b) {
+      b.onclick = function () {
+        picked = b.getAttribute('data-zp');
+        $$('.zw [data-zp]').forEach(function (x) { x.classList.toggle('on', x === b); });
+      };
+    });
+    $$('[data-x]').forEach(function (b) { b.onclick = function () { closeModal(); }; });
+    var nm = $('#fzName');
+    if (nm) {
+      nm.focus();
+      nm.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var ok = $('#fzOk'); if (ok) ok.click(); } });
+    }
+    $('#fzOk').onclick = function () {
+      var v = nm ? nm.value.trim() : '';
+      closeModal();
+      createFavZone(v, picked, !v);
+    };
+  }
+
+  /** 즐겨찾기 구역의 색·제목 숨김을 바꾸는 팝업. */
+  function openFzonePalette(id, x, y) {
+    var m = $('#ctxMenu');
+    var z = fzoneById(id);
+    if (!m || !z) return;
+    var cur = favZoneColorId(z), hideT = !!z.noTitle;
+    var h = '<div class="chead">🎨 ‘' + esc(z.name || '구역') + '’ 구역 색</div><div class="sw-grid">';
+    ZONE_PRESETS.forEach(function (p) {
+      h += '<button class="sw' + (p.id === cur ? ' on' : '') + (p.id ? '' : ' sw-none') + '" data-fzc="' + esc(p.id) + '"' +
+        (p.hex ? ' style="--zc:' + p.hex + '"' : '') + '>' +
+        '<span class="sw-dot"></span><span class="sw-lb">' + esc(p.label) + '</span></button>';
+    });
+    h += '</div><div class="sep"></div>' +
+      '<button class="ci" data-fzc-title="1"><span class="ic">' + (hideT ? '🏷' : '🙈') + '</span><span>' +
+      (hideT ? '구역 이름(제목) 보이기' : '구역 이름(제목) 숨기기') + '</span></button>';
+    m.innerHTML = h;
+    placeCtx(m, x, y);
+    $$('[data-fzc]', m).forEach(function (b) {
+      b.onclick = function () { closeCtx(); setFavZoneColor(id, b.getAttribute('data-fzc')); };
+    });
+    var tb = $('[data-fzc-title]', m);
+    if (tb) tb.onclick = function () { closeCtx(); setFavZoneTitleHidden(id, !hideT); };
+  }
+
+  /** 즐겨찾기 구역 머리 우클릭 메뉴. */
+  function fzoneCtx(id, x, y) {
+    var z = fzoneById(id);
+    if (!z) return;
+    var n = fzoneEntries(z).length;
+    var items = [
+      { ic: '🎨', label: '구역 색 바꾸기', fn: function () { openFzonePalette(id, x, y); } },
+      { ic: '✏️', label: '구역 이름 바꾸기', fn: function () {
+        var el = $('.fz[data-fzone="' + cssEsc(id) + '"] .gname');
+        if (el && !z.noTitle) inlineEditName(el, z.name || '', function (v) { renameFavZoneTo(id, v); });
+        else { var nmv = prompt('구역 이름\n(비우면 제목 없이 색 박스만)', z.name || ''); if (nmv !== null) renameFavZoneTo(id, nmv); }
+      } },
+      { ic: z.noTitle ? '🏷' : '🙈', label: z.noTitle ? '구역 이름(제목) 보이기' : '구역 이름(제목) 숨기기', fn: function () { setFavZoneTitleHidden(id, !z.noTitle); } },
+      { ic: '↗', label: '이 구역의 링크 모두 열기', fn: function () { openZoneLinks(id); } },
+      '-',
+      { ic: '🗑', label: '구역 삭제 (타일은 즐겨찾기에 그대로)', danger: true, fn: function () {
+        if (!confirm('즐겨찾기 구역' + (z.name ? ' “' + z.name + '”' : '') + '을 지울까요?\n안의 타일은 즐겨찾기 목록에 그대로 남습니다.')) return;
+        removeFavZone(id);
+      } }
+    ];
+    openCtx(x, y, '🎨 ' + (z.name || '즐겨찾기 구역') + (n ? ' · ' + n + '개' : ''), items);
+  }
+
+  /** 즐겨찾기 구역 안의 링크를 모두 새 탭에서 엽니다. */
+  function openZoneLinks(id) {
+    var z = fzoneById(id);
+    if (!z) return;
+    var links = [];
+    fzoneEntries(z).forEach(function (e) {
+      pinLinksOf(e).forEach(function (l) { if (links.indexOf(l) < 0) links.push(l); });
+    });
+    openAllLinks(links, '“' + (z.name || '즐겨찾기 구역') + '”');
+  }
+
+  /** 즐겨찾기 탭 빈 곳 우클릭 메뉴. */
+  function pinPanelCtx(x, y) {
+    var items = [
+      { ic: '🎨', label: '새 구역(색상 박스) 만들기', fn: function () { openFzoneModal(); } },
+      { ic: '↗', label: '즐겨찾기 모두 새 탭에서 열기', fn: function () { openAllLinks(pinAllLinks(), '즐겨찾기'); } }
+    ];
+    openCtx(x, y, '📌 즐겨찾기', items);
   }
 
   function copyText(text, msg) {
@@ -4573,6 +4970,7 @@
     d.links = links;
     d.soloGroups = soloGs;
     d.pinOrder = [];
+    d.favZones = [];
     d.collapsed = [];
     d.collapsedGroups = [];
     d.board = [];            /* syncBoard가 단독 페이지 → 카테고리 순서로 다시 만듭니다. */
@@ -4842,7 +5240,8 @@
     var soloArea = anchor.closest('.solo-strip');
     if (!panel && !soloEl && !soloArea) return;
     var grpEl = ghead ? ghead.closest('.grp') : null;
-    var kind = soloEl ? 'link' : chip ? 'link' : grpEl ? 'grp' : (panel && (grip || head)) ? 'cat' : null;
+    var fzEl = ghead ? ghead.closest('.fz') : null;
+    var kind = soloEl ? 'link' : chip ? 'link' : fzEl ? 'fzone' : grpEl ? 'grp' : (panel && (grip || head)) ? 'cat' : null;
     if (!kind) return;
     if (kind === 'link' && !(soloEl || chip).dataset.id) return;
 
@@ -4853,6 +5252,7 @@
       lastX: e.clientX, lastY: e.clientY,
       source: chip || soloEl || grpEl || panel,
       panel: panel,
+      fzone: fzEl ? (fzEl.getAttribute('data-fzone') || '') : '',
       id: (soloEl || chip) ? (soloEl || chip).dataset.id : null,
       cat: soloEl ? '' : (grpEl ? (grpEl.dataset.cat || '') : (panel ? panel.dataset.cat : '')),
       group: soloEl ? '' : chip ? (chip.dataset.group || '') : grpEl ? (grpEl.dataset.group || '') : null,
@@ -4926,7 +5326,16 @@
       } else if (target.type === 'pin') {
         var srcTok = (drag.source && drag.source.getAttribute) ? (drag.source.getAttribute('data-pin-token') || '') : '';
         var pres = srcTok ? movePinEntry(srcTok, target.beforeTok) : null;
-        if (pres && pres.ok) msg = '즐겨찾기 순서를 옮겼습니다';
+        var zres = srcTok ? setTokenFavZone(srcTok, target.zone || '') : false;
+        if ((pres && pres.ok) || zres) {
+          var tzObj = target.zone ? fzoneById(target.zone) : null;
+          var tzName = (tzObj && tzObj.name) ? tzObj.name : '구역';
+          msg = target.zone
+            ? (zres ? '🎨 ' + tzName + ' 구역으로 옮겼습니다' : '즐겨찾기 순서를 옮겼습니다')
+            : (zres ? '즐겨찾기 구역에서 뺐습니다' : '즐겨찾기 순서를 옮겼습니다');
+        } else snap = null;
+      } else if (target.type === 'fzone-order') {
+        if (moveFavZone(drag.fzone, target.beforeId)) msg = '구역 순서를 옮겼습니다';
         else snap = null;
       } else if (kind === 'link') {
         var item0 = linkById(drag.id);
@@ -5013,6 +5422,11 @@
       g.innerHTML = '<span class="gl">⠿</span><span class="nm">' + esc(drag.cat) + '</span>';
       g.style.width = Math.min(Math.max(r.width, 140), 280) + 'px';
       g.style.height = '42px';
+    } else if (drag.kind === 'fzone') {
+      var fzObj = fzoneById(drag.fzone);
+      g.innerHTML = '<span class="gl">🎨</span><span class="nm">' + esc((fzObj && fzObj.name) || '구역') + '</span>';
+      g.style.width = Math.min(Math.max(r.width, 130), 250) + 'px';
+      g.style.height = '38px';
     } else if (drag.kind === 'grp') {
       var glabel = drag.group ? drag.group : ((drag.source && drag.source.getAttribute('data-cat')) || '');
       g.innerHTML = '<span class="gl">📂</span><span class="nm">' + esc(glabel) + '</span>';
@@ -5053,6 +5467,29 @@
     if (drag.kind === 'link') drag.target = linkTarget(under, x, y);
     else if (drag.kind === 'cat') drag.target = catTarget(under, x, y);
     else if (drag.kind === 'grp') drag.target = grpTarget(under, x, y);
+    else if (drag.kind === 'fzone') drag.target = fzoneTarget(x, y);
+  }
+
+  /** 즐겨찾기 구역 순서 바꾸기 — 구역 박스 사이의 세로 삽입선. */
+  function fzoneTarget(x, y) {
+    var panel = $('.pin-panel');
+    if (!panel) return null;
+    var els = $$('.fz', panel).filter(function (el) { return el !== drag.source; });
+    if (!els.length) return { type: 'fzone-order', beforeId: null };
+    var idx = els.length, i, r, ref;
+    for (i = 0; i < els.length; i++) {
+      r = els[i].getBoundingClientRect();
+      if (!r.width && !r.height) continue;
+      if (y > r.bottom) continue;
+      if (y >= r.top && x > r.left + r.width / 2) continue;
+      idx = i;
+      break;
+    }
+    ref = els[idx < els.length ? idx : els.length - 1].getBoundingClientRect();
+    showVLine(idx < els.length ? ref.left - 3 : ref.right + 3, ref.top + 2, Math.max(26, ref.height - 4));
+    setBadge('↕ 구역 순서 이동', x, y);
+    var beforeId = idx < els.length ? els[idx].getAttribute('data-fzone') : null;
+    return { type: 'fzone-order', beforeId: beforeId };
   }
 
   /** 끌고 있는 탭이 들어갈 자리 — 탭 사이의 세로 삽입선으로 보여 줍니다.
@@ -5593,6 +6030,33 @@
         if (a === 'addcat') { addCategory(); return; }
         if (a === 'g-add') { addGroup(panel.dataset.cat); return; }
         if (a === 'zone-add') { openZoneModal(panel ? panel.dataset.cat : ''); return; }
+        if (a === 'fz-add') { openFzoneModal(); return; }
+        if (a === 'fz-fold' || a === 'fz-color' || a === 'fz-ren' || a === 'fz-del' || a === 'fz-open') {
+          var fzEl = actEl.closest('.fz');
+          if (!fzEl) return;
+          var fid = fzEl.getAttribute('data-fzone') || '';
+          if (a === 'fz-fold') toggleFzCollapsed(fid);
+          else if (a === 'fz-color') {
+            e.stopPropagation();
+            var fr = actEl.getBoundingClientRect();
+            openFzonePalette(fid, fr.left, fr.bottom + 4);
+          } else if (a === 'fz-ren') {
+            var fzNameEl = fzEl.querySelector('.gname');
+            var fzObj = fzoneById(fid);
+            if (fzNameEl && fzObj && !fzObj.noTitle) {
+              inlineEditName(fzNameEl, fzObj.name || '', function (v) { renameFavZoneTo(fid, v); });
+            } else {
+              /* 제목을 숨긴 구역은 이름 칸이 보이지 않으므로 입력창으로 받습니다. */
+              var nmv = prompt('구역 이름\n(비우면 제목 없이 색 박스만)', (fzObj && fzObj.name) || '');
+              if (nmv !== null) renameFavZoneTo(fid, nmv);
+            }
+          } else if (a === 'fz-del') {
+            var fzd = fzoneById(fid);
+            if (!confirm('즐겨찾기 구역' + (fzd && fzd.name ? ' “' + fzd.name + '”' : '') + '을 지울까요?\n안의 타일은 즐겨찾기 목록에 그대로 남습니다.')) return;
+            removeFavZone(fid);
+          } else openZoneLinks(fid);
+          return;
+        }
         if (a === 'gtoggle' || a === 'g-ren' || a === 'g-del' || a === 'g-open-all' || a === 'g-addlink' || a === 'g-color') {
           var grp = actEl.closest('.grp');
           if (!grp) return;
@@ -5656,6 +6120,12 @@
       var gn = e.target.closest('.gname');
       if (gn) {
         var grp = gn.closest('.grp');
+        var fzid2 = grp.getAttribute('data-fzone') || '';
+        if (fzid2) {
+          var fz2 = fzoneById(fzid2);
+          inlineEditName(gn, (fz2 && fz2.name) || '', function (v) { renameFavZoneTo(fzid2, v); });
+          return;
+        }
         inlineEditName(gn, grp.dataset.group, function (v) {
           if (renameGroupTo(grp.dataset.cat, grp.dataset.group, v)) { renderAll(); changed(); toast('“' + v + '”로 바꿨습니다'); }
         });
@@ -5682,6 +6152,8 @@
       if (gh) {
         var g = gh.closest('.grp');
         e.preventDefault(); closeCtx();
+        var fzid = g.getAttribute('data-fzone') || '';
+        if (fzid) { fzoneCtx(fzid, e.clientX, e.clientY); return; }
         var ptok = g.getAttribute('data-pin-token') || '';
         if (ptok.indexOf('c:') === 0) { pinCatCtx(ptok, e.clientX, e.clientY); return; }
         groupCtx(g.dataset.cat, g.dataset.group, e.clientX, e.clientY); return;
@@ -5693,7 +6165,7 @@
       }
       /* 카테고리 카드 안의 빈 곳(타일 바깥·소그룹 사이)에서도 카테고리 메뉴 */
       var pnl = e.target.closest('.panel');
-      if (pnl && pnl.dataset.pin === '1') { closeCtx(); return; }
+      if (pnl && pnl.dataset.pin === '1') { e.preventDefault(); closeCtx(); pinPanelCtx(e.clientX, e.clientY); return; }
       if (pnl && pnl.dataset.cat) {
         e.preventDefault(); closeCtx(); categoryCtx(pnl.dataset.cat, e.clientX, e.clientY); return;
       }
