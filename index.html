@@ -3212,6 +3212,13 @@
         state.data.links.forEach(function (l) {
           if (l.cat && l.group) ensureGroup(l.cat, l.group);
         });
+        /* 예전에 통째로 가져온 빈 “가져온 북마크” 카테고리는 정리합니다. */
+        if (moved) {
+          var emptyJunk = state.data.cats.filter(function (c) {
+            return c.name === '가져온 북마크' && !state.data.links.some(function (l) { return l.cat === c.name; });
+          }).map(function (c) { return c.name; });
+          if (emptyJunk.length) state.data.cats = state.data.cats.filter(function (c) { return emptyJunk.indexOf(c.name) < 0; });
+        }
         closeModal();
         syncBoard(state.data);
         renderAll();
