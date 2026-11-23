@@ -5599,6 +5599,8 @@
           else if (a === 'g-addlink') openLinkModal(null, grp.dataset.cat, grp.dataset.group);
           else if (a === 'g-ren') renameGroup(grp.dataset.cat, grp.dataset.group);
           else if (a === 'g-color') {
+            /* 같은 클릭이 document 까지 올라가 방금 연 색 메뉴를 닫지 않게 막습니다. */
+            e.stopPropagation();
             var gr = actEl.getBoundingClientRect();
             openZonePalette(grp.dataset.cat, grp.dataset.group, gr.left, gr.bottom + 4);
           }
