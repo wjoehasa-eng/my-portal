@@ -134,12 +134,13 @@
   @media (max-width:640px){ .surface{padding:12px 10px 4px;border-radius:20px} }
 
   /* ---------- board ---------- */
-  .board{display:flex;flex-direction:column;gap:0}
+  .board{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px 26px;align-items:start}
+  .board.only{grid-template-columns:1fr}
   #root{display:block}
-  .panel{position:relative;padding:4px 0 2px;overflow:visible}
-  .panel+.panel{border-top:1px solid var(--line)}
+  .panel{position:relative;padding:2px 0 8px;overflow:visible;min-width:0}
   .ph{display:flex;align-items:center;gap:5px;padding:8px 2px;position:relative;min-height:42px}
   .ph h2{font-size:15px;font-weight:800;letter-spacing:-.35px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:58%}
+  .pdot{width:8px;height:8px;border-radius:50%;background:var(--c,var(--acc));flex:none;margin:0 1px 0 2px}
   .ph .ph-sp{flex:1;min-width:4px}
   .cnt{font-size:11px;font-weight:800;color:var(--mut);background:var(--panel2);border-radius:999px;padding:1px 8px;flex:none;line-height:1.6}
   .collapser{width:26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center;
@@ -155,7 +156,7 @@
   .add-mini:hover{background:var(--panel2);color:var(--txt)}
 
   /* ---------- 아이콘 타일 그리드 (웨일 새 탭 느낌) ---------- */
-  .plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px 4px;padding:2px 0 12px;align-items:start}
+  .plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px 2px;padding:2px 0 10px;align-items:start}
   .plist>.grp{grid-column:1/-1}
   .lk,.solo{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;
     padding:8px 4px 7px;border-radius:16px;border:1px solid transparent;cursor:pointer;
@@ -233,7 +234,7 @@
   .ed-head .mini:disabled{opacity:.35}
 
   /* ---------- 단독 페이지 (카테고리 밖 · surface 상단) ---------- */
-  .solo-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px 4px;padding:4px 0 12px;align-items:start}
+  .solo-strip{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px 4px;padding:4px 0 12px;align-items:start}
   .solo-strip.has-cats{border-bottom:1px dashed var(--line);margin-bottom:4px}
   .solo.drop-into{border-style:dashed;border-color:var(--acc);background:var(--acc-soft)}
   #soloZone{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:170;display:none;pointer-events:none;
@@ -309,7 +310,7 @@
   .toast .tact{border:0;background:transparent;color:currentColor;font-weight:900;text-decoration:underline;text-underline-offset:2px;padding:2px 4px;font-size:13px;flex:none}
 
   /* ---------- add category tile ---------- */
-  .addcat-tile{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;margin:6px 0 10px;
+  .addcat-tile{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;margin:2px 0 6px;
     border:1.5px dashed color-mix(in srgb,var(--acc) 35%,var(--line));border-radius:14px;color:var(--mut);font-size:13.5px;font-weight:700;background:color-mix(in srgb,var(--acc) 3%,transparent)}
   .addcat-tile:hover{border-color:var(--acc);color:var(--acc);background:var(--acc-soft)}
 
@@ -1283,7 +1284,7 @@
       }
     }
 
-    html += '<div class="board" id="grid">';
+    html += '<div class="board' + (tab ? ' only' : '') + '" id="grid">';
     if (tab === '__pin') {
       html += pinPanelHtml();
     } else if (tab === '__solo') {
@@ -1393,7 +1394,7 @@
     if (state.edit) {
       h += '<input class="cat-name" value="' + esc(c.name) + '" data-cat="' + esc(c.name) + '" aria-label="카테고리 이름" />';
     } else {
-      h += '<h2 title="두 번 누르면 이름 바꾸기">' + esc(c.name) + '</h2>';
+      h += '<span class="pdot"></span><h2 title="두 번 누르면 이름 바꾸기">' + esc(c.name) + '</h2>';
     }
     h += '<span class="cnt">' + items.length + '</span><span class="ph-sp"></span>' + openBtn +
       '<span class="cat-grip" title="끌어서 카테고리 순서 바꾸기">⠿</span></div>';
