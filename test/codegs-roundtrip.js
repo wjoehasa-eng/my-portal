@@ -115,22 +115,22 @@ const wire = (s) => (/[|,;\n\r]/.test(s) ? '~64~' + b64(s) : s);
 
 /* 실제 사용자 시트에서 문제가 됐던 모양: 쉼표가 든 폴더 이름 */
 const cats = [
-  { name: 'PC 북마크', color: '#3b82f6', groups: ['AI GPT', '디자인 플랫폼'] },
-  { name: '학교', color: '#8b5cf6', groups: ['★★유용한 사이트', '1.수업', '1.수업/행복한김선생(국어, 도덕)', '1.수업/항성쌤(음악)', '2.업무/스프레드시트(환희정승)/교무'] },
-  { name: '개인', color: '#ef4444', groups: ['재테크', '재테크/주식', '재테크/환율'] },
-  { name: '부장', color: '#f59e0b', groups: ['기타'] },
-  { name: '26_학년 업무', color: '#10b981', groups: [] },
+  { name: '회사 북마크', color: '#3b82f6', groups: ['AI GPT', '디자인 플랫폼'] },
+  { name: '업무', color: '#8b5cf6', groups: ['★★유용한 사이트', '1.수업', '1.수업/과목A(국어, 도덕)', '1.수업/과목B(음악)', '2.업무/시트(공동)/교무'] },
+  { name: '생활', color: '#ef4444', groups: ['재테크', '재테크/주식', '재테크/환율'] },
+  { name: '부서', color: '#f59e0b', groups: ['기타'] },
+  { name: '학년 업무', color: '#10b981', groups: [] },
   { name: '__solo', color: '#000000', groups: [b64(JSON.stringify(['자주 쓰는', 'A/B/C']))] },
   { name: '__pins', color: '#000000', groups: [b64(JSON.stringify(['l:abcd1234', 'f:학교»1.수업', 'c:개인']))] },
-  { name: '__tabs', color: '#000000', groups: [b64(JSON.stringify([['__pin', '', '학교', '__solo', 'PC 북마크', '개인', '부장', '26_학년 업무'], ['부장'], '__pin']))] }
+  { name: '__tabs', color: '#000000', groups: [b64(JSON.stringify([['__pin', '', '업무', '__solo', '회사 북마크', '생활', '부서', '학년 업무'], ['부서'], '__pin']))] }
 ].map((c) => ({ name: wire(c.name), color: c.color, groups: c.groups.map(wire) }));
 
 const links = [];
 for (let i = 0; i < 520; i++) {
-  const c = ['PC 북마크', '학교', '개인', '부장', '26_학년 업무'][i % 5];
+  const c = ['회사 북마크', '업무', '생활', '부서', '학년 업무'][i % 5];
   links.push({
     c: c,
-    g: i % 3 === 0 ? '' : (c === '학교' ? '1.수업/행복한김선생(국어, 도덕)' : c === '개인' ? '재테크/주식' : ''),
+    g: i % 3 === 0 ? '' : (c === '업무' ? '1.수업/과목A(국어, 도덕)' : c === '생활' ? '재테크/주식' : ''),
     n: '링크 "' + i + '" <특수> & / 쉼표, 포함',
     i: '🔗',
     u: 'https://example.com/p/' + i + '?a=1&b=2',
@@ -148,9 +148,9 @@ const payload = {
   portalTitle: '나만의 포털',
   theme: 'auto',
   categories: cats,
-  collapsed: [wire('26_학년 업무'), wire('개인')],
+  collapsed: [wire('학년 업무'), wire('생활')],
   collapsedGroups: [wire('학교»1.수업')],
-  boardOrder: 's:https://calendar.google.com\nc:PC 북마크\nc:학교\nc:개인\nc:부장\nc:26_학년 업무',
+  boardOrder: 's:https://calendar.google.com\nc:회사 북마크\nc:업무\nc:생활\nc:부서\nc:학년 업무',
   links: links
 };
 
@@ -168,16 +168,16 @@ const unwire = (s) => (String(s).indexOf('~64~') === 0 ? Buffer.from(String(s).s
 const names = raw.map(unwire);
 
 ok(!names.some((n) => /[;|]/.test(n) && !n.startsWith('__')), '카테고리 이름이 쪼개지지 않음 (구분자 충돌 없음)', names);
-ok(names.filter((n) => !n.startsWith('__')).join('|') === 'PC 북마크|학교|개인|부장|26_학년 업무',
+ok(names.filter((n) => !n.startsWith('__')).join('|') === '회사 북마크|업무|생활|부서|학년 업무',
   '카테고리 5개가 순서대로 살아 있음 (가짜 카테고리 없음)', names);
 
-const school = back.categories.filter((c) => unwire(c.name) === '학교')[0];
+const school = back.categories.filter((c) => unwire(c.name) === '업무')[0];
 const schoolGroups = school ? school.groups.map(unwire) : [];
 const uniqSchool = schoolGroups.filter((g, i) => schoolGroups.indexOf(g) === i);
-ok(uniqSchool.indexOf('1.수업/행복한김선생(국어, 도덕)') >= 0,
+ok(uniqSchool.indexOf('1.수업/과목A(국어, 도덕)') >= 0,
   '쉼표가 든 폴더 이름이 그대로 왕복', schoolGroups);
-ok(uniqSchool.filter((g) => g === '1.수업/행복한김선생(국어, 도덕)').length === 1 &&
-  uniqSchool.every((g) => !/^1\.수업\/행복한김선생\(국어$/.test(g)),
+ok(uniqSchool.filter((g) => g === '1.수업/과목A(국어, 도덕)').length === 1 &&
+  uniqSchool.every((g) => !/^1\.수업\/과목A\(국어$/.test(g)),
   '잘린 폴더 이름이 생기지 않고, 같은 폴더가 중복 생성되지도 않음', uniqSchool);
 
 ok(back.links.length === links.length, '링크 수 보존 (' + back.links.length + ')', back.links.length);
@@ -186,7 +186,7 @@ ok(solo.length === 3, '카테고리 밖 단독 페이지 3개 보존', solo.leng
 /* 링크는 카테고리별로 묶여 저장되는 것이 정상(앱도 그렇게 보냅니다). 이름·개수·카테고리 안 순서를 봅니다. */
 const sortNames = (arr) => arr.map((l) => l.name || l.n).slice().sort().join('\u0001');
 ok(sortNames(back.links) === sortNames(links), '링크 이름이 하나도 빠지거나 바뀌지 않음', back.links.length);
-const catsUsed = ['PC 북마크', '학교', '개인', '부장', '26_학년 업무'];
+const catsUsed = ['회사 북마크', '업무', '생활', '부서', '학년 업무'];
 const orderOk = catsUsed.every((cat) => {
   const a = back.links.filter((l) => (l.category || '') === cat).map((l) => l.name);
   const b = links.filter((l) => l.c === cat).map((l) => l.n);
