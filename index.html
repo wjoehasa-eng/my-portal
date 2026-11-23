@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
-<meta name="portal-version" content="3.2.4" />
+<meta name="portal-version" content="3.2.5" />
 <title>나만의 포털</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E" />
 <style>
@@ -694,7 +694,9 @@
     save: 'idle', sync: 'idle',
     dirty: false, inFlight: false, again: false, clearAllowed: false,
     banner: false, sheetUrl: '', suppressClick: 0, remote: null, backendVersion: '', backendOld: false,
-    backendSolo: false, tab: ''
+    backendSolo: false, tab: '',
+    /* 카테고리 하나만 보는 탭은 접힘 상태를 「전체」와 따로 기억합니다. */
+    tabCollapsed: {}, tabCollapsedGroups: {}
   };
   var drag = null, pending = null;
 
@@ -984,6 +986,7 @@
     state.data = normalizeData(DEMO);
     state.data.collapsed = mergeCollapsed(state.data, state.data.collapsed);
     mergeCollapsedGroups(state.data);
+    loadTabCollapsed();
     renderAll();
     toast('데모 화면입니다. 끌어서 옮겨 보세요. (실제 시트에는 저장 안 됨)');
   }
@@ -1003,6 +1006,7 @@
       state.backendSolo = !!state.backendVersion && !versionLt(state.backendVersion, '2.1.0');
       norm.collapsed = mergeCollapsed(norm, norm.collapsed);
       mergeCollapsedGroups(norm);
+      loadTabCollapsed();
       /* 시트에 최상위 배치가 없으면(예전 백엔드) 이 브라우저의 마지막 배치를 살려 둡니다. */
       var prevBoard = parseBoardTokens((prevCache && prevCache.board) || []);
       if (!String(data.boardOrder || '').trim() && prevBoard.length) {
@@ -1465,7 +1469,7 @@
 
   function panelHtml(c) {
     var items = state.data.links.filter(function (l) { return l.cat === c.name; });
-    var collapsed = (state.data.collapsed || []).indexOf(c.name) >= 0;
+    var collapsed = isCatCollapsed(c.name);
     var gs = groupsOf(c.name);
     var chev = collapsed ? '▸' : '▾';
     var h = '<section class="panel' + (collapsed ? ' is-collapsed' : '') + '" data-cat="' + esc(c.name) + '" style="--c:' + esc(c.color || 'var(--acc)') + '">';
@@ -1523,7 +1527,7 @@
   function gkey(cat, group) { return cat + '»' + group; }
 
   function groupHtml(c, g, gl) {
-    var collapsed = (state.data.collapsedGroups || []).indexOf(gkey(c.name, g)) >= 0;
+    var collapsed = isGroupCollapsed(c.name, g);
     var h = '<div class="grp' + (collapsed ? ' is-collapsed' : '') + '" data-group="' + esc(g) + '" data-cat="' + esc(c.name) + '">';
     h += '<div class="grp-head" data-act="gtoggle" title="접기 / 펼치기 · 끌어서 소그룹 옮기기">' +
       '<button class="gchev-btn" data-act="gtoggle" aria-expanded="' + (collapsed ? 'false' : 'true') + '" title="접기 / 펼치기">' + (collapsed ? '▸' : '▾') + '</button>' +
@@ -1766,6 +1770,9 @@
     state.data.links = state.data.links.filter(function (l) { return l.cat !== name; });
     state.data.collapsed = (state.data.collapsed || []).filter(function (x) { return x !== name; });
     state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (k) { return k.indexOf(name + '»') !== 0; });
+    delete state.tabCollapsed[name];
+    delete state.tabCollapsedGroups[name];
+    persistTabCollapsed();
     syncBoard(state.data);
     if (!state.data.links.length) state.clearAllowed = true;
     renderAll();
@@ -1783,6 +1790,9 @@
     state.data.links.forEach(function (l) { if (l.cat === from) l.cat = to; });
     var ci = (state.data.collapsed || []).indexOf(from);
     if (ci >= 0) state.data.collapsed[ci] = to;
+    if (state.tabCollapsed[from] !== undefined) { state.tabCollapsed[to] = state.tabCollapsed[from]; delete state.tabCollapsed[from]; }
+    if (state.tabCollapsedGroups[from]) { state.tabCollapsedGroups[to] = state.tabCollapsedGroups[from]; delete state.tabCollapsedGroups[from]; }
+    persistTabCollapsed();
     state.data.collapsedGroups = (state.data.collapsedGroups || []).map(function (k) {
       return k.indexOf(from + '»') === 0 ? to + '»' + k.slice(from.length + 1) : k;
     });
@@ -1792,19 +1802,21 @@
 
   function toggleCollapse(cat) {
     if (!state.data) return;
-    var arr = state.data.collapsed || (state.data.collapsed = []);
-    var i = arr.indexOf(cat);
-    if (i >= 0) arr.splice(i, 1); else arr.push(cat);
-    persistCollapsed();
+    var now = !isCatCollapsed(cat);
+    setCatCollapsed(cat, now);
+    if (!inCatTab()) {
+      persistCollapsed();
+      if (state.edit) state.editDirty = true; else scheduleSave();
+      savePrefs();
+    } else {
+      if (state.edit) state.editDirty = true;
+    }
     var panel = $('.panel[data-cat="' + cssEsc(cat) + '"]');
     if (panel) {
-      var collapsed = arr.indexOf(cat) >= 0;
-      panel.classList.toggle('is-collapsed', collapsed);
+      panel.classList.toggle('is-collapsed', now);
       var btn = panel.querySelector('.collapser');
-      if (btn) { btn.textContent = collapsed ? '▸' : '▾'; btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); }
+      if (btn) { btn.textContent = now ? '▸' : '▾'; btn.setAttribute('aria-expanded', now ? 'false' : 'true'); }
     }
-    if (state.edit) state.editDirty = true; else scheduleSave();
-    savePrefs();
     updateFoldBtn();
   }
 
@@ -1819,12 +1831,28 @@
 
   function everythingCollapsed() {
     if (!state.data || !state.data.cats.length) return false;
-    return state.data.cats.every(function (c) { return (state.data.collapsed || []).indexOf(c.name) >= 0; }) &&
+    if (inCatTab()) {
+      var cat = state.tab;
+      var gs = groupsOf(cat);
+      return isCatCollapsed(cat) || (gs.length > 0 && gs.every(function (g) { return isGroupCollapsed(cat, g); }));
+    }
+    return state.data.cats.every(function (c) { return isCatCollapsed(c.name); }) &&
       allGroupKeys().every(function (k) { return (state.data.collapsedGroups || []).indexOf(k) >= 0; });
   }
 
   function foldAll(collapse) {
     if (!state.data) return;
+    /* 카테고리 하나만 보는 탭에서는 그 카테고리·소그룹만 접고 펍니다(전체 탭은 그대로). */
+    if (inCatTab()) {
+      var cat = state.tab;
+      setCatCollapsed(cat, false);
+      groupsOf(cat).forEach(function (g) { setGroupCollapsed(cat, g, collapse); });
+      renderAll();
+      if (state.edit) state.editDirty = true;
+      updateFoldBtn();
+      toast(collapse ? '이 카테고리의 소그룹을 접었습니다' : '이 카테고리를 모두 펼쳤습니다');
+      return;
+    }
     state.data.collapsed = collapse ? state.data.cats.map(function (c) { return c.name; }) : [];
     state.data.collapsedGroups = collapse ? allGroupKeys() : [];
     persistCollapsed();
@@ -1853,21 +1881,86 @@
 
   function toggleGroup(cat, g) {
     if (!state.data) return;
-    var arr = state.data.collapsedGroups || (state.data.collapsedGroups = []);
-    var key = gkey(cat, g);
-    var i = arr.indexOf(key);
-    if (i >= 0) arr.splice(i, 1); else arr.push(key);
-    persistCollapsedGroups();
+    var now = !isGroupCollapsed(cat, g);
+    setGroupCollapsed(cat, g, now);
+    if (!inCatTab()) {
+      persistCollapsedGroups();
+      if (state.edit) state.editDirty = true; else scheduleSave();
+      savePrefs();
+    } else if (state.edit) {
+      state.editDirty = true;
+    }
     var el = $('.grp[data-cat="' + cssEsc(cat) + '"][data-group="' + cssEsc(g) + '"]');
     if (el) {
-      var isC = arr.indexOf(key) >= 0;
-      el.classList.toggle('is-collapsed', isC);
+      el.classList.toggle('is-collapsed', now);
       var ch = el.querySelector('.gchev-btn');
-      if (ch) { ch.textContent = isC ? '▸' : '▾'; ch.setAttribute('aria-expanded', isC ? 'false' : 'true'); }
+      if (ch) { ch.textContent = now ? '▸' : '▾'; ch.setAttribute('aria-expanded', now ? 'false' : 'true'); }
     }
-    if (state.edit) state.editDirty = true; else scheduleSave();
-    savePrefs();
     updateFoldBtn();
+  }
+
+  /* ------------------------------------------------ 탭별 접힘 상태 (전체와 분리) */
+  /** 지금 화면이 카테고리 하나만 보는 탭인지 (전체·즐겨찾기·단독 탭은 아님) */
+  function inCatTab() {
+    return !!(state.tab && state.tab.indexOf('__') !== 0 && state.data && catByName(state.tab));
+  }
+
+  function persistTabCollapsed() {
+    var k = collKey();
+    if (!k) return;
+    lsSet(k + 'tab', JSON.stringify({ c: state.tabCollapsed || {}, g: state.tabCollapsedGroups || {} }));
+  }
+
+  function loadTabCollapsed() {
+    state.tabCollapsed = {};
+    state.tabCollapsedGroups = {};
+    var k = collKey();
+    if (!k) return;
+    try {
+      var o = JSON.parse(lsGet(k + 'tab') || '{}') || {};
+      if (o.c && typeof o.c === 'object') state.tabCollapsed = o.c;
+      if (o.g && typeof o.g === 'object') state.tabCollapsedGroups = o.g;
+    } catch (e) {}
+  }
+
+  function isCatCollapsed(name) {
+    if (inCatTab()) return !!state.tabCollapsed[name];
+    return (state.data.collapsed || []).indexOf(name) >= 0;
+  }
+
+  function setCatCollapsed(name, yes) {
+    if (inCatTab()) {
+      if (yes) state.tabCollapsed[name] = true; else delete state.tabCollapsed[name];
+      persistTabCollapsed();
+      return;
+    }
+    var arr = state.data.collapsed || (state.data.collapsed = []);
+    var i = arr.indexOf(name);
+    if (yes && i < 0) arr.push(name);
+    if (!yes && i >= 0) arr.splice(i, 1);
+  }
+
+  function isGroupCollapsed(cat, g) {
+    if (inCatTab()) return (state.tabCollapsedGroups[cat] || []).indexOf(g) >= 0;
+    return (state.data.collapsedGroups || []).indexOf(gkey(cat, g)) >= 0;
+  }
+
+  function setGroupCollapsed(cat, g, yes) {
+    if (!g) return;
+    if (inCatTab()) {
+      var a0 = state.tabCollapsedGroups[cat] || (state.tabCollapsedGroups[cat] = []);
+      var i0 = a0.indexOf(g);
+      if (yes && i0 < 0) a0.push(g);
+      if (!yes && i0 >= 0) a0.splice(i0, 1);
+      if (!a0.length) delete state.tabCollapsedGroups[cat];
+      persistTabCollapsed();
+      return;
+    }
+    var key = gkey(cat, g);
+    var arr = state.data.collapsedGroups || (state.data.collapsedGroups = []);
+    var i = arr.indexOf(key);
+    if (yes && i < 0) arr.push(key);
+    if (!yes && i >= 0) arr.splice(i, 1);
   }
 
   function ensureGroup(cat, g) {
@@ -1909,6 +2002,11 @@
     var i = c.groups.indexOf(g);
     if (i >= 0) c.groups[i] = to; else c.groups.push(to);
     state.data.links.forEach(function (l) { if (l.cat === cat && l.group === g) l.group = to; });
+    var tgs = state.tabCollapsedGroups[cat];
+    if (tgs) {
+      var ti2 = tgs.indexOf(g);
+      if (ti2 >= 0) { tgs[ti2] = to; persistTabCollapsed(); }
+    }
     state.data.collapsedGroups = (state.data.collapsedGroups || []).map(function (k) {
       return k === gkey(cat, g) ? gkey(cat, to) : k;
     });
@@ -1923,6 +2021,13 @@
     var c = state.data.cats.filter(function (x) { return x.name === cat; })[0];
     if (c) c.groups = (c.groups || []).filter(function (x) { return x !== g; });
     state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (k) { return k !== gkey(cat, g); });
+    var tg = state.tabCollapsedGroups[cat];
+    if (tg) {
+      var ti = tg.indexOf(g);
+      if (ti >= 0) tg.splice(ti, 1);
+      if (!tg.length) delete state.tabCollapsedGroups[cat];
+      persistTabCollapsed();
+    }
     renderAll();
     changed();
     offerUndo(snap, '“' + g + '” 소그룹을 지웠습니다');
@@ -2085,6 +2190,9 @@
     state.data.cats = state.data.cats.filter(function (c) { return c.name !== fromName; });
     state.data.collapsed = (state.data.collapsed || []).filter(function (x) { return x !== fromName; });
     state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (k) { return k.indexOf(fromName + '»') !== 0; });
+    delete state.tabCollapsed[fromName];
+    delete state.tabCollapsedGroups[fromName];
+    persistTabCollapsed();
     return { n: links.length, inner: inner, merged: merged };
   }
 
@@ -2190,7 +2298,7 @@
   }
 
   function categoryCtx(cat, x, y) {
-    var collapsed = (state.data.collapsed || []).indexOf(cat) >= 0;
+    var collapsed = isCatCollapsed(cat);
     var items = [
       { ic: '↗', label: '모두 새 탭에서 열기', fn: function () { openAllLinks(state.data.links.filter(function (l) { return l.cat === cat; }), '“' + cat + '”'); } },
       { ic: '✏️', label: '이름 바꾸기', fn: function () { var h = $('.panel[data-cat="' + cssEsc(cat) + '"] .ph h2'); if (h) inlineEditName(h, cat, function (v) { if (renameCategory(cat, v)) { renderAll(); changed(); } }); else { var inp = $('.panel[data-cat="' + cssEsc(cat) + '"] .cat-name'); if (inp) { inp.focus(); inp.select(); } } } },
@@ -2206,7 +2314,7 @@
   }
 
   function groupCtx(cat, g, x, y) {
-    var collapsed = (state.data.collapsedGroups || []).indexOf(gkey(cat, g)) >= 0;
+    var collapsed = isGroupCollapsed(cat, g);
     var items = [
       { ic: '↗', label: '모두 새 탭에서 열기', fn: function () { openAllLinks(state.data.links.filter(function (l) { return l.cat === cat && l.group === g; }), '“' + g + '”'); } },
       { ic: '✏️', label: '이름 바꾸기', fn: function () { var h = $('.grp[data-cat="' + cssEsc(cat) + '"][data-group="' + cssEsc(g) + '"] .gname'); if (h) inlineEditName(h, g, function (v) { if (renameGroupTo(cat, g, v)) { renderAll(); changed(); } }); } },
@@ -2971,12 +3079,7 @@
       changed();
       offerUndo(snap, msg);
     } else if (autoCats.length || autoGroups.length) {
-      autoGroups.forEach(function (k) {
-        if ((state.data.collapsedGroups || []).indexOf(k) < 0) state.data.collapsedGroups.push(k);
-      });
-      autoCats.forEach(function (n) {
-        if ((state.data.collapsed || []).indexOf(n) < 0) state.data.collapsed.push(n);
-      });
+      restoreAutoFold(autoCats, autoGroups);
       renderBoard();
     }
   }
@@ -2996,12 +3099,7 @@
     var autoGroups = drag.autoGroups ? drag.autoGroups.slice() : [];
     endDrag();
     if (autoCats.length || autoGroups.length) {
-      autoGroups.forEach(function (k) {
-        if ((state.data.collapsedGroups || []).indexOf(k) < 0) state.data.collapsedGroups.push(k);
-      });
-      autoCats.forEach(function (n) {
-        if ((state.data.collapsed || []).indexOf(n) < 0) state.data.collapsed.push(n);
-      });
+      restoreAutoFold(autoCats, autoGroups);
       renderBoard();
     }
   }
@@ -3069,7 +3167,7 @@
     var cat = panel.dataset.cat;
     drag.autoCollapsed = drag.autoCollapsed || [];
     if (drag.autoCollapsed.indexOf(cat) < 0) drag.autoCollapsed.push(cat);
-    state.data.collapsed = (state.data.collapsed || []).filter(function (n) { return n !== cat; });
+    setCatCollapsed(cat, false);
   }
 
   function autoExpandGroup(grp) {
@@ -3078,7 +3176,17 @@
     var k = gkey(grp.dataset.cat, grp.dataset.group);
     drag.autoGroups = drag.autoGroups || [];
     if (drag.autoGroups.indexOf(k) < 0) drag.autoGroups.push(k);
-    state.data.collapsedGroups = (state.data.collapsedGroups || []).filter(function (x) { return x !== k; });
+    setGroupCollapsed(grp.dataset.cat, grp.dataset.group, false);
+  }
+
+  /** 드래프 중에 잠시 펼쳤던 카테고리·소그룹을 원래대로 돌립니다(지금 보는 탭 기준). */
+  function restoreAutoFold(autoCats, autoGroups) {
+    autoGroups.forEach(function (k) {
+      var i = String(k).indexOf('»');
+      if (i < 0) return;
+      setGroupCollapsed(String(k).slice(0, i), String(k).slice(i + 1), true);
+    });
+    autoCats.forEach(function (n) { setCatCollapsed(n, true); });
   }
 
   function firstChipId(el) {
