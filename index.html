@@ -151,6 +151,7 @@
   .ph:hover .cat-grip{opacity:.75}
   .open-mini{width:28px;height:28px;border-radius:8px;font-size:12px;color:var(--mut);display:flex;align-items:center;justify-content:center;flex:none;opacity:.75;border:1px solid transparent;transition:opacity .12s,background .12s,border-color .12s,color .12s}
   .open-mini:hover{opacity:1;background:var(--acc-soft);border-color:color-mix(in srgb,var(--acc) 35%,transparent);color:var(--acc)}
+  .open-mini.pinbtn.on{opacity:1;color:#eab308}
   .add-mini{width:28px;height:28px;border-radius:8px;font-size:15px;color:var(--mut);display:flex;align-items:center;justify-content:center;flex:none;opacity:0;transition:opacity .12s,background .12s}
   .panel:hover .add-mini,body.editing .add-mini{opacity:1}
   .add-mini:hover{background:var(--panel2);color:var(--txt)}
@@ -414,6 +415,21 @@
   .ico-pick{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
   .ico-pick button{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);font-size:17px;display:flex;align-items:center;justify-content:center}
   .ico-pick button:hover{border-color:var(--acc)}
+  /* 이모지 팔레트 — 그룹 칩 + 좁은 스크롤 그리드 */
+  .emoji-box{margin-top:8px;border:1px solid var(--line);border-radius:13px;background:var(--panel2);padding:7px 8px 8px}
+  .emoji-chips{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+  .emoji-chips button{height:24px;padding:0 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel);
+    font-size:11.5px;font-weight:750;color:var(--mut);white-space:nowrap}
+  .emoji-chips button:hover{border-color:var(--acc);color:var(--acc)}
+  .emoji-chips button.on{background:var(--acc);border-color:transparent;color:var(--acc-ink)}
+  .emoji-pad{max-height:158px;overflow-y:auto;overscroll-behavior:contain;padding-right:3px;scrollbar-width:thin}
+  .emoji-pad .egrp+.egrp{margin-top:2px}
+  .emoji-pad .egrp-t{font-size:10.5px;font-weight:800;color:var(--mut);letter-spacing:.2px;padding:3px 2px 3px}
+  .emoji-pad .egrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(31px,1fr));gap:2px}
+  .emoji-pad .egrid button{width:100%;aspect-ratio:1/1;min-height:29px;border-radius:8px;border:1px solid transparent;
+    background:var(--panel);font-size:17px;line-height:1;display:flex;align-items:center;justify-content:center}
+  .emoji-pad .egrid button:hover{border-color:var(--acc);background:var(--acc-soft)}
+  .emoji-pad .egrid button:active{transform:scale(.94)}
   .menu-pop{position:fixed;z-index:60;display:flex;flex-direction:column;gap:2px;padding:6px;min-width:230px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
   .menu-pop .btn{justify-content:flex-start;box-shadow:none}
 
@@ -892,7 +908,50 @@
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 
   var COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'];
-  var EMOJIS = ['🔗', '📅', '📘', '📗', '🏫', '🤖', '📝', '💡', '📊', '🎧', '🎬', '🛒', '💰', '🏃', '🍱', '🧭'];
+  /* 이모지 팔레트 — 그룹 칩으로 좁혀 보고, 한 번 누르면 바로 적용됩니다. */
+  var EMOJI_GROUPS = [
+    { key: 'work', label: '업무·학교', list: [
+      '🏫', '🎓', '🎒', '🧑‍🏫', '👩‍🏫', '👨‍🏫', '🧑‍🎓', '👩‍🎓', '👨‍🎓', '🏆', '🥇', '🥈', '🥉', '🎖️',
+      '📚', '📖', '📕', '📗', '📘', '📙', '📓', '📔', '📒', '📝', '✏️', '🖊️', '🖋️', '🖍️', '✒️',
+      '📌', '📍', '📎', '🖇️', '📏', '📐', '✂️', '🗂️', '🗃️', '🗄️', '📋', '📄', '📃', '📑', '🔖',
+      '🧮', '🏷️', '📢', '📣', '🔔', '🔕'
+    ] },
+    { key: 'doc', label: '문서·일정', list: [
+      '📅', '📆', '🗓️', '⏰', '⏱️', '⏲️', '⌛', '⏳', '🕐', '🕑', '🕒', '🕓', '🕔', '🕕',
+      '🕖', '🕗', '🕘', '🕙', '🕚', '🕛', '📊', '📈', '📉', '🗒️', '📇', '📁', '📂', '📜', '📰', '🗞️',
+      '✉️', '📧', '📨', '📩', '📤', '📥', '📦', '📮', '🗳️', '📬', '📭', '🧾', '🗃',
+    ] },
+    { key: 'money', label: '금융·투자', list: [
+      '💰', '💵', '💴', '💶', '💷', '💸', '💳', '💎', '🪙', '🏦', '🏧', '💹', '🏠', '🏡', '🏢',
+      '🏘️', '🏗️', '🔑', '🗝️', '🚗', '🚙', '🚕', '⛽', '🅿️', '🎰', '🍀', '🐷', '💼', '🛍️', '🛒',
+      '💱', '💲', '🧮', '📑', '🏬', '🏪', '🪪'
+    ] },
+    { key: 'tool', label: '도구·AI', list: [
+      '🤖', '🧠', '💻', '🖥️', '⌨️', '🖱️', '🖨️', '📱', '📲', '☎️', '📞', '📟', '📠', '🔌', '🔋',
+      '🪫', '💡', '🔦', '🧰', '🛠️', '🔧', '🔨', '🪛', '🪚', '🧲', '🧪', '🔬', '🔭', '📡', '🛰️',
+      '⚙️', '🧭', '🗜️', '🔗', '⛓️', '🎛️', '🎚️', '🎙️', '🧑‍💻', '🕹️', '🔍', '🔎', '🧩', '🪄', '🔒'
+    ] },
+    { key: 'life', label: '생활·취미', list: [
+      '🍚', '🍱', '🍜', '🍲', '🍣', '🍔', '🍕', '🍟', '🌮', '🥗', '🍎', '🍊', '🍋', '🍇', '🍓',
+      '🍑', '🥑', '🍞', '🥐', '🍰', '🍩', '🍪', '🎂', '☕', '🍵', '🥤', '🍺', '🍷', '🥂', '🎁',
+      '🎈', '🎉', '🎊', '🎵', '🎶', '🎧', '🎤', '🎬', '🎮', '📷', '📸', '🎨', '🖌️', '🎭', '🎪',
+      '🏃', '🚴', '🏊', '⚽', '🏀', '⚾', '🎾', '🏓', '🏸', '🥊', '🧘', '🛌', '🧸', '🐶', '🐱',
+      '🌳', '🌸', '🌷', '☀️', '🌤️', '🌧️', '❄️', '🌈', '🌙', '⭐'
+    ] },
+    { key: 'sym', label: '기호·색상', list: [
+      '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣',
+      '🟤', '⚫', '⚪', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '🟫', '⬛', '⬜', '🔺', '🔻', '🔸',
+      '🔹', '🔶', '🔷', '▪️', '▫️', '◾', '◽', '✅', '❌', '🌟', '✨', '❗', '❓', '‼️',
+      '⁉️', '➡️', '⬅️', '⬆️', '⬇️', '🔁', '🔄', '➕', '➖', '✔️', '☑️', '🔆', '🔅', '⭕', '🆗'
+    ] }
+  ];
+  var EMOJIS = (function () {
+    var out = [];
+    EMOJI_GROUPS.forEach(function (g) {
+      g.list.forEach(function (e) { if (out.indexOf(e) < 0) out.push(e); });
+    });
+    return out;
+  })();
 
   /* ---------------------------------------------------------------- state */
   var state = {
@@ -1973,7 +2032,11 @@
     } else {
       h += '<span class="pdot"></span><h2 title="두 번 누르면 이름 바꾸기">' + esc(c.name) + '</h2>';
     }
-    h += '<span class="cnt">' + items.length + '</span><span class="ph-sp"></span>' + openBtn +
+    h += '<span class="cnt">' + items.length + '</span><span class="ph-sp"></span>' +
+      ((isCatPinned(c.name) || state.edit)
+        ? '<button class="open-mini pinbtn' + (isCatPinned(c.name) ? ' on' : '') + '" data-act="pin-cat" title="' + (isCatPinned(c.name) ? '카테고리 즐겨찾기 해제' : '이 카테고리 통째로 즐겨찾기') + '">📌</button>'
+        : '') +
+      openBtn +
       '<span class="cat-grip" title="끌어서 카테고리 순서 바꾸기">⠿</span></div>';
 
     if (state.edit) {
@@ -3283,7 +3346,19 @@
       '<div class="ico-row"><span class="ico-mini" id="mIconPrev">' + esc(startEmoji || '🔗') + '</span>' +
       '<input id="mIcon" value="' + esc(startEmoji) + '" maxlength="4" placeholder="자동" style="text-align:center" /></div></div>' +
       '</div>' +
-      '<div class="ico-pick" id="mEmoji">' + EMOJIS.map(function (e) { return '<button data-e="' + e + '">' + e + '</button>'; }).join('') + '</div>' +
+      '<div class="emoji-box">' +
+      '<div class="emoji-chips" id="mEmojiChips">' +
+      '<button type="button" data-eg="" class="on">전체</button>' +
+      EMOJI_GROUPS.map(function (g) { return '<button type="button" data-eg="' + g.key + '">' + esc(g.label) + '</button>'; }).join('') +
+      '</div>' +
+      '<div class="emoji-pad" id="mEmoji">' +
+      EMOJI_GROUPS.map(function (g) {
+        return '<div class="egrp" data-eg="' + g.key + '">' +
+          '<div class="egrp-t">' + esc(g.label) + '</div>' +
+          '<div class="egrid">' + g.list.map(function (e) { return '<button type="button" data-e="' + e + '" title="' + e + '">' + e + '</button>'; }).join('') + '</div>' +
+          '</div>';
+      }).join('') +
+      '</div></div>' +
       '<div class="field" style="margin-top:10px"><label for="mImgUrl">아이콘 이미지 <span style="font-weight:600;color:var(--mut)">(선택)</span></label>' +
       '<div class="ico-row"><input id="mImgUrl" value="' + esc(startImgUrl) + '" placeholder="이미지 주소 https://…" spellcheck="false" />' +
       '<button type="button" class="btn" id="mImgPick">🖼 파일</button>' +
@@ -3390,6 +3465,15 @@
     $('#mIcon').addEventListener('input', function () {
       useEmoji(this.value.trim());
     });
+    $('#mEmojiChips').onclick = function (e) {
+      var b = e.target.closest('button[data-eg]');
+      if (!b) return;
+      var key = b.dataset.eg || '';
+      $$('#mEmojiChips button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      $$('#mEmoji .egrp').forEach(function (sec) { sec.classList.toggle('hidden', !!key && sec.dataset.eg !== key); });
+      var pad = $('#mEmoji');
+      if (pad) pad.scrollTop = 0;
+    };
     $('#mEmoji').onclick = function (e) {
       var b = e.target.closest('button[data-e]');
       if (!b) return;
@@ -4568,7 +4652,9 @@
         }
         if (a === 'pin-cat') {
           var pcat = actEl.closest('[data-pin-token]');
-          if (pcat) unpinToken(pcat.getAttribute('data-pin-token'));
+          if (pcat) { unpinToken(pcat.getAttribute('data-pin-token')); return; }
+          var pnlC = actEl.closest('.panel');
+          if (pnlC && pnlC.dataset.cat) toggleCatPin(pnlC.dataset.cat);
           return;
         }
         if (a === 'add-here') { openLinkModal(null, panel ? panel.dataset.cat : null); return; }
