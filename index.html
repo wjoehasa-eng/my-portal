@@ -2123,7 +2123,7 @@
     var nHidden = ((state.data && state.data.hiddenTabs) || []).length;
     el.innerHTML = '숨긴 탭은 상단의 <b>👁</b> 단추와 이 창에서 언제든 되살릴 수 있습니다. ' +
       '탭은 최소 하나가 남습니다. (지금 보이는 탭 ' + visibleTabKeys().length + '개' +
-      (nHidden ? ' · 숨김 ' + nHidden + '개' : '') + ')';
+      (nHidden ? ' · 숨김 ' + nHidden + '개' : '') + ') [DBG ' + JSON.stringify(state.data.hiddenTabs) + ' / ' + JSON.stringify(state.data.tabOrder) + ']';
   }
 
   /** 탭 관리 창의 ↑↓ — 숨긴 탭까지 포함한 전체 순서에서 한 칸 옮깁니다. */
