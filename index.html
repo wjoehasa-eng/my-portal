@@ -167,8 +167,10 @@
   .lk:focus-visible,.solo:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
   .lk .ico,.solo .ico{position:relative;width:60px;height:60px;border-radius:18px;background:var(--tile);
     display:flex;align-items:center;justify-content:center;font-size:25px;line-height:1;flex:none;overflow:hidden}
-  .ico .fv{width:32px;height:32px;object-fit:contain;display:block}
-  .ico .em{display:block;font-size:25px;line-height:1}
+  .ico .em{display:block;font-size:27px;line-height:1}
+  .ico .fv{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;padding:13px;
+    background:var(--tile);opacity:0;transition:opacity .18s}
+  .ico .fv.on{opacity:1}
   .lk .nm,.solo .nm{font-size:12.5px;font-weight:650;letter-spacing:-.15px;text-align:center;
     width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
   .lk .go,.solo .go{display:none}
@@ -588,23 +590,67 @@
     setTimeout(function () { if (a.parentNode) a.parentNode.removeChild(a); }, 0);
   }
 
-  /** URL만 보고 흔한 사이트의 아이콘을 추측합니다(가져오기용). */
-  var ICON_HINTS = [
+  /** URL·이름의 키워드로 알맞은 아이콘을 고릅니다(파비콘이 없거나 실패해도 이 아이콘이 보입니다). */
+  var HOST_HINTS = [
     [/calendar\.google\.com/, '📅'], [/drive\.google\.com/, '📁'], [/mail\.google\.com/, '✉️'],
     [/docs\.google\.com/, '📄'], [/sheets\.google\.com/, '📊'], [/slides\.google\.com/, '📽️'],
-    [/classroom\.google\.com/, '🎓'], [/google\.com/, '🔎'], [/youtu\.?be/, '▶️'],
-    [/github\.com/, '🐙'], [/notion\.so/, '📝'], [/slack\.com/, '💬'],
-    [/chatgpt\.com|openai\.com/, '🤖'], [/cafe\.naver\.com/, '☕'], [/blog\.naver\.com/, '📝'],
-    [/naver\.com/, '🟢'], [/tistory\.com/, '📝'], [/instagram\.com/, '📷'],
-    [/facebook\.com/, '👥'], [/threads\.(com|net)/, '🧵'], [/x\.com|twitter\.com/, '🐦'],
+    [/classroom\.google\.com/, '🏫'], [/meet\.google\.com/, '🎥'], [/photos\.google\.com/, '📷'],
+    [/youtu\.?be/, '▶️'], [/github\.com|gitlab\.com/, '💻'], [/notion\.so/, '📓'],
+    [/slack\.com/, '💬'], [/chatgpt\.com|openai\.com|claude\.ai|gemini\.google\.com/, '🤖'],
+    [/cafe\.naver\.com/, '☕'], [/blog\.naver\.com/, '📝'], [/map\.naver\.com|map\.kakao\.com|google\.[a-z.]+\/maps/, '🗺️'],
+    [/news\.naver\.com/, '📰'], [/naver\.com/, '🟢'], [/tistory\.com|brunch\.co\.kr/, '📝'],
+    [/instagram\.com/, '📷'], [/facebook\.com/, '👥'], [/threads\.(com|net)/, '🧵'], [/x\.com|twitter\.com/, '🐦'],
     [/coupang\.com/, '🛒'], [/netflix\.com/, '🎬'], [/melon\.com|spotify\.com/, '🎧'],
-    [/school\./, '🏫'], [/map\.|maps\./, '🗺️'],
-    [/wiki/, '📚'], [/news/, '📰'], [/bank|card\./, '💳']
+    [/neis\.go\.kr|edufine|sen\.go\.kr|goe\.go\.kr|kedi\.re\.kr/, '🏫'], [/indischool\.com/, '🍎'],
+    [/toss\.im|kakaobank|kbcard|hanacard|shinhan|wooribank|nonghyup|kbstar/, '💳'],
+    [/garmin\.com|connect\.garmin/, '🏃'], [/millie\.co\.kr|ridibooks|kyobobook/, '📚'],
+    [/wiki/, '📚'], [/maps?\./, '🗺️'], [/blog/, '📝'], [/news/, '📰'],
+    [/bank|card\./, '💳'], [/shop|store|market/, '🛒'], [/mail/, '✉️'], [/drive|cloud|box\.com/, '📁']
   ];
-  function guessIcon(url) {
+  var NAME_HINTS = [
+    [/캘린더|일정|스케줄|calendar|schedule/i, '📅'],
+    [/드라이브|클라우드|drive|원드라이브|onedrive|dropbox/i, '📁'],
+    [/지메일|메일|메일함|gmail|아웃룩|outlook|mail/i, '✉️'],
+    [/유튜브|youtube|영상|동영상|비디오|video/i, '▶️'],
+    [/번역|파파고|translate/i, '🌐'],
+    [/챗|지피티|gpt|제미나이|gemini|클로드|claude|코파일럿|copilot|ai/i, '🤖'],
+    [/나이스|neis|학교|학사|학급|수업|교무|학년|클래스룸|classroom|하이클래스|클래스팅|e학습터|띵커벨|패들렛|padlet|미리캔버스|캔바/i, '🏫'],
+    [/에듀파인|공문|행정|품의|결재|edufine/i, '📋'],
+    [/인디스쿨|교사|교원|티처|teacher/i, '🍎'],
+    [/은행|뱅크|bank|금융|증권|주식|투자|카드|가계부|페이|pay|토스|toss/i, '💳'],
+    [/쇼핑|쿠팡|coupang|마켓|market|스토어|store|11번가|지마켓|g마켓|옥션/i, '🛒'],
+    [/노션|notion|메모|문서|독스|docs|옵시디언|obsidian|에버노트|evernote/i, '📓'],
+    [/슬랙|slack|메신저|카톡|카카오톡|톡|chat|디스코드|discord|팀즈|teams/i, '💬'],
+    [/깃허브|github|깃랩|gitlab|코드|code|개발|dev/i, '💻'],
+    [/넷플릭스|netflix|왓챠|웨이브|티빙|영화|movie/i, '🎬'],
+    [/음악|멜론|melon|스포티파이|spotify|뮤직|music/i, '🎧'],
+    [/지도|맵|map|길찾기/i, '🗺️'],
+    [/뉴스|신문|news/i, '📰'],
+    [/블로그|blog|티스토리|브런치|포스트/i, '📝'],
+    [/사진|포토|photo|이미지|인스타|instagram/i, '📷'],
+    [/날씨|weather/i, '🌤️'],
+    [/배달|요리|레시피|푸드|food|cook/i, '🍱'],
+    [/운동|헬스|health|가민|garmin|러닝|run|산책/i, '🏃'],
+    [/책|도서|독서|밀리|리디|교보|book/i, '📚'],
+    [/위키|백과|wiki/i, '📚'],
+    [/카페|cafe|커뮤니티|community|레딧|reddit|밴드/i, '☕'],
+    [/로또|복권|lotto/i, '🎰'],
+    [/부동산|집|아파트|청약|realty/i, '🏠'],
+    [/설정|관리|admin|도구|tool|util/i, '🧭'],
+    [/링크|모음|포털|portal|북마크/i, '🧭']
+  ];
+  var AUTO_ICON = '🔗';
+  function guessIcon(url, name) {
     var u = String(url || '').toLowerCase();
-    for (var i = 0; i < ICON_HINTS.length; i++) if (ICON_HINTS[i][0].test(u)) return ICON_HINTS[i][1];
-    return '🔗';
+    var n = String(name || '');
+    if (n) {
+      for (var i2 = 0; i2 < NAME_HINTS.length; i2++) if (NAME_HINTS[i2][0].test(n)) return NAME_HINTS[i2][1];
+    }
+    for (var k = 0; k < HOST_HINTS.length; k++) if (HOST_HINTS[k][0].test(u)) return HOST_HINTS[k][1];
+    if (n) {
+      for (var j2 = 0; j2 < NAME_HINTS.length; j2++) if (NAME_HINTS[j2][0].test(u)) return NAME_HINTS[j2][1];
+    }
+    return AUTO_ICON;
   }
   function b64encode(s) { try { return btoa(unescape(encodeURIComponent(s))).replace(/=+$/, ''); } catch (e) { return ''; } }
   function b64decode(s) {
@@ -1347,19 +1393,30 @@
     return 'https://www.google.com/s2/favicons?domain=' + encodeURIComponent(h) + '&sz=64';
   }
 
+  /** 자동 아이콘인지(사용자가 직접 고른 이모지가 아닌지) */
+  function autoIcon(l) {
+    var ic = String(l.icon || '').trim();
+    return !ic || ic === AUTO_ICON;
+  }
+
+  /** 타일에 보일 아이콘 글자 — 사용자가 고른 이모지 → 키워드 자동 매칭 */
+  function displayIcon(l) {
+    if (!autoIcon(l)) return l.icon;
+    return guessIcon(l.url, l.name);
+  }
+
   function iconHtml(l) {
-    var em = esc(l.icon || '🔗');
-    var custom = l.icon && l.icon !== guessIcon(l.url);
-    var src = (!custom && /^https?:/i.test(l.url)) ? favUrl(l.url) : '';
-    var inner;
+    var em = esc(displayIcon(l));
+    var src = (autoIcon(l) && /^https?:/i.test(l.url)) ? favUrl(l.url) : '';
+    var out = '<span class="ico">' +
+      '<span class="em on">' + em + '</span>';
     if (src) {
-      inner = '<img class="fv" src="' + esc(src) + '" alt="" decoding="async" ' +
-        'onerror="this.style.display=\'none\';var n=this.nextElementSibling;if(n)n.style.display=\'block\'">' +
-        '<span class="em" style="display:none">' + em + '</span>';
-    } else {
-      inner = '<span class="em">' + em + '</span>';
+      /* 폴백을 먼저 깔아 두고, 파비콘이 정상 로드(16px 이상)일 때만 위에 겹칩니다. */
+      out += '<img class="fv" src="' + esc(src) + '" alt="" decoding="async" ' +
+        'onload="if(this.naturalWidth>=16){this.classList.add(\'on\')}else{this.remove()}" ' +
+        'onerror="this.remove()">';
     }
-    return '<span class="ico">' + inner + '</span>';
+    return out + '</span>';
   }
 
   function ctoolsHtml(l) {
@@ -2404,7 +2461,7 @@
       while (chain.length && ROOT_FOLDERS.indexOf(chain[0].toLowerCase()) >= 0) chain.shift();
       var cat = chain[0] || '가져온 북마크';
       var group = chain.slice(1).join(' › ');
-      out.push({ cat: cat, group: group, name: name, url: href, icon: guessIcon(href) });
+      out.push({ cat: cat, group: group, name: name, url: href, icon: guessIcon(href, name) });
     });
     return out;
   }
