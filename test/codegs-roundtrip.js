@@ -122,7 +122,12 @@ const cats = [
   { name: '학년 업무', color: '#10b981', groups: [] },
   { name: '__solo', color: '#000000', groups: [b64(JSON.stringify(['자주 쓰는', 'A/B/C']))] },
   { name: '__pins', color: '#000000', groups: [b64(JSON.stringify(['l:abcd1234', 'f:학교»1.수업', 'c:개인']))] },
-  { name: '__tabs', color: '#000000', groups: [b64(JSON.stringify([['__pin', '', '업무', '__solo', '회사 북마크', '생활', '부서', '학년 업무'], ['부서'], '__pin']))] }
+  { name: '__tabs', color: '#000000', groups: [b64(JSON.stringify([['__pin', '', '업무', '__solo', '회사 북마크', '생활', '부서', '학년 업무'], ['부서'], '__pin']))] },
+  /* v3.4.0 공간(구역) 색 — [색{폴더키:프리셋}, 제목숨김[폴더키]] 한 조각 */
+  { name: '__colors', color: '#000000', groups: [b64(JSON.stringify([
+    { '업무»1.수업': 'blue', '생활»재테크/주식': 'mint', '»자주 쓰는': 'rose' },
+    ['업무»1.수업', '»자주 쓰는']
+  ]))] }
 ].map((c) => ({ name: wire(c.name), color: c.color, groups: c.groups.map(wire) }));
 
 const links = [];
@@ -200,9 +205,13 @@ ok(back.boardOrder === payload.boardOrder, '최상위 배치 보존');
 /* 예약 행 확인 */
 const pinCat = back.categories.filter((c) => c.name === '__pins')[0];
 const tabCat = back.categories.filter((c) => c.name === '__tabs')[0];
+const colorCat = back.categories.filter((c) => c.name === '__colors')[0];
 ok(!!pinCat && pinCat.groups[0] === cats.filter((c) => c.name === '__pins')[0].groups[0], '__pins 왕복 일치');
 ok(!!tabCat && tabCat.groups[0] === cats.filter((c) => c.name === '__tabs')[0].groups[0], '__tabs 왕복 일치');
-ok(!back.links.some((l) => l.category === '__pins' || l.category === '__tabs'), '예약 이름이 링크 카테고리로 새지 않음');
+ok(!!colorCat && colorCat.groups[0] === cats.filter((c) => c.name === '__colors')[0].groups[0],
+  '__colors(공간 색) 왕복 일치', colorCat && colorCat.groups);
+ok(!back.links.some((l) => l.category === '__pins' || l.category === '__tabs' || l.category === '__colors'),
+  '예약 이름이 링크 카테고리로 새지 않음');
 ok(back.collapsed.length === 2 && back.collapsedGroups.length === 1, '접힘·접힘그룹 보존', [back.collapsed, back.collapsedGroups]);
 
 /* ------------------------------------------------------------------ 3) 두 번째 저장(반복 저장이 값을 더럽히지 않는지)
@@ -219,6 +228,8 @@ api.saveAll_(again);
 const back2 = api.read_('load');
 ok(JSON.stringify(back2.categories.map((c) => unwire(c.name))) === JSON.stringify(back.categories.map((c) => unwire(c.name))),
   '두 번째 저장 뒤에도 카테고리 이름이 그대로 (누적 오염 없음)', back2.categories.map((c) => unwire(c.name)));
+const colorCat2 = back2.categories.filter((c) => c.name === '__colors')[0];
+ok(!!colorCat2 && colorCat2.groups[0] === colorCat.groups[0], '두 번째 저장 뒤에도 공간 색(__colors) 그대로', colorCat2 && colorCat2.groups);
 ok(back2.links.length === links.length, '두 번째 저장 뒤에도 링크 수 그대로', back2.links.length);
 
 /* ------------------------------------------------------------------ 4) 옛(순수 문자열) 값도 읽히는지 — 하위 호환 */
