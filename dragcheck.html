@@ -58,8 +58,10 @@ function snapshot(win, doc) {
   return { solos: solos, cats: cats, toast: toast };
 }
 
-document.getElementById('f').addEventListener('load', function () {
-  var f = this, win = f.contentWindow, doc = f.contentDocument;
+function start() {
+  var f = document.getElementById('f');
+  var win = f.contentWindow, doc = f.contentDocument;
+  if (!win || !doc || !doc.querySelector('.surface')) { say('앱이 아직 준비되지 않음'); setTimeout(start, 600); return; }
   setTimeout(function () {
     try {
       var before = snapshot(win, doc);
@@ -113,7 +115,8 @@ document.getElementById('f').addEventListener('load', function () {
     } catch (err) {
       say('오류: ' + (err && err.message));
     }
-  }, 900);
-});
+  }, 700);
+}
+setTimeout(start, 1200);
 </script>
 </body></html>
