@@ -3794,8 +3794,9 @@
     placeCtx(m, x, y);
   }
 
-  /** #ctxMenu 를 화면 안쪽에 놓습니다. */
+  /** #ctxMenu 를 보이게 하고 화면 안쪽에 놓습니다. */
   function placeCtx(m, x, y) {
+    m.classList.remove('hidden');
     var vw = window.innerWidth, vh = window.innerHeight;
     var w = m.offsetWidth, h = m.offsetHeight;
     var left = Math.max(8, Math.min(x, vw - w - 8));
