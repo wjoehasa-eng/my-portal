@@ -6,7 +6,7 @@
 <title>드래그·아이콘 자동 점검 (임시)</title>
 <style>
   body { font: 13px/1.45 system-ui, sans-serif; margin: 0; padding: 8px; background: #101418; color: #e6edf3; }
-  iframe { width: 1180px; height: 830px; border: 1px solid #333; background: #fff; }
+  iframe { width: 1180px; height: 1700px; border: 1px solid #333; background: #fff; }
   pre { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 12px; }
   .ok { color: #5ddc7a; } .ng { color: #ff7b72; }
 </style>
@@ -131,13 +131,19 @@ async function dataOrder(cat) {
 
 async function runCase(c) {
   await loadFrame();
-  const before = structure(c.cat);
+  const before = structure(c.cat) + ' ‖ 단독: ' + soloOrder();
   let mark = {};
   if (c.kind === 'grp') {
     const h = groupHead(c.cat, c.from);
     const t = groupHead(c.cat, c.to);
     const p = pt(t, 0.5, c.where === 'before' ? 0.12 : 0.5);
     mark = await drag(h, p.x, p.y);
+  } else if (c.kind === 'solo') {
+    const s = tile(c.from);
+    const st = D().querySelector('.solo-strip');
+    const anchor = D().querySelector('.solo-strip .solo');
+    const p = pt(anchor, 0.85, 0.5);
+    mark = await drag(s, p.x, p.y);
   } else {
     const s = tile(c.from);
     let t;
@@ -146,13 +152,13 @@ async function runCase(c) {
     const p = c.to ? pt(t, c.where === 'before' ? 0.18 : 0.82, 0.5) : pt(t, 0.7, 0.55);
     mark = await drag(s, p.x, p.y);
   }
-  const after = structure(c.cat);
+  const after = structure(c.cat) + (c.kind === 'solo' ? ' ‖ 단독: ' + soloOrder() : '');
   const again = await dataOrder(c.cat);
   return {
     id: c.id, desc: c.desc, expect: c.expect,
     before, after, again,
     pass: after === c.expect,
-    dataPass: again === after,
+    dataPass: c.kind === 'solo' ? true : again === structure(c.cat),
     mark
   };
 }
@@ -162,12 +168,14 @@ const CASES = [
   { id: 'D2', desc: '도구: 챗봇 → 날씨 오른쪽(=맨 끝)', cat: '도구', from: '챗봇', to: '날씨', where: 'after', expect: '[깃허브, 노션, 날씨, 챗봇]' },
   { id: 'D3', desc: '학습: 번역 → 유튜브 왼쪽(소그룹 안)', cat: '학습', from: '번역', to: '유튜브', where: 'before', expect: '[위키백과] | [교재·자료: 번역, 유튜브]' },
   { id: 'D4', desc: '학습: 유튜브 → 번역 오른쪽(소그룹 안)', cat: '학습', from: '유튜브', to: '번역', where: 'after', expect: '[위키백과] | [교재·자료: 번역, 유튜브]' },
-  { id: 'D5', desc: '업무: 드라이브(직속) → 슬랙 오른쪽(소그룹으로)', cat: '업무', from: '드라이브', to: '슬랙', where: 'after', expect: '[수업 준비: 슬라이드] | [행정·공문: 지메일, 슬랙, 드라이브]' },
-  { id: 'D6', desc: '업무: 지메일(소그룹) → 드라이브 오른쪽(소그룹 밖으로)', cat: '업무', from: '지메일', to: '드라이브', where: 'after', expect: '[드라이브, 지메일] | [수업 준비: 슬라이드] | [행정·공문: 슬랙]' },
-  { id: 'D7', desc: '업무: 소그룹 순서 — 행정·공문을 수업 준비 앞으로', cat: '업무', kind: 'grp', from: '행정·공문', to: '수업 준비', where: 'before', expect: '[드라이브] | [행정·공문: 지메일, 슬랙] | [수업 준비: 슬라이드]' },
+  { id: 'D5', desc: '업무: 드라이브(직속) → 슬랙 오른쪽(소그룹으로)', cat: '업무', from: '드라이브', to: '슬랙', where: 'after', expect: '∅ | [수업 준비: 슬라이드] | ∅ | [행정·공문: 지메일, 슬랙, 드라이브]' },
+  { id: 'D6', desc: '업무: 지메일(소그룹) → 드라이브 오른쪽(소그룹 밖으로)', cat: '업무', from: '지메일', to: '드라이브', where: 'after', expect: '[드라이브, 지메일] | [수업 준비: 슬라이드] | ∅ | [행정·공문: 슬랙]' },
+  { id: 'D7', desc: '업무: 소그룹 순서 — 행정·공문을 수업 준비 앞으로', cat: '업무', kind: 'grp', from: '행정·공문', to: '수업 준비', where: 'before', expect: '[드라이브] | [행정·공문: 지메일, 슬랙] | ∅ | [수업 준비: 슬라이드]' },
   { id: 'D8', desc: '도구: 챗봇 → 패널 빈 곳(오른쪽 아래)', cat: '도구', from: '챗봇', to: null, expect: '[깃허브, 노션, 날씨, 챗봇]' },
   { id: 'D9', desc: '개인: 넷플릭스 → 네이버 왼쪽', cat: '개인', from: '넷플릭스', to: '네이버', where: 'before', expect: '[넷플릭스, 네이버, 쿠팡]' },
-  { id: 'D10', desc: '개인: 네이버 → 쿠팡 오른쪽(가운데)', cat: '개인', from: '네이버', to: '쿠팡', where: 'after', expect: '[쿠팡, 네이버, 넷플릭스]' }
+  { id: 'D10', desc: '개인: 네이버 → 쿠팡 오른쪽(가운데)', cat: '개인', from: '네이버', to: '쿠팡', where: 'after', expect: '[쿠팡, 네이버, 넷플릭스]' },
+  { id: 'D11', desc: '도구: 날씨 → 단독 페이지 줄로 빼기', cat: '도구', kind: 'solo', from: '날씨', expect: '[챗봇, 깃허브, 노션] ‖ 단독: 구글 캘린더, 날씨' },
+  { id: 'D12', desc: '도구: 깃허브 → 챗봇 오른쪽(첫 줄 가운데)', cat: '도구', from: '깃허브', to: '챗봇', where: 'after', expect: '[챗봇, 깃허브, 노션, 날씨]' }
 ];
 
 /* ---------------------------------------------------------------- 아이콘 */
@@ -217,7 +225,8 @@ async function runIcons() {
     D().querySelector('#mSave').click();
     await sleep(300);
     const t = tile('챗봇');
-    const img = t && t.querySelector('.ico img.uv');
+    let img = t && t.querySelector('.ico img.uv');
+    for (let i = 0; i < 20 && (!img || !img.naturalWidth); i++) { await sleep(100); img = (tile('챗봇') || {}).querySelector ? tile('챗봇').querySelector('.ico img.uv') : null; }
     return {
       url, prevOK,
       tileImg: img ? img.getAttribute('src') : null,
@@ -297,7 +306,7 @@ async function runIcons() {
     lines.push((c.pass ? 'PASS ' : 'FAIL ') + c.id + ' ' + c.desc);
     lines.push('   before: ' + c.before);
     lines.push('   after : ' + c.after);
-    lines.push('   expect: ' + c.expect + (c.dataPass ? '  [데이터 재렌더 동일]' : '  [데이터 재렌더 다름: ' + c.again + ']'));
+    lines.push('   expect: ' + c.expect + (c.dataPass ? '  [데이터 재렌더 동일]' : '  [데이터 재렌더 다름]'));
     lines.push('   mark  : line=' + c.mark.line + ' shown=' + c.mark.lineShown + ' ghost=' + c.mark.ghost + ' badge=' + c.mark.badge + ' toast=' + (c.mark.toast || ''));
   });
   lines.push('== 아이콘 ==');

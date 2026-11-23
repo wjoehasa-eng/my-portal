@@ -2945,8 +2945,10 @@
         else snap = null;
       } else if (kind === 'grp' && target.type === 'grp') {
         var m = moveGroupTo(drag.cat, drag.group, target.cat, target.group, target.after, target.append);
-        if (m) msg = '소그룹 “' + drag.group + '”을(를) “' + target.cat + '”로 옮겼습니다' +
-          (m.merged ? ' · 같은 이름 소그룹에 합쳤습니다' : '') + (m.moved ? ' · 링크 ' + m.moved + '개' : '');
+        if (m) msg = target.cat === drag.cat
+          ? '“' + drag.group + '” 소그룹 순서를 옮겼습니다' + (m.moved ? ' · 링크 ' + m.moved + '개' : '')
+          : '소그룹 “' + drag.group + '”을(를) “' + target.cat + '”로 옮겼습니다' +
+            (m.merged ? ' · 같은 이름 소그룹에 합쳤습니다' : '') + (m.moved ? ' · 링크 ' + m.moved + '개' : '');
         else snap = null;
       }
     }
@@ -3095,7 +3097,8 @@
         { index: i + 1, left: r.right, top: r.top + 2, height: h }
       ];
       for (var k = 0; k < 2; k++) {
-        var d = Math.abs(x - cands[k].left) + Math.abs(y - cy) * 1.6;
+        /* 같은 줄을 먼저 보도록 세로 거리에 가중치를 크게 둡니다. */
+        var d = Math.abs(x - cands[k].left) + Math.abs(y - cy) * 3;
         if (!best || d < best.d) { cands[k].d = d; best = cands[k]; }
       }
     }
