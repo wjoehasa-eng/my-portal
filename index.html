@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
-<meta name="portal-version" content="3.3.0" />
+<meta name="portal-version" content="3.3.1" />
 <title>나만의 포털</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E" />
 <style>
@@ -375,6 +375,11 @@
   .sh-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
   .chk{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;padding:8px 0}
   .chk input{width:18px;height:18px;accent-color:var(--acc)}
+  .chk.dis{opacity:.45}
+  .chk.reset{margin-top:4px;padding-top:8px;border-top:1px dashed var(--line)}
+  .chk.reset b{color:#dc2626}
+  .imp-warn{color:#dc2626;font-size:12.5px;font-weight:700;line-height:1.45;margin:0 0 4px}
+  .imp-warn.hidden{display:none}
   .ico-row{display:flex;align-items:center;gap:8px}
   .ico-row .ico-mini{width:42px;height:42px;border-radius:12px;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:21px;flex:none}
   .ico-row input{flex:1;min-width:0}
@@ -3150,6 +3155,45 @@
     return out;
   }
 
+  /** 지금 포털 내용을 모두 비우고, 가져온 북마크 파일 내용만으로 다시 채웁니다. */
+  function replaceAllWith(found) {
+    var d = state.data;
+    if (!d) return;
+    var oldLinks = d.links.length, oldCats = d.cats.length;
+    var cats = [], byName = {}, links = [];
+    found.forEach(function (f) {
+      var cat = String(f.cat || '').trim();
+      if (cat && !byName[cat]) {
+        byName[cat] = { name: cat, color: COLORS[cats.length % COLORS.length], groups: [] };
+        cats.push(byName[cat]);
+      }
+      if (cat && f.group) {
+        var parts = String(f.group).split('/'), acc = '';
+        for (var i = 0; i < parts.length; i++) {
+          if (!parts[i]) continue;
+          acc = acc ? acc + '/' + parts[i] : parts[i];
+          if (byName[cat].groups.indexOf(acc) < 0) byName[cat].groups.push(acc);
+        }
+      }
+      links.push({ id: uid(), cat: cat, group: f.group || '', name: f.name, icon: f.icon || '🔗', url: f.url, desc: '', pin: false });
+    });
+    d.cats = cats;
+    d.links = links;
+    d.collapsed = [];
+    d.collapsedGroups = [];
+    d.board = [];            /* syncBoard가 단독 페이지 → 카테고리 순서로 다시 만듭니다. */
+    syncBoard(d);
+    state.tab = '';
+    state.tabCollapsed = {};
+    state.tabCollapsedGroups = {};
+    persistCollapsed();
+    persistTabCollapsed();
+    closeModal();
+    renderAll();
+    changed();
+    toast('기존 링크 ' + oldLinks + '개·카테고리 ' + oldCats + '개를 지우고 ' + links.length + '개로 새로 채웠습니다');
+  }
+
   function importFlow(file) {
     var reader = new FileReader();
     reader.onload = function () {
@@ -3166,22 +3210,56 @@
       });
       var depth = 0;
       found.forEach(function (f) { depth = Math.max(depth, (f.group ? f.group.split('/').length : 0) + (f.cat ? 1 : 0)); });
+      var sumInner = '북마크 <b>' + found.length + '</b>개를 찾았습니다.<br>' +
+        '새로 추가 <b>' + fresh.length + '</b>개 · 이미 있어서 건너뜀 <b>' + dup + '</b>개';
+      var goDefault = fresh.length
+        ? fresh.length + '개 가져오기' + (dup ? ' · 다시 배치' : '')
+        : dup + '개 다시 배치';
+      var goOff = !(fresh.length || dup);
       openModal(
         '<div class="sh-head"><h3>북마크 가져오기</h3><button class="x" id="mX">✕</button></div>' +
-        '<p style="font-size:13.5px;margin:0 0 10px">북마크 <b>' + found.length + '</b>개를 찾았습니다.<br>' +
-        '새로 추가 <b>' + fresh.length + '</b>개 · 이미 있어서 건너뜀 <b>' + dup + '</b>개</p>' +
+        '<p id="impSum" style="font-size:13.5px;margin:0 0 10px">' + sumInner + '</p>' +
         '<p style="font-size:12.5px;color:var(--mut);margin:0 0 12px">브라우저의 <b>폴더 층위를 그대로</b> 살립니다 — ' +
         '<b>북마크바 직속 링크 → 단독 페이지</b>, <b>1단계 폴더 → 카테고리</b>, <b>그 아래 폴더 → 폴더(깊이 ' + Math.max(1, depth - 1) + '단계, 하위 폴더까지 중첩)</b>.</p>' +
-        (dup ? '<label class="chk"><input type="checkbox" id="impRe" checked /> 이미 있는 링크 ' + dup + '개도 이 폴더 구조로 <b>다시 배치</b></label>' : '') +
-        '<label class="chk"><input type="checkbox" id="impPin" /> 폴더와 상관없이 전부 “가져온 북마크”로</label>' +
+        (dup ? '<label class="chk" id="impReWrap"><input type="checkbox" id="impRe" checked /> 이미 있는 링크 ' + dup + '개도 이 폴더 구조로 <b>다시 배치</b></label>' : '') +
+        '<label class="chk" id="impPinWrap"><input type="checkbox" id="impPin" /> 폴더와 상관없이 전부 “가져온 북마크”로</label>' +
+        '<label class="chk reset"><input type="checkbox" id="impReset" /> 🗑 기존 링크 모두 비우고 이 파일로 <b>새로 채우기</b></label>' +
+        '<p class="imp-warn hidden" id="impWarn">⚠️ 현재 포털과 시트의 기존 링크·카테고리가 모두 삭제되고 선택한 HTML 파일 내용으로 새로 채워집니다.</p>' +
         '<div class="sh-foot"><button class="btn" id="mCancel">취소</button>' +
-        '<button class="btn primary" id="impGo"' + (fresh.length || dup ? '' : ' disabled style="opacity:.5"') + '>' +
-        (fresh.length
-          ? fresh.length + '개 가져오기' + (dup ? ' · 다시 배치' : '')
-          : dup + '개 다시 배치') + '</button></div>'
+        '<button class="btn primary" id="impGo"' + (goOff ? ' disabled style="opacity:.5"' : '') + '>' + goDefault + '</button></div>'
       );
       $('#mX').onclick = $('#mCancel').onclick = closeModal;
+      var goBtn = $('#impGo'), warnEl = $('#impWarn');
+      function refreshReset() {
+        var on = $('#impReset').checked;
+        var re = $('#impRe');
+        if (re) { re.disabled = on; if (on) re.checked = false; }
+        if ($('#impReWrap')) $('#impReWrap').classList.toggle('dis', on);
+        var pin = $('#impPin');
+        pin.disabled = on;
+        if (on) pin.checked = false;
+        if ($('#impPinWrap')) $('#impPinWrap').classList.toggle('dis', on);
+        warnEl.classList.toggle('hidden', !on);
+        if (on) {
+          $('#impSum').innerHTML = '북마크 <b>' + found.length + '</b>개로 포털을 <b>새로 채웁니다</b>.<br>' +
+            '지금 있는 링크 <b>' + state.data.links.length + '</b>개 · 카테고리 <b>' + state.data.cats.length + '</b>개는 모두 삭제됩니다.';
+          goBtn.textContent = '모두 비우고 ' + found.length + '개로 새로 채우기';
+          goBtn.disabled = false;
+          goBtn.style.opacity = '';
+        } else {
+          $('#impSum').innerHTML = sumInner;
+          goBtn.textContent = goDefault;
+          goBtn.disabled = goOff;
+          goBtn.style.opacity = goOff ? '.5' : '';
+        }
+      }
+      $('#impReset').onchange = refreshReset;
       $('#impGo').onclick = function () {
+        if ($('#impReset').checked) {
+          if (!confirm('기존 링크를 모두 삭제하고 선택한 북마크 파일로 새로 채울까요?')) return;
+          replaceAllWith(found);
+          return;
+        }
         var oneCat = $('#impPin').checked;
         var rearrange = $('#impRe') ? $('#impRe').checked : false;
         if (!fresh.length && !rearrange) { toast('다시 배치할 링크가 없습니다.', true); return; }
