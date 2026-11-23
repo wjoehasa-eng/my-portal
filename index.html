@@ -368,6 +368,9 @@
   .sh-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
   .chk{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;padding:8px 0}
   .chk input{width:18px;height:18px;accent-color:var(--acc)}
+  .ico-row{display:flex;align-items:center;gap:8px}
+  .ico-row .ico-mini{width:42px;height:42px;border-radius:12px;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:21px;flex:none}
+  .ico-row input{flex:1;min-width:0}
   .ico-pick{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
   .ico-pick button{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);font-size:17px;display:flex;align-items:center;justify-content:center}
   .ico-pick button:hover{border-color:var(--acc)}
@@ -2290,7 +2293,9 @@
       '<div class="sh-head"><h3>' + (isNew ? '링크 추가' : '링크 수정') + '</h3><button class="x" id="mX">✕</button></div>' +
       '<div class="row2">' +
       '<div class="field"><label for="mName">이름</label><input id="mName" value="' + esc(link ? link.name : '') + '" placeholder="예: 학급 게시판" /></div>' +
-      '<div class="field"><label for="mIcon">아이콘</label><input id="mIcon" value="' + esc(link ? link.icon : '🔗') + '" maxlength="4" style="text-align:center" /></div>' +
+      '<div class="field"><label for="mIcon">아이콘 <span style="font-weight:600;color:var(--mut)">(자동)</span></label>' +
+      '<div class="ico-row"><span class="ico-mini" id="mIconPrev">' + esc(link ? displayIcon(link) : '🔗') + '</span>' +
+      '<input id="mIcon" value="' + esc(link ? link.icon : '') + '" maxlength="4" placeholder="자동" style="text-align:center" /></div></div>' +
       '</div>' +
       '<div class="ico-pick" id="mEmoji">' + EMOJIS.map(function (e) { return '<button data-e="' + e + '">' + e + '</button>'; }).join('') + '</div>' +
       '<div class="field" style="margin-top:12px"><label for="mUrl">URL</label><input id="mUrl" value="' + esc(link ? link.url : '') + '" placeholder="https://…" spellcheck="false" /></div>' +
@@ -2308,10 +2313,38 @@
     );
 
     $('#mX').onclick = $('#mCancel').onclick = closeModal;
+
+    /* 아이콘: 비워 두면 이름·주소 키워드로 자동 매칭. 직접 고르면 그 값을 존중합니다. */
+    var iconTouched = !!(link && !autoIcon(link));
+    function setIconPreview(v) {
+      var pv = $('#mIconPrev');
+      if (pv) pv.textContent = v || '🔗';
+    }
+    function autoIconFill() {
+      if (iconTouched) return;
+      var nm = ($('#mName') ? $('#mName').value : '').trim();
+      var us = ($('#mUrl') ? $('#mUrl').value : '').trim();
+      var g = guessIcon(us, nm);
+      $('#mIcon').value = g;
+      setIconPreview(g);
+    }
+    ['#mName', '#mUrl'].forEach(function (sel) {
+      var el = $(sel);
+      if (el) el.addEventListener('input', autoIconFill);
+    });
+    $('#mIcon').addEventListener('input', function () {
+      iconTouched = !!this.value.trim();
+      if (!iconTouched) { autoIconFill(); return; }
+      setIconPreview(this.value.trim());
+    });
     $('#mEmoji').onclick = function (e) {
       var b = e.target.closest('button[data-e]');
-      if (b) $('#mIcon').value = b.dataset.e;
+      if (!b) return;
+      iconTouched = true;
+      $('#mIcon').value = b.dataset.e;
+      setIconPreview(b.dataset.e);
     };
+    autoIconFill();
 
     function fillGroups(catName, selected) {
       var sel = $('#mGroup');
@@ -2368,7 +2401,7 @@
       if (!c) g = '';
       if (!url) { toast('URL을 넣어 주세요.', true); $('#mUrl').focus(); return; }
       if (!name) name = hostOf(url);
-      var icon = ($('#mIcon').value || '🔗').trim() || '🔗';
+      var icon = ($('#mIcon').value || '').trim() || guessIcon(url, name);
       var desc = $('#mDesc').value.trim();
       var pin = $('#mPin').checked;
       if (c) ensureGroup(c, g);
