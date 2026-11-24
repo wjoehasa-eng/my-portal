@@ -122,7 +122,7 @@
   d2.pinOrder = saved.slice();
   d2.links = d2.links.map(function (l, n) { return { id: 'new' + n, cat: l.cat, group: l.group, name: l.name, url: l.url, pin: l.pin }; });
   t.setState(d2);
-  check('다시 그린 즐겨찾기 순서', t.pinEntries().map(function (e) { return e.link ? e.link.name : e.token; }), ['자산관리', '업무포털', '부장']);
+  check('다시 그린 즐겨찾기 순서', t.pinEntries().map(function (e) { return e.link ? e.link.name : e.token; }), ['자산관리', '업무포털', 'c:부장']);
   check('정리해도 그대로(저장값 = 화면 순서)', t.prunePinOrder(), saved);
 
   log('[5] 같은 주소 두 개를 모두 고정한 경우');
