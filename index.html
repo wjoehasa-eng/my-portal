@@ -2433,7 +2433,9 @@
     var same = [];
     for (var i = 0; i < arr.length; i++) if (hashKey(normKey(arr[i].url)) === key) same.push(arr[i]);
     if (!same.length) return null;
-    if (n >= 0) return same[n] || null;
+    if (n >= 0 && same[n]) return same[n];
+    /* 같은 URL 이 여럿인데 예전 토큰(_n 없음)이거나 그 순번이 사라졌으면:
+       화면에 보이는 **고정된 링크** → 첫 번째 순으로 고릅니다. */
     for (var j = 0; j < same.length; j++) if (same[j].pin) return same[j];
     return same[0];
   }

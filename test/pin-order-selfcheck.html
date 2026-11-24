@@ -148,6 +148,14 @@
   check('쌍둥이(자산 관리)는 손대지 않음', d.links[1].pin, false);
   check('다른 링크 토큰은 다른 링크', t.linkByPinToken(tokC).name, '인디스쿨');
 
+  log('[8] 같은 주소 쌍둥이를 지우면 _1 토큰도 첫 번째(_ 없는) 토큰으로 돌아가는가');
+  d = makeData({ d: true });
+  d.pinOrder = [tokD];
+  d.links = d.links.filter(function (l) { return l.id !== 'b'; });   /* 「자산 관리」 삭제 */
+  t.setState(d);
+  check('고정한 타일은 그대로 맨 앞', t.pinEntries().map(function (e) { return e.link.name; }), ['자산관리']);
+  check('저장되는 토큰도 첫 번째 형식으로 정리', t.prunePinOrder(), [tokB]);
+
   if (fails) { sum.className = 'bad'; sum.textContent = '실패 ' + fails + ' / ' + total + '건'; }
   else { sum.className = 'ok'; sum.textContent = '모두 통과 (' + total + '건) · v' + ver; }
 })();
