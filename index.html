@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
-<meta name="portal-version" content="3.5.2" />
+<meta name="portal-version" content="3.5.3" />
 <title>나만의 포털</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E" />
 <style>
@@ -3119,6 +3119,11 @@
       (pinTok
         ? '<button class="gbtn gpin on" data-act="pin-folder" title="폴더 즐겨찾기 해제">📌</button>'
         : (pinned || state.edit ? '<button class="gbtn gpin' + (pinned ? ' on' : '') + '" data-act="pin-folder" title="' + (pinned ? '폴더 즐겨찾기 해제' : '이 폴더 즐겨찾기') + '">📌</button>' : '')) +
+      /* 즐겨찾기에 **폴더**를 칸으로 고정했을 때도 그 칸 안에서 구역·폴더를 만들 수 있게 */
+      (state.edit && pinTok
+        ? '<button class="gbtn" data-act="pin-grp-zone" title="이 칸 안에 새 구역(색상 박스) 만들기">🎨</button>' +
+          '<button class="gbtn" data-act="pin-grp-folder" title="이 칸 안에 새 폴더 만들기">＋</button>'
+        : '') +
       (state.edit && !pinTok ? '<button class="gbtn" data-act="g-addlink" title="이 폴더에 링크 추가">＋</button>' +
         '<button class="gbtn" data-act="g-ren" title="폴더 이름 바꾸기">✏️</button>' +
         '<button class="gbtn del" data-act="g-del" title="폴더 삭제">🗑</button>' : '') +
@@ -3128,6 +3133,10 @@
     kids.forEach(function (k) {
       h += groupHtml(c, k, state.data.links.filter(function (l) { return l.cat === c.name && l.group === k; }), (depth || 1) + 1);
     });
+    if (state.edit && pinTok) {
+      h += '<div class="add-row"><button class="add-group" data-act="pin-grp-zone">🎨 구역(색상 박스)</button>' +
+        '<button class="add-group" data-act="pin-grp-folder">＋ 폴더</button></div>';
+    }
     h += '</div></div>';
     return h;
   }
@@ -4198,7 +4207,8 @@
       var b = document.createElement('button');
       b.className = 'ci' + (it.danger ? ' danger' : '');
       b.innerHTML = '<span class="ic">' + esc(it.ic || '') + '</span><span>' + esc(it.label) + '</span>';
-      b.onclick = function () { closeCtx(); it.fn(); };
+      /* 메뉴 항목이 연 팝업(색 고르기 등)이 이 클릭의 버블링으로 곧바로 닫히지 않게 막습니다. */
+      b.onclick = function (ev) { if (ev && ev.stopPropagation) ev.stopPropagation(); closeCtx(); it.fn(); };
       m.appendChild(b);
     });
     m.classList.remove('hidden');
@@ -6208,6 +6218,16 @@
           if (pcf) addGroup(pcf.dataset.cat || '', '');
           return;
         }
+        /* 즐겨찾기에 폴더를 칸으로 고정한 경우 — 그 칸 안에 구역·폴더 만들기 */
+        if (a === 'pin-grp-zone' || a === 'pin-grp-folder') {
+          var pgz = actEl.closest('[data-pin-token]');
+          if (pgz) {
+            var pgc = pgz.dataset.cat || '', pgg = pgz.dataset.group || '';
+            if (a === 'pin-grp-zone') openZoneModal(pgc, pgg); else addGroup(pgc, pgg);
+          }
+          return;
+        }
+
         if (a === 'add-here') { openLinkModal(null, panel ? panel.dataset.cat : null); return; }
         if (a === 'cat-del') { removeCategory(panel.dataset.cat); return; }
         if (a === 'addcat') { addCategory(); return; }
@@ -6349,10 +6369,15 @@
         if (ptok.indexOf('c:') === 0) { pinCatCtx(ptok, e.clientX, e.clientY); return; }
         groupCtx(g.dataset.cat, g.dataset.group, e.clientX, e.clientY); return;
       }
+      /* 섹션 제목 줄(.ph) 위에서도 그 섹션의 메뉴가 떠야 합니다.
+         즐겨찾기 패널은 카테고리가 아니라서( data-cat="" ) 예전에는 빈 카테고리 메뉴
+         — 곧 「단독 페이지」 메뉴 — 가 떠서, 거기서 만든 구역이 즐겨찾기에 나타나지 않았습니다. */
       var ph = e.target.closest('.ph');
       if (ph) {
         var p = ph.closest('.panel');
-        e.preventDefault(); closeCtx(); categoryCtx(p.dataset.cat, e.clientX, e.clientY); return;
+        e.preventDefault(); closeCtx();
+        if (p && p.dataset.pin === '1') { pinPanelCtx(e.clientX, e.clientY); return; }
+        categoryCtx(p ? (p.dataset.cat || '') : '', e.clientX, e.clientY); return;
       }
       /* 즐겨찾기 탭의 색 박스(구역)·고정된 카테고리 칸·폴더 안의 빈 곳 */
       var fzBox = e.target.closest('.fz');
@@ -6382,7 +6407,11 @@
     });
 
     document.addEventListener('click', function (e) {
-      if (!e.target.closest || !e.target.closest('#ctxMenu')) closeCtx();
+      if (!e.target.closest) return;
+      /* 방금 메뉴 때문에 화면에서 떨어져 나간(다시 그린) 요소의 클릭이면, 그 자리에 새로 뜬
+         팝업(구역·공간 색 고르기)을 닫지 않습니다. */
+      if (e.target.isConnected === false) return;
+      if (!e.target.closest('#ctxMenu')) closeCtx();
     });
 
     /* --- drag & drop --- */
