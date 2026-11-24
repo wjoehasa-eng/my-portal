@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
-<meta name="portal-version" content="3.5.0" />
+<meta name="portal-version" content="3.5.1" />
 <title>나만의 포털</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E" />
 <style>
@@ -248,6 +248,9 @@
   .pin-panel .pin-cat{border-top:1px dashed var(--line);padding-top:6px;margin-top:4px}
   .pin-panel .pin-cat:first-child{border-top:0;padding-top:0;margin-top:0}
   .pin-panel .pin-cat>.grp-head{background:color-mix(in srgb,var(--c,var(--acc)) 10%,var(--panel2));border-style:solid}
+  .pin-panel .pin-cat>.grp-body>.add-row{flex:1 1 100%;margin:2px 0 6px}
+  .pin-panel .pin-cat>.grp-body>.empty-msg{flex:1 1 100%;font-size:12px;color:var(--mut);padding:10px 8px;text-align:center;
+    border:1.5px dashed color-mix(in srgb,var(--c,var(--acc)) 26%,var(--line));border-radius:12px;margin:2px 0 6px}
   .pin-panel .pin-grp>.grp-head{border-style:solid}
   .grp.drop-into .grp-head{border-style:solid;border-color:var(--acc);background:var(--acc-soft);color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 16%,transparent)}
   .grp-body{--tw:100px;gap:8px 4px;padding:4px 0 4px 6px;margin-left:2px}
@@ -2721,26 +2724,38 @@
     return h;
   }
 
-  /** 즐겨찾기에 고정된 카테고리 하나 — 안의 링크·폴더를 그대로 펼쳐 보여줍니다. */
+  /** 즐겨찾기에 고정된 카테고리 하나 — 안의 링크·폴더를 그대로 펼쳐 보여줍니다.
+   *  고정된 칸도 그 카테고리 자체이므로, 이 안에서도 일반 카테고리 탭과 똑같이
+   *  색 박스(구역)·폴더를 만들고 타일을 끌어넣고 색을 바꿀 수 있습니다. */
   function pinCatHtml(cat) {
     var c = catByName(cat);
     if (!c) return '';
     var tok = pinCatToken(cat);
     var items = state.data.links.filter(function (l) { return l.cat === cat; });
+    var kids = childGroups(cat, '');
+    var rootTiles = items.filter(function (l) { return !l.group; });
     var collapsed = isPinCollapsed(tok);
-    var h = '<div class="grp pin-cat" data-pin-token="' + esc(tok) + '" data-cat="' + esc(cat) + '" data-group="" data-depth="1" style="--c:' + esc(c.color || 'var(--acc)') + '">';
-    h += '<div class="grp-head" data-act="pin-fold" title="' + esc(cat) + '\n접기 / 펼치기 · 끌어서 즐겨찾기 순서 바꾸기">' +
+    var h = '<div class="grp pin-cat' + (collapsed ? ' is-collapsed' : '') + '" data-pin-token="' + esc(tok) + '" data-cat="' + esc(cat) + '" data-group="" data-depth="1" style="--c:' + esc(c.color || 'var(--acc)') + '">';
+    h += '<div class="grp-head" data-act="pin-fold" title="' + esc(cat) + '\n접기 / 펼치기 · 끌어서 즐겨찾기 순서 바꾸기 · 이 칸 안에서 구역(색상 박스) 만들기">' +
       '<button class="gchev-btn" data-act="pin-fold" aria-expanded="' + (collapsed ? 'false' : 'true') + '" title="접기 / 펼치기">' + (collapsed ? '▸' : '▾') + '</button>' +
       '<span class="gname">📂 ' + esc(cat) + '</span>' +
       '<span class="gcnt">' + items.length + '</span>' +
       '<button class="gbtn gopen" data-act="pin-open" title="이 카테고리의 링크를 모두 새 탭에서 열기">↗</button>' +
+      (state.edit
+        ? '<button class="gbtn" data-act="pin-cat-zone" title="이 칸 안에 새 구역(색상 박스) 만들기">🎨</button>' +
+          '<button class="gbtn" data-act="pin-cat-folder" title="이 칸 안에 새 폴더 만들기">＋</button>'
+        : '') +
       '<button class="gbtn del" data-act="pin-cat" title="카테고리 즐겨찾기 해제">📌</button>' +
       '</div>';
     h += '<div class="grp-body">';
-    items.filter(function (l) { return !l.group; }).forEach(function (l) { h += chipHtml(l); });
-    childGroups(cat, '').forEach(function (g) {
+    if (!rootTiles.length && !kids.length) {
+      h += '<div class="empty-msg">' + (state.edit ? '이 칸 안에 구역(색상 박스)을 만들고 타일을 끌어다 놓으세요' : '이 칸 안의 링크가 없습니다 · 빈 곳을 오른쪽 버튼 → 🎨 새 구역') + '</div>';
+    }
+    rootTiles.forEach(function (l) { h += chipHtml(l); });
+    kids.forEach(function (g) {
       h += groupHtml(c, g, items.filter(function (l) { return l.group === g; }), 2);
     });
+    if (state.edit) h += '<div class="add-row"><button class="add-group" data-act="pin-cat-zone">🎨 구역(색상 박스)</button><button class="add-group" data-act="pin-cat-folder">＋ 폴더</button></div>';
     h += '</div></div>';
     return h;
   }
@@ -3818,6 +3833,76 @@
     return { ok: true, msg: '‘' + l.name + '’' + josaEul(l.name) + ' ' + where + (group ? '로 옮겼습니다' : '로 뺐습니다') };
   }
 
+  /** 즐겨찾기 탭에 고정된 카테고리·폴더 칸 안의 타일을 끌 때 —
+   *  그 카테고리의 실제 폴더(색 박스 구역) 사이로 옮깁니다(카테고리 구조 그대로 저장). */
+  function pinInnerLinkTarget(under, x, y) {
+    if (under.closest('.fz')) return null;          /* 즐겨찾기 전용 구역은 고정 항목만 담습니다 */
+    var grp = under.closest('.grp');
+    if (!grp) return null;
+    var isCat = grp.classList.contains('pin-cat');
+    var cat = grp.dataset.cat || '';
+    var g = isCat ? '' : (grp.dataset.group || '');
+    var body = grp.querySelector(':scope > .grp-body');
+    if (!body) return null;
+    /* 접혀 있으면 끌어오는 동안 펼칩니다(즐겨찾기 카테고리 칸은 보기 상태만). */
+    if (grp.classList.contains('is-collapsed')) {
+      if (isCat) togglePinCollapsed(pinCatToken(cat)); else autoExpandGroup(grp);
+    }
+    var tiles = listTiles($$(':scope > .lk', body));
+    var slot;
+    if (under.closest('.grp-head')) {
+      var br = body.getBoundingClientRect();
+      var t0 = tiles[0];
+      slot = { index: 0, left: br.left + 6, top: br.top + 2, height: t0 ? Math.max(26, t0.getBoundingClientRect().height - 4) : 48 };
+    } else {
+      slot = pickSlot(tiles, x, y, body);
+    }
+    grp.classList.add('drop-into');
+    showVLine(slot.left, slot.top, slot.height);
+    var srcLink = (drag && drag.id) ? linkById(drag.id) : null;
+    if (!cat) {
+      /* 카테고리 밖(단독 페이지)에 고정된 폴더 */
+      var stayedSolo = srcLink && isSolo(srcLink) && (srcLink.group || '') === g;
+      setBadge(stayedSolo ? '↕ 이 폴더 안에서 순서 이동'
+        : '⚡ 단독 페이지 폴더 “' + g.split('/').join(' › ') + '”로 이동', x, y, stayedSolo ? '' : 'into');
+      return { type: 'solo', group: g, index: slot.index };
+    }
+    var stayed = srcLink && (srcLink.cat || '') === cat && (srcLink.group || '') === g;
+    setBadge(stayed ? '↕ 이 칸 안에서 순서 이동'
+      : '📂 “' + cat + (g ? ' › ' + g.split('/').join(' › ') : '') + '”로 이동', x, y, stayed ? '' : 'into');
+    return { type: 'link', cat: cat, group: g, index: slot.index };
+  }
+
+  /** 고정된 칸 안에서 폴더(구역)를 끌 때 — 그 카테고리 안 폴더 구조 그대로 옮깁니다. */
+  function pinInnerGroupTarget(under, x, y) {
+    if (under.closest('.fz')) return null;
+    var grp = under.closest('.grp');
+    if (!grp || grp === drag.source) return null;
+    var cat = grp.dataset.cat || '';
+    if (!grp.classList.contains('pin-cat') && !grp.dataset.group) return null;
+    if (grp.classList.contains('pin-cat')) {
+      if (grp.classList.contains('is-collapsed')) togglePinCollapsed(pinCatToken(cat));
+      var cb = grp.querySelector(':scope > .grp-body') || grp;
+      grp.classList.add('drop-into');
+      showHLine(cb.getBoundingClientRect().left + 6, cb.getBoundingClientRect().width - 12, cb.getBoundingClientRect().bottom - 6);
+      setBadge('📂 “' + cat + '” 맨 뒤 폴더로 이동', x, y, cat !== drag.cat ? 'into' : '');
+      return { type: 'grp', cat: cat, group: null, after: true, append: true };
+    }
+    var tg = grp.dataset.group || '';
+    if (cat === (drag.cat || '') && tg === (drag.group || '')) return null;
+    if (grp.classList.contains('is-collapsed')) autoExpandGroup(grp);
+    var head = grp.querySelector('.grp-head'), gr = grp.getBoundingClientRect();
+    var hr = head ? head.getBoundingClientRect() : gr;
+    var after = y > hr.top + hr.height / 2 || y > gr.bottom;
+    /* 색 박스(구역) 몸통 위에 놓으면 그 구역 **안으로** 넣습니다. */
+    var into = !!groupColorOf(cat, tg) && !under.closest('.grp-head') && after;
+    grp.classList.add('drop-into');
+    showHLine(gr.left + 4, gr.width - 8, into ? gr.bottom - 3 : (after ? gr.bottom : gr.top));
+    setBadge(into ? '🎨 “' + leafOf(tg) + '” 구역 안으로 넣기'
+      : (cat !== drag.cat ? '📂 “' + cat + ' › ' + tg.split('/').join(' › ') + '”로 폴더 이동' : '↕ 폴더 순서 이동'), x, y, into || cat !== drag.cat ? 'into' : '');
+    return { type: 'grp', cat: cat, group: tg, after: after, append: false, into: into };
+  }
+
   /** 즐겨찾기 패널 안의 꽂을 자리 — 항목(타일·폴더·카테고리) 사이의 세로 삽입선.
    *  색 박스(구역) 안이면 그 구역 안의 자리로, 구역 밖이면 구역에서 빼는 자리로 잡습니다. */
   function pinTarget(under, x, y) {
@@ -3826,7 +3911,12 @@
     var src = drag && drag.source;
     if (!src || !src.getAttribute) return null;
     var srcTok = src.getAttribute('data-pin-token') || '';
-    if (!srcTok) return null;
+    /* 고정된 카테고리·폴더 칸 **안**의 타일·폴더는 고정 항목 토큰이 없습니다.
+       그 타일·폴더를 끌면 그 카테고리의 진짜 폴더(구역)끼리 옮기는 것으로 다룹니다. */
+    if (!srcTok) {
+      if (drag && drag.kind === 'grp') return pinInnerGroupTarget(under, x, y);
+      return pinInnerLinkTarget(under, x, y);
+    }
     var cur = fzoneOfToken(srcTok);
     var curId = cur ? cur.id : '';
     var fzEl = under.closest('.fz');
@@ -3883,14 +3973,15 @@
 
   /** 소그룹을 다른 카테고리로 옮기거나 같은 카테고리 안에서 순서를 바꿉니다. */
   /** 폴더(하위 폴더·링크 포함)를 다른 위치로. 경로 트리를 그대로 따라 옮깁니다. */
-  function moveGroupTo(fromCat, g, toCat, targetGroup, after, append) {
+  function moveGroupTo(fromCat, g, toCat, targetGroup, after, append, into) {
     if (!g) return false;
     fromCat = fromCat || '';
     toCat = toCat || '';
     var fromList = groupListOf(fromCat), toList = groupListOf(toCat);
     if (!fromList || !toList) return false;
     if (fromCat === toCat && targetGroup === g) return false;
-    var destParent = (append || !targetGroup) ? '' : dirOf(targetGroup);
+    /* into: 색 박스(구역) 몸통에 놓았을 때 — 그 구역 **안**으로 넣습니다. */
+    var destParent = into ? targetGroup : ((append || !targetGroup) ? '' : dirOf(targetGroup));
     var newPath = joinPath(destParent, leafOf(g));
     if (newPath === g) {
       /* 같은 자리(같은 부모·같은 이름) — 같은 영역 안이면 순서만 바꿔 줍니다. */
@@ -4159,6 +4250,7 @@
     var items = [
       { ic: '＋', label: '이 폴더에 링크 추가', fn: function () { openLinkModal(null, cat, g); } },
       { ic: '📁', label: '이 폴더 안에 새 폴더 만들기', fn: function () { addGroup(cat, g); } },
+      { ic: '🎨', label: '이 폴더 안에 새 구역(색상 박스)', fn: function () { openZoneModal(cat, g); } },
       { ic: '🎨', label: '공간 색상 바꾸기', fn: function () { openZonePalette(cat, g, x, y); } },
       { ic: isGroupTitleHidden(cat, g) ? '🏷' : '🙈', label: isGroupTitleHidden(cat, g) ? '구역 이름(제목) 보이기' : '구역 이름(제목) 숨기기', fn: function () { setGroupTitleHidden(cat, g, !isGroupTitleHidden(cat, g)); } },
       { ic: '📌', label: isFolderPinned(cat, g) ? '폴더 즐겨찾기 해제' : '이 폴더 즐겨찾기', fn: function () { toggleFolderPin(cat, g); } },
@@ -4189,6 +4281,10 @@
     var e = resolvePinToken(tok);
     if (!e) return;
     var items = [
+      { ic: '🎨', label: '이 칸 안에 새 구역(색상 박스) 만들기', fn: function () { openZoneModal(e.cat); } },
+      { ic: '📁', label: '이 칸 안에 새 폴더 만들기', fn: function () { addGroup(e.cat, ''); } },
+      { ic: '＋', label: '이 카테고리에 링크 추가', fn: function () { openLinkModal(null, e.cat); } },
+      '-',
       { ic: '↗', label: '모두 새 탭에서 열기', fn: function () { openAllLinks(pinLinksOf(e), '“' + e.cat + '”'); } },
       { ic: isPinCollapsed(tok) ? '▾' : '▸', label: isPinCollapsed(tok) ? '펼치기' : '접기', fn: function () { togglePinCollapsed(tok); } },
       '-',
@@ -4197,11 +4293,30 @@
     openCtx(x, y, '📌 ' + e.cat + ' (카테고리 전체)', items);
   }
 
+  /** 즐겨찾기 탭에 고정된 카테고리 칸의 빈 곳 우클릭 — 그 카테고리 안에서 바로 구역·폴더를 만듭니다. */
+  function pinCatBodyCtx(cat, x, y) {
+    if (!cat) { pinPanelCtx(x, y); return; }
+    var items = [
+      { ic: '🎨', label: '이 칸 안에 새 구역(색상 박스) 만들기', fn: function () { openZoneModal(cat); } },
+      { ic: '📁', label: '이 칸 안에 새 폴더 만들기', fn: function () { addGroup(cat, ''); } },
+      { ic: '＋', label: '이 카테고리에 링크 추가', fn: function () { openLinkModal(null, cat); } },
+      '-',
+      { ic: '↗', label: '모두 새 탭에서 열기', fn: function () { openAllLinks(state.data.links.filter(function (l) { return l.cat === cat; }), '“' + cat + '”'); } },
+      { ic: '📌', label: '카테고리 즐겨찾기 해제', fn: function () { toggleCatPin(cat); } }
+    ];
+    openCtx(x, y, '📂 ' + cat + ' (카테고리 칸)', items);
+  }
+
   /* ------------------------------------------------ 공간(구역) 만들기 · 색
      사진처럼 카테고리 안을 [동학년] [부장 업무] [AI 3종] 처럼 나눠 쓰기 위해,
      이름을 비우면 제목 없이 색 박스(구역)만 만들고 타일을 끌어넣을 수 있습니다. */
   function nextZoneName(cat) {
-    var used = groupsOf(cat || '').map(function (p) { return leafOf(p); });
+    return nextZoneNameAt(cat, '');
+  }
+  /** 그 폴더 바로 아래에서 아직 쓰지 않은 「구역 N」 이름. */
+  function nextZoneNameAt(cat, parent) {
+    parent = parent || '';
+    var used = groupsOf(cat || '').filter(function (p) { return dirOf(p) === parent; }).map(function (p) { return leafOf(p); });
     for (var i = 1; i < 999; i++) if (used.indexOf('구역 ' + i) < 0) return '구역 ' + i;
     return '구역 ' + Date.now().toString(36);
   }
@@ -4219,29 +4334,39 @@
     return best || 'blue';
   }
 
-  function createZone(cat, name, colorId, hideTitle) {
+  /** 카테고리(cat) 안 parent 폴더 아래에 색 박스(구역)를 만듭니다.
+   *  parent 를 비우면 카테고리 바로 아래 — 즐겨찾기에 고정된 카테고리 칸·고정된 폴더 안에서도
+   *  같은 방식으로 호출되어, 그 자리에서 바로 색 박스를 만들 수 있습니다. */
+  function createZoneIn(cat, parent, name, colorId, hideTitle) {
     if (!state.data) return false;
-    cat = cat || '';
+    cat = cat || ''; parent = parent || '';
     var leaf = cleanLeaf(name || '');
-    if (!leaf) { leaf = nextZoneName(cat); hideTitle = true; }
-    if (groupsOf(cat).indexOf(leaf) >= 0) { toast('이미 있는 폴더·구역 이름입니다: “' + leaf + '”', true); return false; }
+    if (!leaf) { leaf = nextZoneNameAt(cat, parent); hideTitle = true; }
+    var full = joinPath(parent, leaf);
+    if (groupsOf(cat).indexOf(full) >= 0) { toast('이미 있는 폴더·구역 이름입니다: “' + leaf + '”', true); return false; }
     var snap = undoSnapshot();
-    ensureGroup(cat, leaf);
-    if (colorId) groupColorsStore()[gkey(cat, leaf)] = zonePresetOf(colorId).id;
+    ensureGroup(cat, full);
+    if (colorId) groupColorsStore()[gkey(cat, full)] = zonePresetOf(colorId).id;
     if (hideTitle) {
-      var arr = groupNoTitleStore(), k = gkey(cat, leaf);
+      var arr = groupNoTitleStore(), k = gkey(cat, full);
       if (arr.indexOf(k) < 0) arr.push(k);
     }
     syncBoard(state.data);
     renderAll();
     changed();
-    offerUndo(snap, '🎨 ' + (hideTitle ? '이름 없는 구역을' : '“' + leaf + '” 구역을') + ' 만들었습니다 — 타일을 끌어다 넣어 보세요');
+    offerUndo(snap, '🎨 ' + (hideTitle ? '이름 없는 구역을' : '“' + leaf + '” 구역을') + ' 만들었습니다' +
+      (parent ? ' (“' + leafOf(parent) + '” 안)' : '') + ' — 타일을 끌어다 넣어 보세요');
     return true;
   }
 
-  function openZoneModal(cat) {
+  function createZone(cat, name, colorId, hideTitle) {
+    return createZoneIn(cat, '', name, colorId, hideTitle);
+  }
+
+  function openZoneModal(cat, parent) {
     if (!state.data) return;
     cat = cat || '';
+    parent = parent || '';
     var picked = nextZoneColor(cat);
     var sw = '<div class="zw">';
     ZONE_PRESETS.forEach(function (p) {
@@ -4250,10 +4375,11 @@
     });
     sw += '</div>';
     openModal(
-      '<div class="sh-head"><h3>🎨 새 구역 (색상 박스)</h3><button class="x" data-x="1" aria-label="닫기">✕</button></div>' +
+      '<div class="sh-head"><h3>🎨 새 구역 (색상 박스)' + (parent ? ' · “' + esc(leafOf(parent)) + '” 안' : '') + '</h3><button class="x" data-x="1" aria-label="닫기">✕</button></div>' +
       '<div class="field"><label for="zName">구역 이름</label>' +
       '<input id="zName" placeholder="예: 동학년 · 부장 업무 · AI 3종 (비우면 제목 없이 색 박스만)" spellcheck="false" />' +
-      '<span class="hint">이름을 비우면 색 배경·테두리만 있는 박스로 만들어집니다. 폴더처럼 타일을 끌어다 넣으면 됩니다.</span></div>' +
+      '<span class="hint">' + (parent ? '“' + esc(leafOf(parent)) + '” 폴더 안에 만들어집니다. ' : '') +
+      '이름을 비우면 색 배경·테두리만 있는 박스로 만들어집니다. 폴더처럼 타일을 끌어다 넣으면 됩니다.</span></div>' +
       '<div class="field"><label>공간 색</label>' + sw +
       '<span class="hint">같은 카테고리 안에서 구역끼리 색으로 구별됩니다. 나중에 폴더 머리의 색 점을 눌러 언제든 바꿀 수 있습니다.</span></div>' +
       '<div class="sh-foot"><button class="btn" data-x="1">취소</button><button class="btn primary" id="zOk">구역 만들기</button></div>'
@@ -4273,7 +4399,7 @@
     $('#zOk').onclick = function () {
       var v = nm ? nm.value.trim() : '';
       closeModal();
-      createZone(cat, v, picked, !v);
+      createZoneIn(cat, parent, v, picked, !v);
     };
   }
 
@@ -4389,7 +4515,7 @@
   /** 즐겨찾기 탭 빈 곳 우클릭 메뉴. */
   function pinPanelCtx(x, y) {
     var items = [
-      { ic: '🎨', label: '새 구역(색상 박스) 만들기', fn: function () { openFzoneModal(); } },
+      { ic: '🎨', label: '새 구역(색상 박스) 만들기 · 즐겨찾기 맨 위', fn: function () { openFzoneModal(); } },
       { ic: '↗', label: '즐겨찾기 모두 새 탭에서 열기', fn: function () { openAllLinks(pinAllLinks(), '즐겨찾기'); } }
     ];
     openCtx(x, y, '📌 즐겨찾기', items);
@@ -5254,7 +5380,7 @@
       panel: panel,
       fzone: fzEl ? (fzEl.getAttribute('data-fzone') || '') : '',
       id: (soloEl || chip) ? (soloEl || chip).dataset.id : null,
-      cat: soloEl ? '' : (grpEl ? (grpEl.dataset.cat || '') : (panel ? panel.dataset.cat : '')),
+      cat: soloEl ? '' : (grpEl ? (grpEl.dataset.cat || '') : (chip && chip.dataset.cat !== undefined ? chip.dataset.cat : (panel ? panel.dataset.cat : ''))),
       group: soloEl ? '' : chip ? (chip.dataset.group || '') : grpEl ? (grpEl.dataset.group || '') : null,
       pointerId: e.pointerId
     };
@@ -5359,8 +5485,11 @@
         if (p) msg = '“' + drag.group + '”' + josaEul(drag.group) + ' 독립 카테고리로 꺼냈습니다' + (p.merged ? ' · 같은 이름 카테고리에 합쳤습니다' : '') + (p.n ? ' · 링크 ' + p.n + '개' : '');
         else snap = null;
       } else if (kind === 'grp' && target.type === 'grp') {
-        var m = moveGroupTo(drag.cat, drag.group, target.cat, target.group, target.after, target.append);
-        if (m) msg = target.cat === drag.cat
+        var m = moveGroupTo(drag.cat, drag.group, target.cat, target.group, target.after, target.append, target.into);
+        if (m) msg = target.into
+          ? '“' + drag.group + '”' + josaEul(drag.group) + ' “' + (target.group || target.cat) + '” 안으로 옮겼습니다' +
+            (m.merged ? ' · 같은 이름 폴더에 합쳤습니다' : '') + (m.moved ? ' · 링크 ' + m.moved + '개' : '')
+          : target.cat === drag.cat
           ? '“' + drag.group + '” ' + (target.cat ? '소그룹' : '폴더') + ' 순서를 옮겼습니다' + (m.moved ? ' · 링크 ' + m.moved + '개' : '')
           : '소그룹 “' + drag.group + '”' + josaEul(drag.group) + ' “' + target.cat + '”로 옮겼습니다' +
             (m.merged ? ' · 같은 이름 소그룹에 합쳤습니다' : '') + (m.moved ? ' · 링크 ' + m.moved + '개' : '');
@@ -5774,10 +5903,13 @@
       else if (y > hr.top + hr.height / 2) after = true;
       else after = false;
       if (y > gr.bottom) after = true;
+      /* 색 박스(구역) 몸통 위에 놓으면 그 구역 **안으로** 넣습니다. */
+      var intoG = !!groupColorOf(cat, tg) && after && !under.closest('.grp-head');
       grp.classList.add('drop-into');
-      showHLine(gr.left + 4, gr.width - 8, after ? gr.bottom : gr.top);
-      setBadge(cat !== drag.cat ? '📂 “' + cat + ' › ' + tg.split('/').join(' › ') + '”로 폴더 이동' : '↕ 폴더 순서 이동', x, y, cat !== drag.cat ? 'into' : '');
-      return { type: 'grp', cat: cat, group: tg, after: after, append: false };
+      showHLine(gr.left + 4, gr.width - 8, intoG ? gr.bottom - 3 : (after ? gr.bottom : gr.top));
+      setBadge(intoG ? '🎨 “' + leafOf(tg) + '” 구역 안으로 넣기'
+        : (cat !== drag.cat ? '📂 “' + cat + ' › ' + tg.split('/').join(' › ') + '”로 폴더 이동' : '↕ 폴더 순서 이동'), x, y, (intoG || cat !== drag.cat) ? 'into' : '');
+      return { type: 'grp', cat: cat, group: tg, after: after, append: false, into: intoG };
     }
     var list = panel.querySelector('.plist');
     if (!list) return null;
@@ -6025,6 +6157,16 @@
           if (pnlC && pnlC.dataset.cat) toggleCatPin(pnlC.dataset.cat);
           return;
         }
+        if (a === 'pin-cat-zone') {
+          var pcz = actEl.closest('.pin-cat');
+          if (pcz) openZoneModal(pcz.dataset.cat || '');
+          return;
+        }
+        if (a === 'pin-cat-folder') {
+          var pcf = actEl.closest('.pin-cat');
+          if (pcf) addGroup(pcf.dataset.cat || '', '');
+          return;
+        }
         if (a === 'add-here') { openLinkModal(null, panel ? panel.dataset.cat : null); return; }
         if (a === 'cat-del') { removeCategory(panel.dataset.cat); return; }
         if (a === 'addcat') { addCategory(); return; }
@@ -6126,6 +6268,14 @@
           inlineEditName(gn, (fz2 && fz2.name) || '', function (v) { renameFavZoneTo(fzid2, v); });
           return;
         }
+        if (grp.classList.contains('pin-cat')) {
+          /* 즐겨찾기에 고정된 카테고리 칸의 이름 = 카테고리 이름 */
+          var pcatName = grp.dataset.cat || '';
+          inlineEditName(gn, pcatName, function (v) {
+            if (renameCategory(pcatName, v)) { renderAll(); changed(); toast('“' + v + '”로 바꿨습니다'); }
+          });
+          return;
+        }
         inlineEditName(gn, grp.dataset.group, function (v) {
           if (renameGroupTo(grp.dataset.cat, grp.dataset.group, v)) { renderAll(); changed(); toast('“' + v + '”로 바꿨습니다'); }
         });
@@ -6162,6 +6312,19 @@
       if (ph) {
         var p = ph.closest('.panel');
         e.preventDefault(); closeCtx(); categoryCtx(p.dataset.cat, e.clientX, e.clientY); return;
+      }
+      /* 즐겨찾기 탭의 색 박스(구역)·고정된 카테고리 칸·폴더 안의 빈 곳 */
+      var fzBox = e.target.closest('.fz');
+      if (fzBox) { e.preventDefault(); closeCtx(); fzoneCtx(fzBox.getAttribute('data-fzone') || '', e.clientX, e.clientY); return; }
+      var pcatBox = e.target.closest('.pin-cat');
+      if (pcatBox) {
+        e.preventDefault(); closeCtx();
+        pinCatBodyCtx(pcatBox.dataset.cat || '', e.clientX, e.clientY); return;
+      }
+      var grpBox = e.target.closest('.grp');
+      if (grpBox && grpBox.dataset.group !== undefined) {
+        e.preventDefault(); closeCtx();
+        groupCtx(grpBox.dataset.cat || '', grpBox.dataset.group, e.clientX, e.clientY); return;
       }
       /* 카테고리 카드 안의 빈 곳(타일 바깥·소그룹 사이)에서도 카테고리 메뉴 */
       var pnl = e.target.closest('.panel');
