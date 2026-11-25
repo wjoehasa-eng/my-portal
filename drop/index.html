@@ -582,7 +582,6 @@
   function sendText() {
     var text = String($('#txt').value || '');
     if (!text.trim()) { toast('보낼 내용을 입력해 주세요.', { err: true }); return Promise.resolve(); }
-    if (!state.url) { toast('먼저 연결해 주세요.', { err: true }); return Promise.resolve(); }
     if (state.demo) {
       state.items.unshift({ id: 'd' + Date.now(), at: new Date().toISOString(), from: '폰', kind: 'text', text: text });
       $('#txt').value = '';
@@ -590,6 +589,7 @@
       toast('보냈어요 (데모)');
       return Promise.resolve();
     }
+    if (!state.url) { toast('먼저 연결해 주세요.', { err: true }); return Promise.resolve(); }
     setBusy(true);
     return post({ action: 'addDrop', kind: 'text', text: text, from: '폰' }, 40000).then(function (d) {
       $('#txt').value = '';
@@ -639,7 +639,6 @@
   }
 
   function sendFiles() {
-    if (!state.url) { toast('먼저 연결해 주세요.', { err: true }); return; }
     if (state.demo) {
       state.files.forEach(function (f) {
         state.items.unshift({ id: 'd' + Date.now() + Math.random(), at: new Date().toISOString(), from: '폰', kind: /^image\//.test(f.type) ? 'image' : 'file', text: '', fileName: f.name, size: f.size });
@@ -650,6 +649,7 @@
       toast('보냈어요 (데모)');
       return;
     }
+    if (!state.url) { toast('먼저 연결해 주세요.', { err: true }); return; }
     var queue = state.files.slice();
     state.files = [];
     paintQueue();
