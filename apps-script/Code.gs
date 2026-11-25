@@ -1,6 +1,13 @@
 /**
- * 나만의 북마크 포털 — 구글 시트 백엔드 (Google Apps Script) v2.1.0
+ * 나만의 북마크 포털 — 구글 시트 백엔드 (Google Apps Script) v2.2.0
  * ==========================================================
+ * v2.2.0 (2026-11-25)
+ *  · 「전송함」 탭 추가 — 폰·PC 사이에 짧은 글·링크·사진·파일을 주고받는 칸.
+ *    파일은 내 드라이브의 `[모봉] 전송함` 폴더에 **비공개**로 저장하고(공유 설정 안 함),
+ *    시트에는 파일 ID만 적습니다. 읽기는 시트에 기록된 파일만 허용합니다.
+ *  · API: listDrops / addDrop / getDropFile / deleteDrop / clearDrops
+ *  · 기존 시트 구조(링크·설정)와 API는 그대로입니다. 전송함 탭은 필요할 때 자동으로 만듭니다.
+ *
  * v2.1.0 (2026-11-23)
  *  · 「카테고리 밖 단독 페이지」 지원 — 링크의 카테고리 칸이 비어 있으면
  *    단독 페이지로 읽고 그대로 저장합니다(예전엔 '기타'로 바뀌었음).
@@ -40,6 +47,8 @@
  *           '카테고리' 값 안에는 화면 전용 예약 이름 `__solo`(단독 페이지 폴더 목록),
  *           `__pins`(즐겨찾기 순서), `__tabs`(상단 탭 순서·숨김)이 함께 들어갑니다
  *           (각각 base64 한 조각). 이 이름들은 카테고리로 보이지 않으며 그대로 보관만 합니다.
+ *  · 전송함 : ID | 생성시각 | 보낸곳 | 종류 | 내용 | 파일명 | 파일크기 | 파일ID | 보관상태
+ *           파일 본문은 드라이브 `[모봉] 전송함` 폴더에 비공개로 두고, 여기에는 ID만 적습니다.
  *
  * API (브라우저는 JSONP GET 또는 text/plain POST 둘 다 사용할 수 있습니다)
  *  ?action=ping                         연결 확인
@@ -49,6 +58,13 @@
  *                                       links[].c 가 빈 문자열이면 카테고리 밖 단독 페이지
  *  ?action=add / update / remove / move / bulkAdd / setSettings
  *                                       링크 하나씩 다루는 낱개 API (가져오기·보조용)
+ *  ?action=listDrops   {limit}          전송함 목록 (최신순, 기본 50건 / 최대 200건)
+ *  ?action=addDrop     {kind, text, base64, mimeType, fileName, from}
+ *                                       글(text)·링크(link)·파일(file·image) 한 건 보내기 (큰 파일은 POST)
+ *  ?action=getDropFile {fileId}          전송함에 넣은 파일 받기 → { fileName, mimeType, base64 }
+ *                                       ※ 시트에 적힌 파일만 열어 줍니다
+ *  ?action=deleteDrop  {id}              한 건 지우기 (파일은 휴지통으로)
+ *  ?action=clearDrops  {clear:true}      전송함 전체 비우기
  *  ?callback=함수이름                     JSONP 로 감싸서 응답
  *
  * 안전장치: 링크가 하나도 없는 저장 요청은 기존 목록을 지우지 않고 거부합니다
@@ -62,14 +78,22 @@
 /** 스프레드시트 ID. 시트에 붙인(컨테이너 바인딩) 스크립트라면 비워 두세요. */
 var SHEET_ID = '';
 
-var BACKEND_VERSION = '2.1.0';
+var BACKEND_VERSION = '2.2.0';
 
-var TABS = { links: '링크', settings: '설정' };
+var TABS = { links: '링크', settings: '설정', drops: '전송함' };
 
 var HEADERS = {
   links: ['카테고리', '이름', '아이콘', 'URL', '설명', '순서', '핀고정', '그룹'],
-  settings: ['항목', '값', '비고']
+  settings: ['항목', '값', '비고'],
+  /* 전송함 — 파일은 드라이브에 두고 여기에는 ID만 적습니다. */
+  drops: ['ID', '생성시각', '보낸곳', '종류', '내용', '파일명', '파일크기', '파일ID', '보관상태']
 };
+
+/* 전송함 설정 */
+var DROPS_FOLDER = '[모봉] 전송함';   /* 내 드라이브 루트에 자동 생성 */
+var DROP_MAX_BYTES = 12 * 1024 * 1024; /* 파일 하나 최대 12MB */
+var DROP_MAX_TEXT = 20000;             /* 글 하나 최대 20,000자 */
+var DROP_LIST_MAX = 200;               /* 한 번에 돌려주는 목록 최대 개수 */
 
 var DEFAULT_CATEGORIES = [
   { name: '업무', color: '#3b82f6', groups: [] },
@@ -84,6 +108,8 @@ var DEFAULT_CATEGORIES = [
 function doGet(e) {
   var p = (e && e.parameter) || {};
   var cb = p.callback || '';
+  /* 전송함 파일 내려받기는 주소가 짧도록 fileId 만 GET 으로 받습니다. */
+  if (!p.d && p.fileId) p.d = JSON.stringify({ fileId: p.fileId, id: p.id });
   var action = p.action || 'status';
   var req = {};
   if (p.d) {
@@ -125,6 +151,9 @@ function handle_(action, req, cb) {
     if (action === 'ping' || action === 'status' || action === 'load') {
       return out_(read_(action), cb);
     }
+    /* 전송함 읽기는 잠금 없이 — 큰 파일을 내려받는 동안 다른 저장을 막지 않습니다. */
+    if (action === 'listDrops') return out_(listDrops_(req), cb);
+    if (action === 'getDropFile') return out_(getDropFile_(req), cb);
 
     lock = LockService.getScriptLock();
     lock.waitLock(20000);
@@ -137,10 +166,20 @@ function handle_(action, req, cb) {
     else if (action === 'move') res = move_(req);
     else if (action === 'bulkAdd') res = bulkAdd_(req);
     else if (action === 'setSettings') res = setSettings_(req);
+    else if (action === 'addDrop') res = addDrop_(req);
+    else if (action === 'deleteDrop') res = deleteDrop_(req);
+    else if (action === 'clearDrops') res = clearDrops_(req);
     else if (action === 'setup') { setup_(); res = { ok: true }; }
     else res = { ok: false, error: '알 수 없는 action 입니다: ' + action };
 
     if (!res || res.ok === false) return out_(res, cb);
+
+    /* 전송함은 링크 목록(수백 건)을 다시 읽지 않고 전송함 목록만 돌려줍니다. */
+    if (action === 'addDrop' || action === 'deleteDrop' || action === 'clearDrops') {
+      var drops = listDrops_({ limit: req.limit });
+      drops.affected = res;
+      return out_(drops, cb);
+    }
 
     /* 저장 뒤에는 최신 전체 상태를 함께 돌려줘 앱이 한 번 더 요청하지 않게 합니다. */
     var fresh = read_('load');
@@ -209,6 +248,7 @@ function setup() {
 function setup_() {
   var ss = ss_();
   tab_(ss, TABS.links, HEADERS.links);
+  tab_(ss, TABS.drops, HEADERS.drops);
 
   var sh = tab_(ss, TABS.settings, HEADERS.settings);
   var last = sh.getLastRow();
@@ -241,6 +281,9 @@ function read_(action) {
       app: 'bookmark-portal',
       backendVersion: BACKEND_VERSION,
       title: ss.getName(),
+      drops: TABS.drops,
+      maxDropBytes: DROP_MAX_BYTES,
+      maxDropText: DROP_MAX_TEXT,
       now: new Date().toISOString()
     };
   }
@@ -648,6 +691,221 @@ function setSettings_(req) {
   return { ok: true };
 }
 
+/* ------------------------------------------------------------------ 전송함
+   폰·PC 사이에 짧은 글·링크·사진·파일을 주고받는 칸입니다.
+   · 파일 본문은 드라이브 `[모봉] 전송함` 폴더에 **비공개**로 저장합니다.
+     setSharing() 을 절대 부르지 않으므로 같은 계정에서만 열립니다(링크 공개 아님).
+   · 파일 ID는 시트에 적고, 내려받기(getDropFile)는 **시트에 적힌 파일만** 허용합니다.
+     (주소를 아는 사람이 내 드라이브의 다른 파일을 읽어가지 못하게 하는 장치)
+   · 파일이 큰 요청은 POST 본문(text/plain JSON)으로만 보냅니다(JSONP GET 은 주소가 짧아야 함). */
+
+var DROP_KINDS = { text: 1, link: 1, file: 1, image: 1 };
+
+/** 최신순 목록. 내용(base64)은 빼고 메타정보만 돌려줍니다. */
+function listDrops_(req) {
+  var ss = ss_();
+  var sh = ss.getSheetByName(TABS.drops);
+  var limit = number_(req && req.limit);
+  if (!limit || limit < 1) limit = 50;
+  if (limit > DROP_LIST_MAX) limit = DROP_LIST_MAX;
+
+  var rows = dropRows_(sh);
+  var total = rows.length;
+  rows.sort(function (a, b) {
+    if (a.at !== b.at) return a.at < b.at ? 1 : -1;   /* ISO 문자열 = 시간순 */
+    return b.row - a.row;
+  });
+  var items = rows.slice(0, limit).map(function (d) {
+    return {
+      id: d.id, at: d.at, from: d.from, kind: d.kind, text: d.text,
+      fileName: d.fileName, size: d.size, fileId: d.fileId, state: d.state
+    };
+  });
+  return {
+    ok: true,
+    app: 'bookmark-portal',
+    backendVersion: BACKEND_VERSION,
+    tab: TABS.drops,
+    total: total,
+    items: items,
+    maxBytes: DROP_MAX_BYTES,
+    maxText: DROP_MAX_TEXT,
+    now: new Date().toISOString()
+  };
+}
+
+/** 글·링크 한 건 또는 파일 한 개를 저장합니다. */
+function addDrop_(req) {
+  var ss = ss_();
+  var sh = tab_(ss, TABS.drops, HEADERS.drops);
+
+  var kind = clean_(req.kind || 'text').toLowerCase();
+  if (!DROP_KINDS[kind]) kind = 'text';
+  var text = raw_(req.text).slice(0, DROP_MAX_TEXT);
+  var from = clean_(req.from).slice(0, 20) || '웹';
+  var fileName = clean_(req.fileName).slice(0, 200);
+  var fileId = '';
+  var size = 0;
+
+  if (kind === 'file' || kind === 'image') {
+    var b64 = String(req.base64 || '').replace(/^data:[^,]*,/, '');
+    if (!b64) throw new Error('파일 내용이 비어 있습니다.');
+    /* base64 는 원본의 약 4/3 — 먼저 글자 수로 걸러 큰 요청을 막습니다. */
+    if (b64.length > Math.ceil(DROP_MAX_BYTES * 4 / 3) + 4096) {
+      throw new Error('파일이 너무 큽니다. 한 개에 ' + Math.round(DROP_MAX_BYTES / 1048576) + 'MB까지 보낼 수 있습니다.');
+    }
+    var bytes = Utilities.base64Decode(b64);
+    size = bytes.length;
+    if (size > DROP_MAX_BYTES) {
+      throw new Error('파일이 너무 큽니다. 한 개에 ' + Math.round(DROP_MAX_BYTES / 1048576) + 'MB까지 보낼 수 있습니다.');
+    }
+    var mime = clean_(req.mimeType) || 'application/octet-stream';
+    if (!fileName) fileName = 'drop-' + Date.now() + guessExt_(mime);
+    var blob = Utilities.newBlob(bytes, mime, fileName);
+    var folder = dropFolder_();
+    var file = folder.createFile(blob);
+    /* 폴더·파일 모두 기본 비공개입니다. 여기서 setSharing() 을 부르지 마세요. */
+    fileId = file.getId();
+    if (!fileName) fileName = file.getName();
+  } else {
+    if (!text.trim()) throw new Error('보낼 내용이 비어 있습니다.');
+    if (kind === 'text' && /^https?:\/\/[^\s]+$/i.test(text.trim())) kind = 'link';
+  }
+
+  var item = {
+    id: newDropId_(),
+    at: new Date().toISOString(),
+    from: from,
+    kind: kind,
+    text: text,
+    fileName: fileName,
+    size: size,
+    fileId: fileId,
+    state: '보관'
+  };
+  sh.appendRow([item.id, item.at, item.from, item.kind, item.text, item.fileName, item.size, item.fileId, item.state]);
+  SpreadsheetApp.flush();
+  return { ok: true, item: item, kept: DROP_LIST_MAX };
+}
+
+/** 파일 하나를 base64 로 돌려줍니다. 시트에 적힌 파일만 열어 줍니다. */
+function getDropFile_(req) {
+  var fileId = clean_(req && req.fileId);
+  if (!fileId) throw new Error('파일 ID가 필요합니다.');
+
+  var hit = null;
+  dropRows_(ss_().getSheetByName(TABS.drops)).forEach(function (d) {
+    if (d.fileId === fileId) hit = d;
+  });
+  if (!hit) throw new Error('이 전송함에 없는 파일입니다.');
+
+  var file = DriveApp.getFileById(fileId);
+  var blob = file.getBlob();
+  var bytes = blob.getBytes();
+  if (bytes.length > DROP_MAX_BYTES + 1048576) {
+    throw new Error('파일이 너무 커서 웹에서 바로 받을 수 없습니다. 드라이브에서 직접 열어 주세요.');
+  }
+  return {
+    ok: true,
+    id: hit.id,
+    fileId: fileId,
+    fileName: hit.fileName || file.getName(),
+    mimeType: blob.getContentType() || 'application/octet-stream',
+    size: bytes.length,
+    base64: Utilities.base64Encode(bytes)
+  };
+}
+
+/** 한 건 삭제 — 시트 행을 지우고, 파일이면 드라이브 휴지통으로 보냅니다. */
+function deleteDrop_(req) {
+  var ss = ss_();
+  var sh = ss.getSheetByName(TABS.drops);
+  var id = clean_(req && req.id);
+  if (!sh || !id) return { ok: true, removed: 0 };
+
+  var target = null;
+  dropRows_(sh).forEach(function (d) { if (d.id === id) target = d; });
+  if (!target) return { ok: true, removed: 0 };
+
+  if (target.fileId) trashFile_(target.fileId);
+  sh.deleteRow(target.row);
+  SpreadsheetApp.flush();
+  return { ok: true, removed: 1, id: id };
+}
+
+/** 전송함 비우기 — 모든 행과 파일을 지웁니다. */
+function clearDrops_(req) {
+  var ss = ss_();
+  var sh = ss.getSheetByName(TABS.drops);
+  if (!sh) return { ok: true, removed: 0 };
+  var rows = dropRows_(sh);
+  if (!rows.length) return { ok: true, removed: 0 };
+  if (!isYes_(req && req.clear)) {
+    throw new Error('전송함을 비우려면 clear:true 가 필요합니다.');
+  }
+  rows.forEach(function (d) { if (d.fileId) trashFile_(d.fileId); });
+  sh.deleteRows(2, rows.length);
+  SpreadsheetApp.flush();
+  return { ok: true, removed: rows.length };
+}
+
+/** 시트의 전송함 행을 읽어 옵니다(빈 행은 건너뜁니다). */
+function dropRows_(sh) {
+  var out = [];
+  if (!sh) return out;
+  var last = sh.getLastRow();
+  if (last < 2) return out;
+  var width = Math.min(HEADERS.drops.length, sh.getMaxColumns());
+  sh.getRange(2, 1, last - 1, width).getValues().forEach(function (r, i) {
+    var id = clean_(r[0]);
+    if (!id) return;
+    out.push({
+      row: i + 2,
+      id: id,
+      at: clean_(r[1]),
+      from: clean_(r[2]),
+      kind: clean_(r[3]) || 'text',
+      text: raw_(r[4]),
+      fileName: clean_(r[5]),
+      size: number_(r[6]),
+      fileId: clean_(r[7]),
+      state: clean_(r[8]) || '보관'
+    });
+  });
+  return out;
+}
+
+/** 내 드라이브 루트의 `[모봉] 전송함` 폴더(없으면 만듭니다). 공유 설정은 건드리지 않습니다. */
+function dropFolder_() {
+  var it = DriveApp.getFoldersByName(DROPS_FOLDER);
+  if (it.hasNext()) return it.next();
+  return DriveApp.createFolder(DROPS_FOLDER);
+}
+
+function trashFile_(fileId) {
+  try {
+    DriveApp.getFileById(fileId).setTrashed(true);
+  } catch (ignore) {
+    /* 이미 지워졌거나 권한이 없으면 시트 행만 지웁니다. */
+  }
+}
+
+function newDropId_() {
+  return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function guessExt_(mime) {
+  var m = String(mime || '').toLowerCase();
+  if (m.indexOf('image/png') === 0) return '.png';
+  if (m.indexOf('image/jpeg') === 0) return '.jpg';
+  if (m.indexOf('image/gif') === 0) return '.gif';
+  if (m.indexOf('image/webp') === 0) return '.webp';
+  if (m.indexOf('image/') === 0) return '.img';
+  if (m.indexOf('application/pdf') === 0) return '.pdf';
+  if (m.indexOf('text/') === 0) return '.txt';
+  return '';
+}
+
 /* ------------------------------------------------------------------ 값 정리 */
 
 function pick_(obj, keys) {
@@ -666,6 +924,11 @@ function rowNumber_(v, sh) {
 
 function clean_(v) {
   return v === null || v === undefined ? '' : String(v).trim();
+}
+
+/** 내용 칸처럼 앞뒤 공백까지 그대로 보관해야 하는 값. */
+function raw_(v) {
+  return v === null || v === undefined ? '' : String(v);
 }
 
 /** 스킴이 없으면 https:// 를 붙이고, 위험한 스킴은 버립니다. */

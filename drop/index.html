@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#3b5bfd" />
+<meta name="color-scheme" content="light dark" />
+<title>내 전송함</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="전송함" />
+<style>
+  :root{
+    --bg:#f2f4fa; --card:#fff; --txt:#0e1626; --mut:#6b788e; --line:#e4e9f2;
+    --acc:#3b5bfd; --acc2:#7c4dff; --ink:#fff; --soft:#e9eeff; --danger:#e5484d; --ok:#0e9f86;
+    --sh:0 1px 2px rgba(16,24,40,.05), 0 8px 24px -18px rgba(16,24,40,.35);
+    --r:16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0a0e16; --card:#131a26; --txt:#e9eff9; --mut:#9aa8bd; --line:#232d3e;
+      --acc:#7aa2ff; --acc2:#a78bfa; --ink:#0a1120; --soft:#1a2440; --danger:#ff6b6b; --ok:#2ec4b6;
+      --sh:0 1px 2px rgba(0,0,0,.5), 0 10px 26px -18px rgba(0,0,0,.9); }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",Roboto,sans-serif;
+    font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
+    padding-bottom:calc(18px + env(safe-area-inset-bottom));
+  }
+  button,input,textarea{font:inherit;color:inherit}
+  button{cursor:pointer;background:none;border:0;-webkit-tap-highlight-color:transparent}
+  .hidden{display:none !important}
+
+  header.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;
+    padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+    background:color-mix(in srgb, var(--bg) 86%, transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border-bottom:1px solid color-mix(in srgb, var(--line) 75%, transparent)}
+  .logo{font-size:20px;line-height:1}
+  h1{font-size:17px;font-weight:850;letter-spacing:-.4px;margin:0;flex:1}
+  .ibtn{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    font-size:16px;color:var(--mut);background:var(--card);border:1px solid var(--line);box-shadow:var(--sh)}
+  .ibtn:active{transform:scale(.95)}
+  main{padding:14px 14px 0;max-width:640px;margin:0 auto}
+
+  /* 보내기 카드 */
+  .compose{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:12px}
+  textarea{width:100%;min-height:104px;max-height:44vh;resize:vertical;border:0;outline:0;background:transparent;
+    font-size:16px;line-height:1.5;padding:6px 4px}
+  textarea::placeholder{color:var(--mut)}
+  .row{display:flex;gap:8px;margin-top:6px}
+  .row .sp{flex:1}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:46px;padding:0 14px;
+    border-radius:13px;border:1px solid var(--line);background:var(--card);font-size:14.5px;font-weight:750;white-space:nowrap}
+  .btn:active{transform:scale(.98)}
+  .btn.ghost{background:transparent}
+  .btn.primary{background:var(--acc);border-color:transparent;color:var(--ink);font-weight:800;
+    box-shadow:0 8px 18px -12px var(--acc);min-width:96px}
+  .btn.primary:disabled{opacity:.55;box-shadow:none}
+  .btn.big{width:100%;height:52px;font-size:16px}
+  .hintline{font-size:12.5px;color:var(--mut);margin:10px 4px 0;line-height:1.45}
+
+  /* 파일 대기 목록 */
+  .queue{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .chip{display:flex;align-items:center;gap:7px;max-width:100%;background:var(--soft);border:1px solid color-mix(in srgb,var(--acc) 25%,transparent);
+    border-radius:11px;padding:6px 8px;font-size:12.5px;font-weight:700}
+  .chip .nm{max-width:52vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chip button{font-size:12px;color:var(--mut)}
+  .bar{height:3px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:8px}
+  .bar > i{display:block;height:100%;width:0;background:var(--acc);transition:width .18s}
+
+  /* 목록 */
+  .listhead{display:flex;align-items:center;gap:8px;margin:20px 4px 10px}
+  .listhead b{font-size:14.5px;font-weight:850}
+  .listhead .n{font-size:12px;color:var(--mut);font-weight:700}
+  .listhead .sp{flex:1}
+  .toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);font-weight:700}
+  .toggle input{width:16px;height:16px;accent-color:var(--acc)}
+
+  .it{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh);
+    padding:11px 12px;margin-bottom:9px;animation:in .16s ease-out}
+  @keyframes in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .it-top{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--mut);font-weight:700}
+  .pill{border:1px solid var(--line);border-radius:999px;padding:1px 7px;background:var(--soft);color:var(--acc)}
+  .it-top .sp{flex:1}
+  .it-body{margin:7px 0 0;font-size:15px;word-break:break-word;white-space:pre-wrap}
+  .it-body.txt{cursor:pointer}
+  .it-body.txt:active{opacity:.6}
+  .file{display:flex;align-items:center;gap:10px;margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:9px 10px;background:var(--soft)}
+  .file .ic{font-size:22px;line-height:1}
+  .file .meta{flex:1;min-width:0}
+  .file .nm{font-size:13.5px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .file .sz{font-size:11.5px;color:var(--mut);font-weight:650}
+  .it-acts{display:flex;gap:6px;margin-top:9px}
+  .it-acts .btn{height:34px;font-size:12.5px;border-radius:10px;padding:0 11px}
+  .it-acts .sp{flex:1}
+  .it-acts .del{color:var(--danger)}
+  .empty{text-align:center;color:var(--mut);font-size:13.5px;padding:26px 10px;line-height:1.6}
+
+  /* 연결 화면 */
+  .connect{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sh);padding:20px 16px;margin-top:6px}
+  .connect h2{margin:0 0 8px;font-size:18px;letter-spacing:-.3px}
+  .connect p{margin:0 0 12px;font-size:13.5px;color:var(--mut);line-height:1.6}
+  .connect input{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;background:var(--bg);
+    padding:0 12px;font-size:14px;outline:0;margin-bottom:10px}
+  .connect input:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--soft)}
+
+  /* 안내 배너 */
+  .tip{display:flex;gap:10px;align-items:flex-start;background:var(--soft);border:1px solid color-mix(in srgb,var(--acc) 22%,transparent);
+    border-radius:14px;padding:11px 12px;margin:12px 0 0;font-size:12.5px;line-height:1.5}
+  .tip b{font-weight:850}
+  .tip .x{margin-left:auto;color:var(--mut);font-size:13px}
+
+  /* 토스트 */
+  #toasts{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);
+    display:flex;flex-direction:column;gap:8px;align-items:center;z-index:60;pointer-events:none;width:calc(100% - 28px);max-width:560px}
+  .toast{background:var(--txt);color:var(--bg);font-size:13.5px;font-weight:700;padding:11px 16px;border-radius:999px;
+    box-shadow:0 12px 26px -16px rgba(0,0,0,.7);animation:in .16s ease-out;max-width:100%;text-align:center;pointer-events:auto}
+  .toast.err{background:var(--danger);color:#fff}
+  .toast .act{color:var(--acc);font-weight:900;margin-left:10px;text-decoration:underline;text-underline-offset:2px}
+
+  /* 미리보기 */
+  .ovl{position:fixed;inset:0;background:rgba(6,10,18,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;
+    z-index:70;padding:18px;gap:12px}
+  .ovl img{max-width:100%;max-height:74vh;border-radius:12px;background:#fff}
+  .ovl .row{width:100%;max-width:420px;justify-content:center}
+  .ovl .btn{background:#1b2434;border-color:#2b3648;color:#fff}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <span class="logo">📨</span>
+  <h1>내 전송함</h1>
+  <button class="ibtn" id="btnRefresh" title="새로고침" aria-label="새로고침">↻</button>
+  <button class="ibtn" id="btnMenu" title="설정" aria-label="설정">⋯</button>
+</header>
+
+<main>
+  <div id="connectWrap" class="hidden">
+    <div class="connect">
+      <h2>전송함 연결하기</h2>
+      <p>PC의 <b>나만의 포털 → 📨 전송함 → 📱 폰 앱 연결</b>에서 복사한 주소를 그대로 붙여넣어 주세요.<br />
+        한 번만 하면 폰에서는 다시 묻지 않습니다.</p>
+      <input id="connInput" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://…/my-portal/drop/#s=… 또는 …/exec" />
+      <button class="btn primary big" id="btnConnect">연결하기</button>
+      <p class="hintline">이 화면은 폰에만 주소를 저장합니다. 서버에는 아무것도 남지 않습니다.</p>
+    </div>
+  </div>
+
+  <div id="appWrap" class="hidden">
+    <section class="compose">
+      <textarea id="txt" placeholder="보낼 글·링크를 붙여넣으세요" autocomplete="off" spellcheck="false"></textarea>
+      <div class="queue hidden" id="queue"></div>
+      <div class="bar hidden" id="progBar"><i></i></div>
+      <div class="row">
+        <button class="btn ghost" id="btnPaste">📋 붙여넣어 보내기</button>
+        <button class="btn ghost" id="btnFile">📎 파일/사진</button>
+        <span class="sp"></span>
+        <button class="btn primary" id="btnSend">보내기</button>
+      </div>
+    </section>
+    <input type="file" id="fileInput" multiple class="hidden" />
+
+    <div class="tip" id="installTip">
+      <span>💡</span>
+      <span><b>홈 화면에 추가</b>하면 갤럭시 <b>공유하기</b> 목록에 “내 전송함”이 생겨, 사진·링크를 한 번에 보낼 수 있어요.
+        (브라우저 메뉴 → <b>앱 설치 / 홈 화면에 추가</b>)</span>
+      <button class="x" id="tipClose" aria-label="닫기">✕</button>
+    </div>
+
+    <div class="listhead">
+      <b>최근 전송</b>
+      <span class="n" id="cnt"></span>
+      <span class="sp"></span>
+      <label class="toggle"><input type="checkbox" id="autoChk" checked /> 자동</label>
+    </div>
+    <div id="items"></div>
+  </div>
+</main>
+
+<div id="toasts"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------------------------------------------------------- 기기 저장 */
+  var LS = { conn: 'drop.conn.v1', seen: 'drop.seen.v1', auto: 'drop.auto.v1', cache: 'drop.cache.v1', tip: 'drop.tip.v1' };
+  function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  /* ---------------------------------------------------------------- 상태 */
+  var state = {
+    url: '', demo: false, items: [], busy: 0, auto: true,
+    files: [],            /* 보내기 전에 모아 둔 파일 */
+    blobCache: {},        /* fileId → objectURL */
+    seen: {}, polling: null, sending: false
+  };
+
+  var $ = function (s) { return document.querySelector(s); };
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+  function el(tag, cls, html) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+
+  /* ---------------------------------------------------------------- 토스트 */
+  function toast(msg, opt) {
+    opt = opt || {};
+    var t = el('div', 'toast' + (opt.err ? ' err' : ''));
+    t.appendChild(el('span', '', esc(msg)));
+    if (opt.action) {
+      var b = el('button', 'act', esc(opt.action.label));
+      b.onclick = function () { if (t.parentNode) t.parentNode.removeChild(t); opt.action.fn(); };
+      t.appendChild(b);
+    }
+    $('#toasts').appendChild(t);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, opt.action ? 7000 : 2600);
+  }
+
+  /* ---------------------------------------------------------------- 주소 */
+  function b64decode(s) {
+    try {
+      var t = String(s).replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '');
+      while (t.length % 4) t += '=';
+      return decodeURIComponent(atob(t).split('').map(function (c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+    } catch (e) { return ''; }
+  }
+
+  /** 붙여넣은 글에서 /exec 주소를 뽑습니다. (#s=… / 전체 drop 주소 / 맨 주소 모두) */
+  function parseConn(raw) {
+    var s = String(raw || '').trim();
+    if (!s) return '';
+    var m = s.match(/#s=([^&\s]+)/);
+    if (m) {
+      var v = m[1];
+      var d = /^https?:/i.test(v) ? v : b64decode(v);
+      if (/^https?:/i.test(d)) return d;
+    }
+    m = s.match(/[?&]s=([^&\s]+)/);
+    if (m) {
+      var v2 = decodeURIComponent(m[1]);
+      var d2 = /^https?:/i.test(v2) ? v2 : b64decode(v2);
+      if (/^https?:/i.test(d2)) return d2;
+    }
+    m = s.match(/https?:\/\/\S+/);
+    if (m) return m[0];
+    return '';
+  }
+
+  /* ---------------------------------------------------------------- 통신 */
+  function jsonp(params, ms) {
+    return new Promise(function (resolve, reject) {
+      var name = '__dropCb' + Math.random().toString(36).slice(2, 8);
+      var q = [];
+      Object.keys(params).forEach(function (k) {
+        if (params[k] === undefined || params[k] === null) return;
+        q.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+      });
+      q.push('callback=' + name);
+      var s = document.createElement('script');
+      var done = false;
+      var timer = setTimeout(function () { finish(); reject(new Error('응답이 없습니다. 잠시 뒤 다시 해보세요.')); }, ms || 25000);
+      function finish() {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        /* 늦게 도착한 응답이 실행돼도 오류가 나지 않게 빈 함수로 바꿔 둡니다. */
+        window[name] = function () {};
+        setTimeout(function () { try { delete window[name]; } catch (e) {} }, 60000);
+        if (s.parentNode) s.parentNode.removeChild(s);
+      }
+      window[name] = function (d) { finish(); resolve(d); };
+      s.onerror = function () { finish(); reject(new Error('연결하지 못했습니다. 연결 주소를 확인해 주세요.')); };
+      s.src = state.url + (state.url.indexOf('?') >= 0 ? '&' : '?') + q.join('&');
+      document.head.appendChild(s);
+    });
+  }
+
+  function markServer(err) { err = err || new Error('보내지 못했습니다.'); err.server = true; return err; }
+
+  /** 쓰기: JSON POST → (브라우저가 막으면) 숨은 폼 POST. 큰 파일은 POST 로만 보냅니다. */
+  function post(payload, ms) {
+    var body = JSON.stringify(payload);
+    var timer = null;
+    return new Promise(function (resolve, reject) {
+      var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      if (ctl) timer = setTimeout(function () { ctl.abort(); }, ms || 120000);
+      fetch(state.url, {
+        method: 'POST', mode: 'cors', redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: body, signal: ctl ? ctl.signal : undefined
+      }).then(function (r) {
+        if (!r.ok) throw markServer(new Error('HTTP ' + r.status));
+        return r.text();
+      }).then(function (text) {
+        var d;
+        try { d = JSON.parse(text); } catch (e) { throw markServer(new Error('응답을 읽지 못했습니다.')); }
+        if (!d || d.ok === false) throw markServer(new Error((d && d.error) || '보내지 못했습니다.'));
+        resolve(d);
+      }).catch(function (err) {
+        if (err && err.server) { reject(err); return; }
+        /* CORS·네트워크로 응답을 못 받는 환경 → 숨은 폼으로 보내고 목록으로 확인 */
+        formPost(body).then(function () { resolve({ ok: true, uncertain: true }); })
+          .catch(function () { reject(new Error('보내지 못했습니다. 연결 상태를 확인해 주세요.')); });
+      }).then(function () { if (timer) clearTimeout(timer); });
+    });
+  }
+
+  function formPost(body) {
+    return new Promise(function (resolve, reject) {
+      var name = 'df' + Date.now();
+      var iframe = el('iframe');
+      iframe.name = name;
+      iframe.style.cssText = 'position:absolute;width:0;height:0;border:0;visibility:hidden';
+      var form = el('form');
+      form.method = 'POST'; form.action = state.url; form.target = name; form.style.display = 'none';
+      var input = el('input');
+      input.type = 'hidden'; input.name = 'payload'; input.value = body;
+      form.appendChild(input);
+      document.body.appendChild(iframe);
+      document.body.appendChild(form);
+      var done = false;
+      var timer = setTimeout(function () { end(new Error('응답 없음')); }, 120000);
+      function end(err) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        if (form.parentNode) form.parentNode.removeChild(form);
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        if (err) reject(err); else resolve({ ok: true });
+      }
+      iframe.onload = function () { setTimeout(function () { end(null); }, 80); };
+      form.submit();
+    });
+  }
+
+  /* ---------------------------------------------------------------- 목록 */
+  function load(opts) {
+    opts = opts || {};
+    if (!state.url || state.demo) return Promise.resolve();
+    return jsonp({ action: 'listDrops', d: JSON.stringify({ limit: 60 }) }).then(function (d) {
+      if (!d || d.ok === false) throw new Error((d && d.error) || '목록을 불러오지 못했습니다.');
+      state.items = d.items || [];
+      state.maxBytes = d.maxBytes || 12 * 1024 * 1024;
+      paint();
+      try { lsSet(LS.cache, JSON.stringify({ at: Date.now(), items: state.items })); } catch (e) {}
+      markSeen();
+      return d;
+    }).catch(function (err) {
+      if (!opts.silent) toast(err.message, { err: true });
+      if (!state.items.length) paint();
+      throw err;
+    });
+  }
+
+  function markSeen() {
+    state.items.forEach(function (it) { state.seen[it.id] = 1; });
+    try { lsSet(LS.seen, JSON.stringify(state.seen)); } catch (e) {}
+  }
+
+  function timeText(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return '방금';
+    if (diff < 3600) return Math.floor(diff / 60) + '분 전';
+    if (diff < 86400) return Math.floor(diff / 3600) + '시간 전';
+    var hh = ('0' + d.getHours()).slice(-2), mm = ('0' + d.getMinutes()).slice(-2);
+    if (diff < 86400 * 2) return '어제 ' + hh + ':' + mm;
+    return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + hh + ':' + mm;
+  }
+
+  function sizeText(n) {
+    n = Number(n) || 0;
+    if (n < 1024) return n + 'B';
+    if (n < 1024 * 1024) return Math.round(n / 1024) + 'KB';
+    return (n / 1048576).toFixed(1) + 'MB';
+  }
+
+  function kindEmoji(it) {
+    if (it.kind === 'image') return '🖼️';
+    if (it.kind === 'file') return fileEmoji(it.fileName);
+    if (it.kind === 'link') return '🔗';
+    return '📝';
+  }
+  function fileEmoji(name) {
+    var n = String(name || '').toLowerCase();
+    if (/\.(png|jpe?g|gif|webp|heic)$/.test(n)) return '🖼️';
+    if (/\.pdf$/.test(n)) return '📕';
+    if (/\.(hwp|hwpx|docx?|txt|md)$/.test(n)) return '📄';
+    if (/\.(xlsx?|csv)$/.test(n)) return '📊';
+    if (/\.(pptx?)$/.test(n)) return '📽️';
+    if (/\.(zip|7z|rar)$/.test(n)) return '🗜️';
+    if (/\.(mp4|mov|mkv)$/.test(n)) return '🎬';
+    if (/\.(mp3|m4a|wav)$/.test(n)) return '🎵';
+    return '📎';
+  }
+
+  function paint() {
+    var box = $('#items');
+    box.innerHTML = '';
+    $('#cnt').textContent = state.items.length ? state.items.length + '개' : '';
+    if (!state.items.length) {
+      box.appendChild(el('div', 'empty', '아직 보낸 것이 없어요.<br />위에 글을 붙여넣거나 📎 로 사진을 보내 보세요.'));
+      return;
+    }
+    state.items.forEach(function (it) {
+      var card = el('div', 'it');
+      var top = el('div', 'it-top');
+      top.appendChild(el('span', 'pill', esc(it.from || '웹')));
+      top.appendChild(el('span', '', esc(kindLabel(it))));
+      top.appendChild(el('span', 'sp'));
+      top.appendChild(el('span', '', esc(timeText(it.at))));
+      card.appendChild(top);
+
+      if (it.kind === 'file' || it.kind === 'image') {
+        var f = el('div', 'file');
+        f.appendChild(el('div', 'ic', kindEmoji(it)));
+        var meta = el('div', 'meta');
+        meta.appendChild(el('div', 'nm', esc(it.fileName || '파일')));
+        meta.appendChild(el('div', 'sz', sizeText(it.size) + (it.text ? ' · ' + esc(it.text.slice(0, 30)) : '')));
+        f.appendChild(meta);
+        card.appendChild(f);
+      } else {
+        var body = el('div', 'it-body txt', esc(it.text));
+        if (it.kind === 'link') body.style.color = 'var(--acc)';
+        body.onclick = function () { copy(it); };
+        card.appendChild(body);
+      }
+
+      var acts = el('div', 'it-acts');
+      if (it.kind === 'file' || it.kind === 'image') {
+        var open = el('button', 'btn', it.kind === 'image' ? '🖼 보기' : '⬇ 받기');
+        open.onclick = function () { openFile(it); };
+        acts.appendChild(open);
+        var save = el('button', 'btn', '⬇ 저장');
+        save.onclick = function () { download(it); };
+        if (it.kind === 'image') acts.appendChild(save);
+      } else {
+        var cp = el('button', 'btn', '📋 복사');
+        cp.onclick = function () { copy(it); };
+        acts.appendChild(cp);
+      }
+      acts.appendChild(el('span', 'sp'));
+      var del = el('button', 'btn del', '🗑');
+      del.title = '삭제';
+      del.onclick = function () { removeItem(it); };
+      acts.appendChild(del);
+      card.appendChild(acts);
+      box.appendChild(card);
+    });
+  }
+
+  function kindLabel(it) {
+    if (it.kind === 'image') return '사진';
+    if (it.kind === 'file') return '파일';
+    if (it.kind === 'link') return '링크';
+    return '글';
+  }
+
+  /* ---------------------------------------------------------------- 복사·받기 */
+  function copy(it) {
+    var text = it.text || '';
+    if (!text) { toast('복사할 글이 없어요.', { err: true }); return; }
+    copyText(text).then(function () {
+      toast('✅ 복사했어요');
+    }).catch(function () {
+      toast('복사하지 못했어요. 길게 눌러 복사해 주세요.', { err: true });
+    });
+  }
+
+  function copyText(t) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t);
+    return new Promise(function (resolve, reject) {
+      var ta = el('textarea');
+      ta.value = t;
+      ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      ok ? resolve() : reject(new Error('copy failed'));
+    });
+  }
+
+  function fetchBlob(it) {
+    if (state.blobCache[it.fileId]) return Promise.resolve(state.blobCache[it.fileId]);
+    if (state.demo) return Promise.reject(new Error('데모 화면에서는 파일을 받을 수 없어요.'));
+    return jsonp({ action: 'getDropFile', fileId: it.fileId }, 120000).then(function (d) {
+      if (!d || d.ok === false) throw new Error((d && d.error) || '파일을 받지 못했습니다.');
+      var bin = atob(d.base64 || '');
+      var arr = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      var blob = new Blob([arr], { type: d.mimeType || it.mimeType || 'application/octet-stream' });
+      var url = URL.createObjectURL(blob);
+      state.blobCache[it.fileId] = { url: url, name: d.fileName || it.fileName || 'file', size: blob.size };
+      return state.blobCache[it.fileId];
+    });
+  }
+
+  function download(it) {
+    toast('파일을 가져오는 중…');
+    fetchBlob(it).then(function (f) {
+      var a = el('a');
+      a.href = f.url;
+      a.download = f.name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { if (a.parentNode) a.parentNode.removeChild(a); }, 1000);
+      toast('저장했어요 · ' + sizeText(f.size));
+    }).catch(function (err) { toast(err.message, { err: true }); });
+  }
+
+  function openFile(it) {
+    fetchBlob(it).then(function (f) {
+      if (it.kind === 'image') return showPreview(f, it);
+      download(it);
+    }).catch(function (err) { toast(err.message, { err: true }); });
+  }
+
+  function showPreview(f, it) {
+    var ovl = el('div', 'ovl');
+    var img = el('img');
+    img.src = f.url;
+    img.alt = f.name;
+    ovl.appendChild(img);
+    var row = el('div', 'row');
+    var save = el('button', 'btn', '⬇ 저장');
+    save.onclick = function () {
+      var a = el('a');
+      a.href = f.url; a.download = f.name;
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { if (a.parentNode) a.parentNode.removeChild(a); }, 500);
+    };
+    var close = el('button', 'btn', '닫기');
+    close.onclick = function () { if (ovl.parentNode) ovl.parentNode.removeChild(ovl); };
+    row.appendChild(save);
+    row.appendChild(close);
+    ovl.appendChild(row);
+    ovl.onclick = function (e) { if (e.target === ovl) close.onclick(); };
+    document.body.appendChild(ovl);
+  }
+
+  function removeItem(it) {
+    if (state.demo) {
+      state.items = state.items.filter(function (x) { return x.id !== it.id; });
+      paint();
+      toast('데모에서 지웠어요');
+      return;
+    }
+    post({ action: 'deleteDrop', id: it.id }, 30000).then(function (d) {
+      if (d && d.items) { state.items = d.items; }
+      else state.items = state.items.filter(function (x) { return x.id !== it.id; });
+      paint();
+      toast('지웠어요');
+    }).catch(function (err) { toast(err.message, { err: true }); });
+  }
+
+  /* ---------------------------------------------------------------- 보내기 */
+  function setBusy(on, msg) {
+    state.sending = on;
+    $('#btnSend').disabled = on;
+    $('#btnSend').textContent = on ? (msg || '보내는 중…') : '보내기';
+  }
+
+  function sendText() {
+    var text = String($('#txt').value || '');
+    if (!text.trim()) { toast('보낼 내용을 입력해 주세요.', { err: true }); return Promise.resolve(); }
+    if (!state.url) { toast('먼저 연결해 주세요.', { err: true }); return Promise.resolve(); }
+    if (state.demo) {
+      state.items.unshift({ id: 'd' + Date.now(), at: new Date().toISOString(), from: '폰', kind: 'text', text: text });
+      $('#txt').value = '';
+      paint();
+      toast('보냈어요 (데모)');
+      return Promise.resolve();
+    }
+    setBusy(true);
+    return post({ action: 'addDrop', kind: 'text', text: text, from: '폰' }, 40000).then(function (d) {
+      $('#txt').value = '';
+      if (d && d.items) state.items = d.items;
+      else return load({ silent: true });
+      paint();
+      toast('보냈어요 ✅');
+    }).catch(function (err) {
+      toast(err.message, { err: true });
+    }).then(function () { setBusy(false); });
+  }
+
+  function pickFiles(files) {
+    var arr = Array.prototype.slice.call(files || []);
+    var max = state.maxBytes || 12 * 1024 * 1024;
+    arr.forEach(function (f) {
+      if (f.size > max) { toast(f.name + ' — ' + sizeText(f.size) + '는 너무 커요(최대 ' + sizeText(max) + ')', { err: true }); return; }
+      state.files.push(f);
+    });
+    paintQueue();
+    if (state.files.length) sendFiles();
+  }
+
+  function paintQueue() {
+    var q = $('#queue');
+    q.innerHTML = '';
+    if (!state.files.length) { q.classList.add('hidden'); return; }
+    q.classList.remove('hidden');
+    state.files.forEach(function (f, i) {
+      var c = el('div', 'chip');
+      c.appendChild(el('span', '', fileEmoji(f.name)));
+      c.appendChild(el('span', 'nm', esc(f.name) + ' · ' + sizeText(f.size)));
+      var x = el('button', '', '✕');
+      x.onclick = function () { state.files.splice(i, 1); paintQueue(); };
+      c.appendChild(x);
+      q.appendChild(c);
+    });
+  }
+
+  function readFile(file) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result || '')); };
+      r.onerror = function () { reject(new Error('파일을 읽지 못했습니다.')); };
+      r.readAsDataURL(file);
+    });
+  }
+
+  function sendFiles() {
+    if (!state.url) { toast('먼저 연결해 주세요.', { err: true }); return; }
+    if (state.demo) {
+      state.files.forEach(function (f) {
+        state.items.unshift({ id: 'd' + Date.now() + Math.random(), at: new Date().toISOString(), from: '폰', kind: /^image\//.test(f.type) ? 'image' : 'file', text: '', fileName: f.name, size: f.size });
+      });
+      state.files = [];
+      paintQueue();
+      paint();
+      toast('보냈어요 (데모)');
+      return;
+    }
+    var queue = state.files.slice();
+    state.files = [];
+    paintQueue();
+    var bar = $('#progBar');
+    bar.classList.remove('hidden');
+    var done = 0;
+    setBusy(true, '올리는 중… 0/' + queue.length);
+
+    queue.reduce(function (chain, f) {
+      return chain.then(function () {
+        return readFile(f).then(function (dataUrl) {
+          var base64 = String(dataUrl).replace(/^data:[^,]*,/, '');
+          var kind = /^image\//.test(f.type) ? 'image' : 'file';
+          return post({
+            action: 'addDrop', kind: kind, base64: base64, mimeType: f.type || '',
+            fileName: f.name || '', size: f.size, from: '폰'
+          }, 180000).then(function (d) {
+            done++;
+            bar.querySelector('i').style.width = Math.round(done / queue.length * 100) + '%';
+            setBusy(true, '올리는 중… ' + done + '/' + queue.length);
+            if (d && d.items) { state.items = d.items; paint(); }
+          });
+        });
+      }).catch(function (err) {
+        toast(f.name + ' — ' + err.message, { err: true });
+      });
+    }, Promise.resolve()).then(function () {
+      bar.classList.add('hidden');
+      bar.querySelector('i').style.width = '0';
+      setBusy(false);
+      if (done) { toast(done + '개 보냈어요 ✅'); load({ silent: true }).catch(function () {}); }
+    });
+  }
+
+  /* ---------------------------------------------------------------- 공유받기 */
+  var SHARE_CACHE = 'drop-share-v2';   /* sw.js 의 SHARE_CACHE 와 같은 이름 */
+  /* 서비스 워커와 같은 자리에 담습니다 (sw.js 의 shareKey() 와 같은 주소). */
+  var SHARE_KEY = new URL('__drop_share', location.href.split('?')[0].split('#')[0]).href;
+  function takeShare() {
+    var params = new URLSearchParams(location.search);
+    var shared = params.get('shared') === '1';
+    var viaGet = params.has('share');
+    if (!shared && !viaGet) return Promise.resolve(false);
+
+    if (viaGet) {
+      var text = [params.get('title'), params.get('text'), params.get('url')].filter(Boolean).join('\n').trim();
+      history.replaceState(null, '', location.pathname);
+      if (!text) return Promise.resolve(false);
+      $('#txt').value = text;
+      return handleShared({ text: text });
+    }
+
+    return caches.open(SHARE_CACHE).then(function (c) {
+      return c.match(SHARE_KEY);
+    }).then(function (res) {
+      if (!res) return false;
+      history.replaceState(null, '', location.pathname);
+      return res.json().then(function (payload) {
+        return caches.open(SHARE_CACHE).then(function (c) { return c.delete(SHARE_KEY); }).then(function () {
+          return handleShared(payload);
+        });
+      });
+    }).catch(function () { return false; });
+  }
+
+  function handleShared(payload) {
+    var text = [payload.title, payload.text, payload.url].filter(Boolean).join('\n').trim();
+    var files = payload.files || [];
+    var jobs = [];
+
+    if (text) jobs.push(sendSharedText(text));
+    files.forEach(function (f) {
+      jobs.push(sendSharedFile(f));
+    });
+    if (!jobs.length) return false;
+    return Promise.all(jobs).then(function () { return true; });
+  }
+
+  function sendSharedText(text) {
+    $('#txt').value = '';
+    if (!state.url) { $('#txt').value = text; toast('연결하면 바로 보낼 수 있어요.'); return Promise.resolve(); }
+    return post({ action: 'addDrop', kind: 'text', text: text, from: '공유' }, 40000).then(function (d) {
+      if (d && d.items) state.items = d.items;
+      paint();
+      toast('공유한 글을 보냈어요 ✅', { action: { label: '되돌리기', fn: function () { undoLatest(); } } });
+    }).catch(function (err) { $('#txt').value = text; toast(err.message, { err: true }); });
+  }
+
+  function sendSharedFile(f) {
+    if (!state.url) { toast('연결하면 바로 보낼 수 있어요.'); return Promise.resolve(); }
+    var bin = atob(String(f.data || '').replace(/^data:[^,]*,/, ''));
+    var size = bin.length;
+    var max = state.maxBytes || 12 * 1024 * 1024;
+    if (size > max) { toast((f.name || '파일') + ' — 너무 커요(최대 ' + sizeText(max) + ')', { err: true }); return Promise.resolve(); }
+    return post({
+      action: 'addDrop', kind: /^image\//.test(f.type || '') ? 'image' : 'file',
+      base64: String(f.data || '').replace(/^data:[^,]*,/, ''), mimeType: f.type || '',
+      fileName: f.name || '', size: size, from: '공유'
+    }, 180000).then(function (d) {
+      if (d && d.items) { state.items = d.items; paint(); }
+      toast('공유한 파일을 보냈어요 ✅', { action: { label: '되돌리기', fn: function () { undoLatest(); } } });
+    }).catch(function (err) { toast(err.message, { err: true }); });
+  }
+
+  function undoLatest() {
+    var it = state.items[0];
+    if (!it) return;
+    removeItem(it);
+  }
+
+  /* ---------------------------------------------------------------- 연결 */
+  function connect(url, opts) {
+    opts = opts || {};
+    state.url = url;
+    state.demo = false;
+    lsSet(LS.conn, url);
+    $('#connectWrap').classList.add('hidden');
+    $('#appWrap').classList.remove('hidden');
+    var cached = lsGet(LS.cache);
+    if (cached) {
+      try {
+        var c = JSON.parse(cached);
+        if (c && c.items && Date.now() - (c.at || 0) < 86400000) { state.items = c.items; paint(); }
+      } catch (e) {}
+    }
+    paint();
+    load({ silent: true }).catch(function () {
+      if (!state.items.length) {
+        toast('목록을 불러오지 못했어요. 주소를 다시 확인해 주세요.', { err: true });
+      }
+    });
+    startPolling();
+    if (!opts.quiet) toast('연결했어요');
+  }
+
+  function startPolling() {
+    stopPolling();
+    if (!state.auto) return;
+    state.polling = setInterval(function () {
+      if (document.hidden || state.sending) return;
+      load({ silent: true }).catch(function () {});
+    }, 20000);
+  }
+  function stopPolling() { if (state.polling) { clearInterval(state.polling); state.polling = null; } }
+
+  /* ---------------------------------------------------------------- 시작 */
+  var booted = false;
+  function boot() {
+    if (booted) return;
+    booted = true;
+    var params = new URLSearchParams(location.search);
+    var demo = params.get('demo') === '1';
+
+    var hash = location.hash.replace(/^#/, '');
+    var fromHash = '';
+    if (/^s=/.test(hash)) {
+      var v = hash.slice(2);
+      fromHash = /^https?:/i.test(v) ? v : b64decode(v);
+    } else if (hash && /^https?:/i.test(hash)) {
+      fromHash = hash;
+    }
+
+    try { state.seen = JSON.parse(lsGet(LS.seen) || '{}') || {}; } catch (e) { state.seen = {}; }
+    state.auto = lsGet(LS.auto) !== '0';
+    $('#autoChk').checked = state.auto;
+    if (lsGet(LS.tip) === 'off' || window.matchMedia('(display-mode: standalone)').matches) {
+      $('#installTip').classList.add('hidden');
+    }
+
+    if (demo) {
+      state.demo = true;
+      state.url = '';
+      state.items = demoItems();
+      $('#appWrap').classList.remove('hidden');
+      paint();
+      toast('데모 화면이에요. 실제로 저장되지는 않습니다.');
+      bindEvents();
+      return;
+    }
+
+    var saved = lsGet(LS.conn);
+    var url = fromHash || (params.get('s') ? parseConn('?s=' + params.get('s')) : '') || saved;
+    if (url) {
+      connect(url, { quiet: true });
+      takeShare();
+    } else {
+      $('#connectWrap').classList.remove('hidden');
+      $('#appWrap').classList.add('hidden');
+      if (params.get('shared') === '1' || params.has('share')) {
+        toast('연결하면 공유한 내용을 바로 보낼 수 있어요.');
+      }
+    }
+    bindEvents();
+  }
+
+  function demoItems() {
+    var now = Date.now();
+    return [
+      { id: 'demo1', at: new Date(now - 60000).toISOString(), from: 'PC', kind: 'text', text: '내일 5교시 수업 자료 링크는 여기로 보냈어요.' },
+      { id: 'demo2', at: new Date(now - 900000).toISOString(), from: 'PC', kind: 'link', text: 'https://example.com/sample' },
+      { id: 'demo3', at: new Date(now - 3600000).toISOString(), from: '폰', kind: 'image', text: '', fileName: '사진.png', size: 483000 }
+    ];
+  }
+
+  function bindEvents() {
+    $('#btnRefresh').onclick = function () {
+      if (state.demo) { toast('데모 화면이에요'); return; }
+      load().then(function () { toast('새로고침했어요'); }).catch(function () {});
+    };
+
+    $('#btnSend').onclick = function () {
+      if (state.files.length) sendFiles();
+      else sendText();
+    };
+
+    $('#txt').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendText(); }
+    });
+
+    $('#btnPaste').onclick = function () {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        $('#txt').focus();
+        toast('입력창을 길게 눌러 붙여넣어 주세요.');
+        return;
+      }
+      navigator.clipboard.readText().then(function (t) {
+        if (!t) { toast('클립보드가 비어 있어요.'); return; }
+        $('#txt').value = t;
+        $('#txt').focus();
+        sendText();
+      }).catch(function () {
+        $('#txt').focus();
+        toast('붙여넣기 권한이 없어요. 입력창을 길게 눌러 주세요.');
+      });
+    };
+
+    $('#btnFile').onclick = function () { $('#fileInput').click(); };
+    $('#fileInput').onchange = function () {
+      pickFiles(this.files);
+      this.value = '';
+    };
+
+    $('#autoChk').onchange = function () {
+      state.auto = this.checked;
+      lsSet(LS.auto, state.auto ? '1' : '0');
+      state.auto ? startPolling() : stopPolling();
+    };
+
+    $('#tipClose').onclick = function () {
+      $('#installTip').classList.add('hidden');
+      lsSet(LS.tip, 'off');
+    };
+
+    $('#btnConnect').onclick = function () {
+      var url = parseConn($('#connInput').value);
+      if (!url) { toast('주소를 알아보지 못했어요. 포털에서 복사한 그대로 붙여넣어 주세요.', { err: true }); return; }
+      connect(url);
+      takeShare();
+    };
+    $('#connInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#btnConnect').click(); });
+
+    $('#btnMenu').onclick = function () {
+      var sheet = el('div', 'ovl');
+      var box = el('div', 'connect');
+      box.style.cssText = 'background:var(--card);width:100%;max-width:420px';
+      box.innerHTML =
+        '<h2 style="margin:0 0 10px">설정</h2>' +
+        '<p style="font-size:12.5px;color:var(--mut);word-break:break-all">연결 주소<br /><b>' + esc(state.url || '(아직 연결 안 됨)') + '</b></p>';
+      var row = el('div', 'row');
+      var re = el('button', 'btn ghost', '연결 주소 바꾸기');
+      re.onclick = function () {
+        sheet.remove();
+        $('#appWrap').classList.add('hidden');
+        $('#connectWrap').classList.remove('hidden');
+        $('#connInput').value = '';
+      };
+      var close = el('button', 'btn primary', '닫기');
+      close.onclick = function () { sheet.remove(); };
+      row.appendChild(re); row.appendChild(close);
+      box.appendChild(row);
+      sheet.appendChild(box);
+      sheet.onclick = function (e) { if (e.target === sheet) sheet.remove(); };
+      document.body.appendChild(sheet);
+    };
+
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && state.url && !state.demo) load({ silent: true }).catch(function () {});
+    });
+  }
+
+  /* 서비스 워커 — 공유하기(POST)를 받아 두는 역할 */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {});
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', boot);
+  if (document.readyState !== 'loading') boot();
+})();
+</script>
+</body>
+</html>
