@@ -17,7 +17,8 @@
   var st = {
     url: '', rt: '', demo: false, connected: false, items: [], sheetItems: [], rtMap: {}, deletedIds: {}, seen: {},
     open: false, poll: null, rtSource: null, auto: false, maxBytes: 12 * 1024 * 1024,
-    busyOn: false, blobs: {}, phone: false, notice: '', backendOld: false
+    busyOn: false, blobs: {}, phone: false, notice: '', backendOld: false,
+    files: [], failRows: [], driveOk: null
   };
 
   /* ---------------------------------------------------------------- 도우미 */
@@ -344,6 +345,13 @@
       '.dr-row .btn.primary{background:var(--acc);border-color:transparent;color:var(--acc-ink)}',
       '.dr-row .btn.primary:disabled{opacity:.55}',
       '.dr-hint{font-size:11px;color:var(--mut);margin:7px 2px 0;line-height:1.45}',
+      '.dr-vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}',
+      'label.btn{cursor:pointer;display:inline-flex;align-items:center;justify-content:center}',
+      '.dr-fail{border:1px solid color-mix(in srgb,var(--danger) 36%,transparent);background:color-mix(in srgb,var(--danger) 10%,transparent);',
+      '  border-radius:10px;padding:8px 10px;margin-top:8px;font-size:11.5px;line-height:1.55}',
+      '.dr-fail b{color:var(--danger);font-weight:850}',
+      '.dr-fail .row{display:flex;gap:6px;margin-top:6px}',
+      '.dr-fail .btn{height:26px;font-size:11.5px;padding:0 9px;border-radius:8px}',
       '.dr-lh{display:flex;align-items:center;gap:7px;margin:16px 2px 8px}',
       '.dr-lh b{font-size:13px;font-weight:850}',
       '.dr-lh .n{font-size:11px;color:var(--mut);font-weight:700}',
@@ -408,12 +416,13 @@
           '<textarea id="drText" placeholder="보낼 글·링크를 붙여넣으세요 (Ctrl+V 로 바로 보내기)"></textarea>' +
           '<div class="dr-row">' +
             '<button class="btn ghost" id="drPaste">📋 붙여넣어 보내기</button>' +
-            '<button class="btn ghost" id="drFile">📎 파일</button>' +
+            '<label class="btn ghost" id="drFile" for="drFileInput" role="button" tabindex="0">📎 파일</label>' +
             '<span class="sp"></span>' +
             '<button class="btn primary" id="drSend">보내기</button>' +
           '</div>' +
           '<div class="dr-hint">Ctrl+V — 글은 바로 보내고, 스크린샷은 이미지로 보냅니다 · 파일은 이 칸에 끌어다 놓아도 됩니다</div>' +
-          '<input type="file" id="drFileInput" multiple class="hidden" />' +
+          '<div class="dr-fail hidden" id="drFail"></div>' +
+          '<input type="file" id="drFileInput" multiple class="dr-vh" tabindex="-1" aria-hidden="true" />' +
         '</div>' +
         '<div class="dr-lh"><b>최근</b><span class="n" id="drCnt"></span><span class="sp"></span>' +
           '<label><input type="checkbox" id="drAuto" /> 자동 20초</label></div>' +
@@ -450,7 +459,9 @@
     $('#drPhoneBtn').onclick = openPhone;
     $('#drPhoneClose').onclick = function () { st.phone = false; ui.phoneBox.classList.add('hidden'); };
     $('#drPaste').onclick = pasteAndSend;
-    $('#drFile').onclick = function () { $('#drFileInput').click(); };
+    $('#drFile').onkeydown = function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#drFileInput').click(); }
+    };
     $('#drFileInput').onchange = function () { pick(this.files); this.value = ''; };
     $('#drSend').onclick = function () { sendText(); };
     $('#drCopyLink').onclick = function () {
@@ -527,6 +538,7 @@
       st.sheetItems = d.items || [];
       mergeItems();
       if (d.maxBytes) st.maxBytes = d.maxBytes;
+      if (typeof d.driveOk === 'boolean') st.driveOk = d.driveOk;
       st.backendOld = false;
       paint();
       updateBadge();
@@ -658,6 +670,10 @@
       note = '<b>한 단계만 남았어요.</b> 시트의 Apps Script(<code>Code.gs</code>)를 <b>2.2.0</b>으로 올리고 ' +
         '새 버전으로 배포하면 전송함이 켜집니다. 파일은 <a href="https://github.com/wjoehasa-eng/my-portal/blob/main/apps-script/Code.gs" target="_blank" rel="noopener">저장소의 Code.gs</a>를 그대로 붙여넣으면 됩니다. ' +
         '(정확한 순서는 <a href="https://github.com/wjoehasa-eng/my-portal#readme" target="_blank" rel="noopener">설명서</a>)';
+    } else if (st.driveOk === false) {
+      note = '<b>파일 전송이 잠겨 있어요.</b> 글·링크는 그대로 되고, <b>파일</b>만 드라이브 저장 권한을 아직 허용받지 못했습니다. ' +
+        '시트 → <b>확장 프로그램 → Apps Script</b> → 위쪽 함수 목록에서 <b>setup</b>(또는 <b>authorizeDrive</b>) → <b>▷ 실행</b> → ' +
+        '<b>권한 검토 → 고급 → 이동(안전하지 않음) → 허용</b> 을 한 번만 하면 됩니다.';
     } else if (!st.url && !st.demo) {
       note = '<b>먼저 포털을 연결해 주세요.</b> 포털이 시트에 연결되어 있어야 전송함도 함께 열립니다.';
     }
@@ -857,7 +873,7 @@
         toast('폰으로 보냈어요 ⚡', { action: { label: '되돌리기', fn: function () { removeItem(Object.assign({}, rtItem, { _fbKey: res && res.name })); } } });
         ui.text.focus();
       }).catch(function (err) {
-        toast(err.message, { err: true });
+        toast(explainError(err).msg, { err: true });
       }).then(function () { setBusy(false); });
       post({ action: 'addDrop', kind: 'text', text: text, from: 'PC' }, 40000).catch(function () {});
       return;
@@ -872,7 +888,7 @@
       toast('폰으로 보냈어요 ✅', first ? { action: { label: '되돌리기', fn: function () { removeItem(first); } } } : undefined);
       ui.text.focus();
     }).catch(function (err) {
-      toast(err.message, { err: true });
+      toast(explainError(err).msg, { err: true });
     }).then(function () { setBusy(false); });
   }
 
@@ -880,57 +896,159 @@
     var arr = Array.prototype.slice.call(files || []);
     if (!arr.length) return;
     if (!st.url && !st.demo) { toast('먼저 포털을 시트에 연결해 주세요.', { err: true }); return; }
-    var okFiles = arr.filter(function (f) {
+    var okFiles = [];
+    arr.forEach(function (f) {
       if (f.size > st.maxBytes) {
         toast(f.name + ' — ' + sizeText(f.size) + '는 너무 커요 (최대 ' + sizeText(st.maxBytes) + ')', { err: true });
-        return false;
+        return;
       }
-      return true;
+      if (!f.size) { toast(f.name + ' — 빈 파일이에요.', { err: true }); return; }
+      okFiles.push(f);
     });
     if (!okFiles.length) return;
     if (st.demo) {
       okFiles.forEach(function (f) {
-        st.items.unshift({ id: 'dm' + Date.now() + Math.random(), at: new Date().toISOString(), from: 'PC', kind: /^image\//.test(f.type) ? 'image' : 'file', text: '', fileName: f.name, size: f.size });
+        st.items.unshift({ id: 'dm' + Date.now() + Math.random(), at: new Date().toISOString(), from: 'PC', kind: /^image\//.test(f.type || guessMime(f.name) || '') ? 'image' : 'file', text: '', fileName: f.name, size: f.size });
       });
       paint();
       toast('보냈어요 (데모)');
       return;
     }
-    setBusy(true, '올리는 중… 0/' + okFiles.length);
-    var done = 0;
-    okFiles.reduce(function (chain, f) {
-      return chain.then(function () {
-        return readFile(f).then(function (dataUrl) {
-          return post({
-            action: 'addDrop',
-            kind: /^image\//.test(f.type) ? 'image' : 'file',
-            base64: String(dataUrl).replace(/^data:[^,]*,/, ''),
-            mimeType: f.type || '',
-            fileName: f.name || '',
-            size: f.size,
-            from: 'PC'
-          }, 180000).then(function (d) {
-            done++;
-            setLabel('올리는 중… ' + done + '/' + okFiles.length);
-            if (d && d.items) {
-              st.sheetItems = d.items;
-              if (st.rt && d.items[0]) rtPush(d.items[0]);
-              mergeItems();
-              paint();
-            }
+    st.files = okFiles;
+    sendFiles();
+  }
+
+  /** 브라우저가 file.type 을 비워 보내는 경우(흔함) 이름으로 짐작합니다. */
+  function guessMime(name) {
+    var n = String(name || '').toLowerCase();
+    if (/\.png$/.test(n)) return 'image/png';
+    if (/\.jpe?g$/.test(n)) return 'image/jpeg';
+    if (/\.gif$/.test(n)) return 'image/gif';
+    if (/\.webp$/.test(n)) return 'image/webp';
+    if (/\.pdf$/.test(n)) return 'application/pdf';
+    if (/\.(csv|tsv)$/.test(n)) return 'text/csv';
+    if (/\.(txt|md|gs|js|json|html?|css|py|sh|xml|yml|yaml)$/.test(n)) return 'text/plain';
+    if (/\.zip$/.test(n)) return 'application/zip';
+    return '';
+  }
+
+  /** 서버·브라우저 오류를 사람이 읽을 안내로 바꿉니다. */
+  function explainError(err, name) {
+    var raw = String((err && err.message) || err || '').trim();
+    var head = name ? name + ' — ' : '';
+    var needAuth = /NEED_DRIVE_AUTH/.test(raw) ||
+      (/driveapp|drive\.readonly|auth\/drive|drive/i.test(raw) && /권한|permission/i.test(raw));
+    if (needAuth) {
+      return {
+        needDriveAuth: true,
+        msg: head + '드라이브 저장 권한이 아직 승인되지 않았어요. 시트의 Apps Script 편집기에서 setup(또는 authorizeDrive)을 한 번 실행해 허용해 주세요.'
+      };
+    }
+    if (/너무 큽|too large/i.test(raw)) return { msg: head + '파일이 너무 커요.' };
+    if (/비어 있|empty/i.test(raw)) return { msg: head + '빈 파일이라 보낼 것이 없어요.' };
+    if (/알 수 없는 action/i.test(raw)) return { msg: head + '시트의 Code.gs 를 2.2.0 이상으로 올려 주세요.' };
+    return { msg: head + (raw || '보내지 못했어요.') };
+  }
+
+  /** 파일 하나 보내기 — 실패하면 reject. */
+  function sendOne(f) {
+    return readFile(f).then(function (dataUrl) {
+      var payload = {
+        action: 'addDrop',
+        kind: /^image\//.test(f.type || '') || /^image\//.test(guessMime(f.name) || '') ? 'image' : 'file',
+        base64: String(dataUrl).replace(/^data:[^,]*,/, ''),
+        mimeType: f.type || guessMime(f.name),
+        fileName: f.name || ('drop-' + Date.now()),
+        size: f.size,
+        from: 'PC'
+      };
+      return post(payload, 180000).then(function (d) {
+        if (d && d.uncertain) {
+          return refresh(false).then(function () {
+            var hit = (st.items || []).some(function (it) {
+              return String(it.fileName || '') === String(payload.fileName) &&
+                Number(it.size || 0) === Number(f.size || 0);
+            });
+            if (!hit) throw new Error('보냈는지 확인하지 못했습니다. 새로고침해 확인해 주세요.');
           });
+        }
+        if (st.driveOk !== true) { st.driveOk = true; }
+        if (d && d.items) {
+          st.sheetItems = d.items;
+          if (st.rt && d.items[0]) rtPush(d.items[0]);
+          mergeItems();
+          paint();
+        }
+      });
+    });
+  }
+
+  function sendFiles() {
+    if (!st.files.length) return;
+    if (!st.url) { toast('먼저 포털을 시트에 연결해 주세요.', { err: true }); return; }
+    var queue = st.files.slice();
+    st.files = [];
+    setBusy(true, '올리는 중… 0/' + queue.length);
+    var done = 0;
+    var failed = [];
+    queue.reduce(function (chain, f) {
+      return chain.then(function () {
+        return sendOne(f).then(function () {
+          done++;
+          setLabel('올리는 중… ' + done + '/' + queue.length);
+        }).catch(function (err) {
+          failed.push({ file: f, err: err });
         });
-      }).catch(function (err) {
-        toast(f.name + ' — ' + err.message, { err: true });
       });
     }, Promise.resolve()).then(function () {
       setBusy(false);
+      if (failed.length) {
+        /* 실패한 파일은 다시 고르지 않아도 되게 남겨 둡니다(아래 칸의 「다시 시도」). */
+        st.files = failed.map(function (x) { return x.file; });
+        st.failRows = failed.map(function (x) {
+          var why = explainError(x.err, x.file.name);
+          return { name: x.file.name, msg: why.msg, needDriveAuth: !!why.needDriveAuth };
+        });
+        var needAuth = st.failRows.some(function (r) { return r.needDriveAuth; });
+        if (needAuth) st.driveOk = false;
+        renderFail();
+        var first = st.failRows[0];
+        toast(first.msg + (failed.length > 1 ? ' 외 ' + (failed.length - 1) + '개' : ''),
+          { err: true, action: { label: '다시 시도', fn: sendFiles } });
+      } else {
+        st.failRows = [];
+        renderFail();
+      }
       if (done) {
         markSeen();
         toast(done + '개 보냈어요 ✅');
         refresh(false);
       }
     });
+  }
+
+  /** 패널의 실패 상자 — 무엇이 왜 안 갔는지와 「다시 시도」를 보여 줍니다. */
+  function renderFail() {
+    var box = $('#drFail');
+    if (!box) return;
+    box.innerHTML = '';
+    if (!st.failRows.length) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    var first = st.failRows[0];
+    var more = st.failRows.length > 1 ? ' 외 ' + (st.failRows.length - 1) + '개' : '';
+    box.appendChild(el('div', '', '<b>보내지 못했어요' + more + '</b><br />' + esc(first.msg)));
+    if (first.needDriveAuth) {
+      box.appendChild(el('div', '', '파일만 막혀 있어요(글·링크는 그대로). 시트 → <b>확장 프로그램 → Apps Script</b> → ' +
+        '함수 <b>setup</b>(또는 <b>authorizeDrive</b>) 실행 → <b>권한 검토 → 고급 → 이동(안전하지 않음) → 허용</b> 후 다시 시도하세요.'));
+    }
+    var row = el('div', 'row');
+    var retry = el('button', 'btn', '다시 시도');
+    retry.onclick = function () { sendFiles(); };
+    var drop = el('button', 'btn', '그만');
+    drop.onclick = function () { st.files = []; st.failRows = []; renderFail(); };
+    row.appendChild(retry);
+    row.appendChild(drop);
+    box.appendChild(row);
   }
 
   function readFile(file) {

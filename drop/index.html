@@ -79,6 +79,24 @@
   .bar{height:3px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:8px}
   .bar > i{display:block;height:100%;width:0;background:var(--acc);transition:width .18s}
 
+  /* 파일 고르기 — 인앱 브라우저(WebView)에서도 열리도록 label 로 잇고,
+     입력칸은 display:none 대신 화면 밖으로만 밀어 둡니다. */
+  label.btn{cursor:pointer;-webkit-tap-highlight-color:transparent}
+  label.btn:active{transform:scale(.98)}
+  .vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;
+    clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+
+  /* 안내 시트(권한 등) */
+  .sheet{position:fixed;inset:0;background:rgba(6,10,18,.82);display:flex;align-items:center;justify-content:center;
+    z-index:75;padding:18px}
+  .sheet .box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 16px;
+    max-width:460px;width:100%;max-height:88vh;overflow:auto;box-shadow:var(--sh)}
+  .sheet h2{margin:0 0 8px;font-size:17px;letter-spacing:-.3px}
+  .sheet p{margin:0 0 10px;font-size:13.5px;color:var(--mut);line-height:1.6}
+  .sheet ol{margin:0 0 12px;padding-left:20px;font-size:13.5px;line-height:1.75}
+  .sheet ol b{font-weight:850}
+  .sheet .btn{flex:1}
+
   /* 목록 */
   .listhead{display:flex;align-items:center;gap:8px;margin:20px 4px 10px}
   .listhead b{font-size:14.5px;font-weight:850}
@@ -120,6 +138,10 @@
     border-radius:14px;padding:11px 12px;margin:12px 0 0;font-size:12.5px;line-height:1.5}
   .tip b{font-weight:850}
   .tip .x{margin-left:auto;color:var(--mut);font-size:13px}
+  .tip.warn{background:color-mix(in srgb,var(--danger) 11%,transparent);
+    border-color:color-mix(in srgb,var(--danger) 34%,transparent)}
+  .tip.warn b{color:var(--danger)}
+  .tip .lnk{color:var(--acc);font-weight:850;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 
   /* 토스트 */
   #toasts{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);
@@ -165,12 +187,19 @@
       <div class="bar hidden" id="progBar"><i></i></div>
       <div class="row">
         <button class="btn ghost" id="btnPaste">📋 붙여넣어 보내기</button>
-        <button class="btn ghost" id="btnFile">📎 파일/사진</button>
+        <label class="btn ghost" id="btnFile" for="fileInput" role="button" tabindex="0">📎 파일/사진</label>
         <span class="sp"></span>
         <button class="btn primary" id="btnSend">보내기</button>
       </div>
     </section>
-    <input type="file" id="fileInput" multiple class="hidden" />
+    <!-- accept 를 두지 않습니다 — .gs/.txt/.json/압축 등 어떤 파일이든 고를 수 있어야 합니다. -->
+    <input type="file" id="fileInput" multiple class="vh" tabindex="-1" aria-hidden="true" />
+
+    <div class="tip warn hidden" id="driveNote">
+      <span>⚠️</span>
+      <span><b>파일 전송이 잠겨 있어요.</b> 시트의 Apps Script가 드라이브 저장 권한을 아직 허용받지 못했습니다.
+        <span class="lnk" id="driveNoteLink">해결 방법</span></span>
+    </div>
 
     <div class="tip" id="installTip">
       <span>💡</span>
@@ -206,7 +235,9 @@
     files: [],            /* 보내기 전에 모아 둔 파일 */
     blobCache: {},        /* fileId → objectURL */
     maxBytes: 12 * 1024 * 1024,
-    seen: {}, polling: null, rtSource: null, sending: false
+    seen: {}, polling: null, rtSource: null, sending: false,
+    driveOk: null,        /* 백엔드가 알려 주는 '드라이브 저장 가능' 여부(모르면 null) */
+    background: false
   };
 
   var $ = function (s) { return document.querySelector(s); };
@@ -479,6 +510,8 @@
       state.sheetItems = d.items || [];
       mergeItems();
       state.maxBytes = d.maxBytes || 12 * 1024 * 1024;
+      if (typeof d.driveOk === 'boolean') state.driveOk = d.driveOk;
+      renderDriveNote();
       paint();
       try { lsSet(LS.cache, JSON.stringify({ at: Date.now(), items: state.items })); } catch (e) {}
       if (!document.hidden) markSeen();
@@ -538,15 +571,37 @@
   }
   function fileEmoji(name) {
     var n = String(name || '').toLowerCase();
-    if (/\.(png|jpe?g|gif|webp|heic)$/.test(n)) return '🖼️';
+    if (/\.(png|jpe?g|gif|webp|heic|bmp|avif)$/.test(n)) return '🖼️';
     if (/\.pdf$/.test(n)) return '📕';
+    if (/\.(gs|js|mjs|ts|json|html?|css|scss|py|sh|xml|yml|yaml|java|kt|c|cpp)$/.test(n)) return '📃';
     if (/\.(hwp|hwpx|docx?|txt|md)$/.test(n)) return '📄';
     if (/\.(xlsx?|csv)$/.test(n)) return '📊';
     if (/\.(pptx?)$/.test(n)) return '📽️';
-    if (/\.(zip|7z|rar)$/.test(n)) return '🗜️';
-    if (/\.(mp4|mov|mkv)$/.test(n)) return '🎬';
-    if (/\.(mp3|m4a|wav)$/.test(n)) return '🎵';
+    if (/\.(zip|7z|rar|tar|gz)$/.test(n)) return '🗜️';
+    if (/\.(mp4|mov|mkv|webm)$/.test(n)) return '🎬';
+    if (/\.(mp3|m4a|wav|ogg)$/.test(n)) return '🎵';
     return '📎';
+  }
+
+  /** 브라우저가 file.type 을 비워 보내는 경우(안드로이드에서 흔함) 이름으로 짐작합니다. */
+  function guessMime(name) {
+    var n = String(name || '').toLowerCase();
+    if (/\.png$/.test(n)) return 'image/png';
+    if (/\.jpe?g$/.test(n)) return 'image/jpeg';
+    if (/\.gif$/.test(n)) return 'image/gif';
+    if (/\.webp$/.test(n)) return 'image/webp';
+    if (/\.heic$/.test(n)) return 'image/heic';
+    if (/\.pdf$/.test(n)) return 'application/pdf';
+    if (/\.(csv|tsv)$/.test(n)) return 'text/csv';
+    if (/\.(txt|md|gs|js|mjs|ts|json|html?|css|scss|py|sh|xml|yml|yaml|java|kt|c|cpp)$/.test(n)) return 'text/plain';
+    if (/\.zip$/.test(n)) return 'application/zip';
+    return '';
+  }
+
+  /** 사진으로 볼 것인가 — type 이 비어 있으면 확장자로 판단합니다. */
+  function isImageFile(f) {
+    if (f && /^image\//.test(f.type || '')) return true;
+    return /^image\//.test(guessMime(f && f.name) || '');
   }
 
   function paint() {
@@ -764,19 +819,24 @@
       paint();
       toast('보냈어요 ✅');
     }).catch(function (err) {
-      toast(err.message, { err: true });
+      toast(explainError(err).msg, { err: true });
     }).then(function () { setBusy(false); });
   }
 
   function pickFiles(files) {
     var arr = Array.prototype.slice.call(files || []);
     var max = state.maxBytes || 12 * 1024 * 1024;
+    if (!arr.length) return;
     arr.forEach(function (f) {
-      if (f.size > max) { toast(f.name + ' — ' + sizeText(f.size) + '는 너무 커요(최대 ' + sizeText(max) + ')', { err: true }); return; }
+      if (f.size > max) {
+        toast(f.name + ' — ' + sizeText(f.size) + '는 너무 커요(최대 ' + sizeText(max) + ')', { err: true });
+        return;
+      }
+      if (!f.size) { toast(f.name + ' — 빈 파일이에요.', { err: true }); return; }
       state.files.push(f);
     });
     paintQueue();
-    if (state.files.length) sendFiles();
+    if (state.files.length && !state.sending) sendFiles();
   }
 
   function paintQueue() {
@@ -804,10 +864,104 @@
     });
   }
 
+  /* 파일 하나를 보냅니다. 실패하면 오류를 그대로 돌려줍니다(post 가 reject). */
+  function sendOneFile(f) {
+    return readFile(f).then(function (dataUrl) {
+      var base64 = String(dataUrl).replace(/^data:[^,]*,/, '');
+      var payload = {
+        action: 'addDrop',
+        kind: isImageFile(f) ? 'image' : 'file',
+        base64: base64,
+        mimeType: f.type || guessMime(f.name),
+        fileName: f.name || ('drop-' + Date.now()),
+        size: f.size,
+        from: '폰'
+      };
+      return post(payload, 180000).then(function (d) {
+        /* 숨은 폼으로 보낸 경우(응답을 못 받은 환경) — 정말 저장됐는지 목록으로 확인합니다.
+           '보냈어요' 만 띄우고 실제로는 안 간 상태를 만들지 않기 위해서입니다. */
+        if (d && d.uncertain) {
+          return load({ silent: true }).then(function () {
+            var hit = (state.items || []).some(function (it) {
+              return String(it.fileName || '') === String(payload.fileName) &&
+                Number(it.size || 0) === Number(f.size || 0);
+            });
+            if (!hit) throw new Error('보냈는지 확인하지 못했습니다. 새로고침해 확인해 주세요.');
+          });
+        }
+        if (state.driveOk !== true) { state.driveOk = true; renderDriveNote(); }
+        if (d && d.items) {
+          state.sheetItems = d.items;
+          if (state.rt && d.items[0]) rtPush(d.items[0]);
+          mergeItems();
+          paint();
+        }
+      });
+    });
+  }
+
+  /** 서버·브라우저 오류를 사람이 읽을 안내로 바꿉니다. */
+  function explainError(err, name) {
+    var raw = String((err && err.message) || err || '').trim();
+    var head = name ? name + ' — ' : '';
+    var needAuth = /NEED_DRIVE_AUTH/.test(raw) ||
+      (/driveapp|drive\.readonly|auth\/drive|구글 드라이브|drive/i.test(raw) && /권한|permission/i.test(raw));
+    if (needAuth) return { needDriveAuth: true, msg: head + '드라이브 저장 권한이 아직 승인되지 않았어요.' };
+    if (/너무 큽|too large/i.test(raw)) return { msg: head + '파일이 너무 커요.' };
+    if (/비어 있|empty/i.test(raw)) return { msg: head + '빈 파일이라 보낼 것이 없어요.' };
+    if (/알 수 없는 action/i.test(raw)) return { msg: head + '시트의 Code.gs 를 2.2.0 이상으로 올려 주세요.' };
+    if (/응답|연결|HTTP|network|fetch|확인하지 못/i.test(raw)) return { msg: head + (raw || '연결이 잠깐 끊겼어요. 다시 시도해 주세요.') };
+    return { msg: head + (raw || '보내지 못했어요.') };
+  }
+
+  /** 파일 전송이 막힌 이유(드라이브 권한)와 한 번만 하면 되는 절차를 알려 줍니다. */
+  function showDriveAuthHelp() {
+    var old = $('#driveHelp');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    var wrap = el('div', 'sheet');
+    wrap.id = 'driveHelp';
+    var box = el('div', 'box');
+    box.innerHTML =
+      '<h2>드라이브 권한 승인이 필요해요</h2>' +
+      '<p>글·링크는 그대로 보낼 수 있습니다. <b>파일</b>만 내 드라이브의 <b>[모봉] 전송함</b> 폴더에 저장되는데, ' +
+      '시트에 붙인 Apps Script가 아직 그 권한을 허용받지 못했습니다. 구글 계정 주인이 한 번만 허용하면 됩니다.</p>' +
+      '<ol>' +
+        '<li>PC에서 시트를 엽니다 → <b>확장 프로그램 → Apps Script</b></li>' +
+        '<li>위쪽 함수 목록에서 <b>setup</b> (또는 <b>authorizeDrive</b>)을 고르고 <b>▷ 실행</b></li>' +
+        '<li><b>권한 검토</b> → 내 구글 계정 → <b>고급</b> → <b>이동(안전하지 않음)</b> → <b>허용</b></li>' +
+        '<li>이 화면으로 돌아와 <b>다시 시도</b>를 누릅니다</li>' +
+      '</ol>' +
+      '<p>주소(<b>/exec</b>)는 그대로라 다시 배포하지 않아도 됩니다. 그래도 안 되면 <b>배포 → 배포 관리 → ✏️ → 새 버전 → 배포</b>를 한 번 해 주세요.</p>';
+    var row = el('div', 'row');
+    var retry = el('button', 'btn primary', '다시 시도');
+    retry.onclick = function () {
+      close();
+      if (state.files.length) sendFiles();
+      else toast('📎 로 파일을 다시 골라 주세요.');
+    };
+    var closeBtn = el('button', 'btn', '닫기');
+    closeBtn.onclick = function () { close(); };
+    function close() { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }
+    row.appendChild(retry);
+    row.appendChild(closeBtn);
+    box.appendChild(row);
+    wrap.appendChild(box);
+    wrap.onclick = function (e) { if (e.target === wrap) close(); };
+    document.body.appendChild(wrap);
+  }
+
+  /** 백엔드가 '드라이브 저장 불가'라고 알려 오면 위쪽에 안내를 띄웁니다. */
+  function renderDriveNote() {
+    var box = $('#driveNote');
+    if (!box) return;
+    box.classList.toggle('hidden', state.driveOk !== false);
+  }
+
   function sendFiles() {
+    if (!state.files.length) return;
     if (state.demo) {
       state.files.forEach(function (f) {
-        state.items.unshift({ id: 'd' + Date.now() + Math.random(), at: new Date().toISOString(), from: '폰', kind: /^image\//.test(f.type) ? 'image' : 'file', text: '', fileName: f.name, size: f.size });
+        state.items.unshift({ id: 'd' + Date.now() + Math.random(), at: new Date().toISOString(), from: '폰', kind: isImageFile(f) ? 'image' : 'file', text: '', fileName: f.name, size: f.size });
       });
       state.files = [];
       paintQueue();
@@ -822,35 +976,36 @@
     var bar = $('#progBar');
     bar.classList.remove('hidden');
     var done = 0;
+    var failed = [];
     setBusy(true, '올리는 중… 0/' + queue.length);
 
     queue.reduce(function (chain, f) {
       return chain.then(function () {
-        return readFile(f).then(function (dataUrl) {
-          var base64 = String(dataUrl).replace(/^data:[^,]*,/, '');
-          var kind = /^image\//.test(f.type) ? 'image' : 'file';
-          return post({
-            action: 'addDrop', kind: kind, base64: base64, mimeType: f.type || '',
-            fileName: f.name || '', size: f.size, from: '폰'
-          }, 180000).then(function (d) {
-            done++;
-            bar.querySelector('i').style.width = Math.round(done / queue.length * 100) + '%';
-            setBusy(true, '올리는 중… ' + done + '/' + queue.length);
-            if (d && d.items) {
-              state.sheetItems = d.items;
-              if (state.rt && d.items[0]) rtPush(d.items[0]);
-              mergeItems();
-              paint();
-            }
-          });
+        return sendOneFile(f).then(function () {
+          done++;
+          bar.querySelector('i').style.width = Math.round(done / queue.length * 100) + '%';
+          setBusy(true, '올리는 중… ' + done + '/' + queue.length);
+        }).catch(function (err) {
+          failed.push({ file: f, err: err });
         });
-      }).catch(function (err) {
-        toast(f.name + ' — ' + err.message, { err: true });
       });
     }, Promise.resolve()).then(function () {
       bar.classList.add('hidden');
       bar.querySelector('i').style.width = '0';
       setBusy(false);
+      if (failed.length) {
+        /* 실패한 파일은 대기 목록에 되돌려 두어, 다시 고르지 않고 한 번에 다시 보낼 수 있게 합니다. */
+        state.files = failed.map(function (x) { return x.file; }).concat(state.files);
+        paintQueue();
+        var why = explainError(failed[0].err, failed[0].file.name);
+        var tail = failed.length > 1 ? ' 외 ' + (failed.length - 1) + '개' : '';
+        toast(why.msg + tail, { err: true, action: { label: '다시 시도', fn: sendFiles } });
+        if (why.needDriveAuth) {
+          state.driveOk = false;
+          renderDriveNote();
+          showDriveAuthHelp();
+        }
+      }
       if (done) { toast(done + '개 보냈어요 ✅'); load({ silent: true }).catch(function () {}); }
     });
   }
@@ -918,13 +1073,13 @@
           paint();
         }
         toast('공유한 글을 보냈어요 ⚡');
-      }).catch(function (err) { $('#txt').value = text; toast(err.message, { err: true }); });
+      }).catch(function (err) { $('#txt').value = text; toast(explainError(err).msg, { err: true }); });
     }
     return post({ action: 'addDrop', kind: 'text', text: text, from: '공유' }, 40000).then(function (d) {
       if (d && d.items) { state.sheetItems = d.items; mergeItems(); }
       paint();
       toast('공유한 글을 보냈어요 ✅', { action: { label: '되돌리기', fn: function () { undoLatest(); } } });
-    }).catch(function (err) { $('#txt').value = text; toast(err.message, { err: true }); });
+    }).catch(function (err) { $('#txt').value = text; toast(explainError(err).msg, { err: true }); });
   }
 
   function sendSharedFile(f) {
@@ -934,13 +1089,18 @@
     var max = state.maxBytes || 12 * 1024 * 1024;
     if (size > max) { toast((f.name || '파일') + ' — 너무 커요(최대 ' + sizeText(max) + ')', { err: true }); return Promise.resolve(); }
     return post({
-      action: 'addDrop', kind: /^image\//.test(f.type || '') ? 'image' : 'file',
-      base64: String(f.data || '').replace(/^data:[^,]*,/, ''), mimeType: f.type || '',
+      action: 'addDrop', kind: /^image\//.test(f.type || '') || /^image\//.test(guessMime(f.name) || '') ? 'image' : 'file',
+      base64: String(f.data || '').replace(/^data:[^,]*,/, ''), mimeType: f.type || guessMime(f.name),
       fileName: f.name || '', size: size, from: '공유'
     }, 180000).then(function (d) {
-      if (d && d.items) { state.items = d.items; paint(); }
+      if (d && d.items) { state.sheetItems = d.items; mergeItems(); }
+      paint();
       toast('공유한 파일을 보냈어요 ✅', { action: { label: '되돌리기', fn: function () { undoLatest(); } } });
-    }).catch(function (err) { toast(err.message, { err: true }); });
+    }).catch(function (err) {
+      var why = explainError(err, f.name || '파일');
+      toast(why.msg, { err: true });
+      if (why.needDriveAuth) { state.driveOk = false; renderDriveNote(); showDriveAuthHelp(); }
+    });
   }
 
   function undoLatest() {
@@ -1103,11 +1263,16 @@
       });
     };
 
-    $('#btnFile').onclick = function () { $('#fileInput').click(); };
+    $('#btnFile').onkeydown = function (e) {
+      /* label 은 마우스·터치로 열리고, 키보드(Enter/Space)로도 열리게 합니다. */
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#fileInput').click(); }
+    };
     $('#fileInput').onchange = function () {
       pickFiles(this.files);
       this.value = '';
     };
+    var dn = $('#driveNoteLink');
+    if (dn) dn.onclick = function () { showDriveAuthHelp(); };
 
     $('#autoChk').onchange = function () {
       state.auto = this.checked;

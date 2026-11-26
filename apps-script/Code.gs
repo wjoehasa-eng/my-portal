@@ -1,6 +1,14 @@
 /**
- * 나만의 북마크 포털 — 구글 시트 백엔드 (Google Apps Script) v2.2.0
+ * 나만의 북마크 포털 — 구글 시트 백엔드 (Google Apps Script) v2.2.1
  * ==========================================================
+ * v2.2.1 (2026-11-26)
+ *  · 전송함 파일 저장이 「드라이브 권한 미승인」으로 막힐 때, 영어 구글 오류 대신
+ *    한국어 안내와 `code: NEED_DRIVE_AUTH` 를 돌려줍니다(앱이 해결 방법을 띄움).
+ *  · ping / listDrops 응답에 `driveOk`(드라이브 저장 가능 여부)를 넣어,
+ *    앱이 파일을 고르기 전에 미리 안내할 수 있게 했습니다.
+ *  · 편집기에서 한 번 실행해 권한을 허용하는 `authorizeDrive()` 를 추가했습니다.
+ *    (이미 파일 전송이 되고 있다면 이 버전으로 올릴 필요는 없습니다)
+ *
  * v2.2.0 (2026-11-25)
  *  · 「전송함」 탭 추가 — 폰·PC 사이에 짧은 글·링크·사진·파일을 주고받는 칸.
  *    파일은 내 드라이브의 `[모봉] 전송함` 폴더에 **비공개**로 저장하고(공유 설정 안 함),
@@ -35,6 +43,13 @@
  *
  * 코드를 고친 뒤에는 반드시 배포 → 배포 관리 → 수정(연필) → 버전: 새 버전 → 배포.
  *
+ * 파일 전송이 막힐 때 (드라이브 권한 — 한 번만)
+ *  · 전송함은 파일 본문을 내 드라이브에 저장합니다. 그래서 이 스크립트에 드라이브 권한이 필요합니다.
+ *    시트에 Code.gs 를 새로 붙여넣은 뒤 편집기에서 함수 `authorizeDrive`(또는 setup)를 한 번 실행하고
+ *    「허용」을 눌러야 합니다. 이 단계를 건너뛰면 글·링크는 되지만 파일만
+ *    「드라이브 저장 권한이 아직 승인되지 않았습니다」로 막힙니다.
+ *    (편집기 오른쪽 위 실행 로그에 「실행 완료」가 보이면 승인된 것입니다)
+ *
  * 시트 구성 (없으면 자동으로 만듭니다)
  *  · 링크 : 카테고리 | 이름 | 아이콘 | URL | 설명 | 순서 | 핀고정(Y/N) | 그룹
  *           카테고리 칸이 비어 있는 행 = 카테고리 밖 「단독 페이지」
@@ -51,14 +66,14 @@
  *           파일 본문은 드라이브 `[모봉] 전송함` 폴더에 비공개로 두고, 여기에는 ID만 적습니다.
  *
  * API (브라우저는 JSONP GET 또는 text/plain POST 둘 다 사용할 수 있습니다)
- *  ?action=ping                         연결 확인
+ *  ?action=ping                         연결 확인 · `driveOk`(파일 저장 가능 여부) 포함
  *  ?action=load                         전체 읽기 (설정 + 카테고리 + 링크)
  *  ?action=saveAll  {portalTitle, theme, categories:[{name,color}], links:[...], boardOrder}
  *                                       화면 상태 전체를 시트에 한 번에 저장(드래그·편집 반영)
  *                                       links[].c 가 빈 문자열이면 카테고리 밖 단독 페이지
  *  ?action=add / update / remove / move / bulkAdd / setSettings
  *                                       링크 하나씩 다루는 낱개 API (가져오기·보조용)
- *  ?action=listDrops   {limit}          전송함 목록 (최신순, 기본 50건 / 최대 200건)
+ *  ?action=listDrops   {limit}          전송함 목록 (최신순, 기본 50건 / 최대 200건) · `driveOk` 포함
  *  ?action=addDrop     {kind, text, base64, mimeType, fileName, from}
  *                                       글(text)·링크(link)·파일(file·image) 한 건 보내기 (큰 파일은 POST)
  *  ?action=getDropFile {fileId}          전송함에 넣은 파일 받기 → { fileName, mimeType, base64 }
@@ -78,7 +93,7 @@
 /** 스프레드시트 ID. 시트에 붙인(컨테이너 바인딩) 스크립트라면 비워 두세요. */
 var SHEET_ID = '';
 
-var BACKEND_VERSION = '2.2.0';
+var BACKEND_VERSION = '2.2.1';
 
 var TABS = { links: '링크', settings: '설정', drops: '전송함' };
 
@@ -186,7 +201,7 @@ function handle_(action, req, cb) {
     fresh.affected = res;
     return out_(fresh, cb);
   } catch (err) {
-    return out_({ ok: false, error: errText_(err) }, cb);
+    return out_({ ok: false, code: (err && err.code) || '', error: errText_(err) }, cb);
   } finally {
     if (lock) {
       try { lock.releaseLock(); } catch (ignore) {}
@@ -284,6 +299,7 @@ function read_(action) {
       drops: TABS.drops,
       maxDropBytes: DROP_MAX_BYTES,
       maxDropText: DROP_MAX_TEXT,
+      driveOk: driveReady_(),
       now: new Date().toISOString()
     };
   }
@@ -730,6 +746,7 @@ function listDrops_(req) {
     items: items,
     maxBytes: DROP_MAX_BYTES,
     maxText: DROP_MAX_TEXT,
+    driveOk: driveReady_(),
     now: new Date().toISOString()
   };
 }
@@ -762,8 +779,8 @@ function addDrop_(req) {
     var mime = clean_(req.mimeType) || 'application/octet-stream';
     if (!fileName) fileName = 'drop-' + Date.now() + guessExt_(mime);
     var blob = Utilities.newBlob(bytes, mime, fileName);
-    var folder = dropFolder_();
-    var file = folder.createFile(blob);
+    var folder = driveCall_(function () { return dropFolder_(); });
+    var file = driveCall_(function () { return folder.createFile(blob); });
     /* 폴더·파일 모두 기본 비공개입니다. 여기서 setSharing() 을 부르지 마세요. */
     fileId = file.getId();
     if (!fileName) fileName = file.getName();
@@ -799,7 +816,7 @@ function getDropFile_(req) {
   });
   if (!hit) throw new Error('이 전송함에 없는 파일입니다.');
 
-  var file = DriveApp.getFileById(fileId);
+  var file = driveCall_(function () { return DriveApp.getFileById(fileId); });
   var blob = file.getBlob();
   var bytes = blob.getBytes();
   if (bytes.length > DROP_MAX_BYTES + 1048576) {
@@ -880,6 +897,56 @@ function dropFolder_() {
   var it = DriveApp.getFoldersByName(DROPS_FOLDER);
   if (it.hasNext()) return it.next();
   return DriveApp.createFolder(DROPS_FOLDER);
+}
+
+/**
+ * 드라이브 호출을 감싸, 「권한 미승인」이면 앱이 알아볼 수 있는 한국어 오류로 바꿉니다.
+ * (원인: Code.gs 를 2.2.0 으로 올리고 배포만 하고, 편집기에서 권한 승인을 한 번도 하지 않은 경우)
+ */
+function driveCall_(fn) {
+  try {
+    return fn();
+  } catch (err) {
+    var raw = String((err && err.message) || err || '');
+    var isAuth = /permission|권한|auth/i.test(raw) && /drive|드라이브/i.test(raw);
+    var e = new Error(isAuth
+      ? '드라이브 저장 권한이 아직 승인되지 않았습니다. Apps Script 편집기에서 setup 또는 authorizeDrive 를 한 번 실행해 권한을 허용한 뒤 다시 시도해 주세요.'
+      : '드라이브 작업을 하지 못했습니다: ' + raw);
+    if (isAuth) e.code = 'NEED_DRIVE_AUTH';
+    throw e;
+  }
+}
+
+/** 편집기에서 이 함수를 한 번 실행하면 드라이브·시트 권한 승인 창이 뜽니다. */
+function authorizeDrive() {
+  DriveApp.getRootFolder();
+  ss_().getName();
+  return '드라이브·시트 권한 승인 완료 — 이제 전송함에서 파일을 보낼 수 있습니다.';
+}
+
+/** 파일 저장이 가능한지(드라이브 권한이 있는지) 확인합니다. 결과는 60초 동안 기억합니다. */
+function driveReady_() {
+  var cache = null;
+  try {
+    if (typeof CacheService !== 'undefined' && CacheService) cache = CacheService.getScriptCache();
+  } catch (e) { cache = null; }
+  try {
+    if (cache) {
+      var v = cache.get('drop.driveOk');
+      if (v === '1') return true;
+      if (v === '0') return false;
+    }
+  } catch (e) {}
+  var ok = true;
+  try {
+    DriveApp.getRootFolder();
+  } catch (err) {
+    ok = false;
+  }
+  try {
+    if (cache) cache.put('drop.driveOk', ok ? '1' : '0', 60);
+  } catch (e) {}
+  return ok;
 }
 
 function trashFile_(fileId) {

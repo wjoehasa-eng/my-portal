@@ -103,7 +103,7 @@ const ContentService = {
 const LockService = { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) };
 
 /* ------------------------------------------------------------------ 가짜 드라이브 */
-const drive = { folders: [], files: [] };
+const drive = { folders: [], files: [], deny: false };
 
 class MockBlob {
   constructor(bytes, mime, name) { this.bytes = bytes; this.mime = mime || 'application/octet-stream'; this.name = name || ''; }
@@ -130,17 +130,30 @@ class MockFolder {
   createFile(blob) { const f = new MockFile(blob); this.files.push(f); drive.files.push(f); return f; }
 }
 const DriveApp = {
+  getRootFolder() {
+    if (drive.deny) throw new Error('You do not have permission to call DriveApp.getRootFolder. Required permissions: (https://www.googleapis.com/auth/drive)');
+    return { getName: () => 'My Drive' };
+  },
   getFoldersByName(name) {
+    if (drive.deny) throw new Error('You do not have permission to call DriveApp.getFoldersByName. Required permissions: (https://www.googleapis.com/auth/drive.readonly || https://www.googleapis.com/auth/drive)');
     const hit = drive.folders.filter((f) => f.name === name);
     let i = 0;
     return { hasNext: () => i < hit.length, next: () => hit[i++] };
   },
   createFolder(name) { const f = new MockFolder(name); drive.folders.push(f); return f; },
   getFileById(id) {
+    if (drive.deny) throw new Error('You do not have permission to call DriveApp.getFileById. Required permissions: (https://www.googleapis.com/auth/drive)');
     const f = drive.files.filter((x) => x.id === id)[0];
     if (!f) throw new Error('파일을 찾을 수 없습니다: ' + id);
     return f;
   }
+};
+const cacheStore = {};
+const CacheService = {
+  getScriptCache: () => ({
+    get: (k) => (k in cacheStore ? cacheStore[k] : null),
+    put: (k, v) => { cacheStore[k] = v; }
+  })
 };
 const Utilities = {
   base64Decode: (s) => Buffer.from(String(s), 'base64'),
@@ -150,11 +163,11 @@ const Utilities = {
 
 /* ------------------------------------------------------------------ Code.gs 로드 */
 const src = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'Code.gs'), 'utf8');
-const api = new Function('SpreadsheetApp', 'ContentService', 'LockService', 'DriveApp', 'Utilities',
+const api = new Function('SpreadsheetApp', 'ContentService', 'LockService', 'DriveApp', 'Utilities', 'CacheService',
   src + '\nreturn { handle_:handle_, setup_:setup_, addDrop_:addDrop_, listDrops_:listDrops_, getDropFile_:getDropFile_,' +
-  ' deleteDrop_:deleteDrop_, clearDrops_:clearDrops_, read_:read_, saveAll_:saveAll_,' +
+  ' deleteDrop_:deleteDrop_, clearDrops_:clearDrops_, read_:read_, saveAll_:saveAll_, driveReady_:driveReady_,' +
   ' BACKEND_VERSION:BACKEND_VERSION, TABS:TABS, HEADERS:HEADERS, DROP_MAX_BYTES:DROP_MAX_BYTES };'
-)(SpreadsheetApp, ContentService, LockService, DriveApp, Utilities);
+)(SpreadsheetApp, ContentService, LockService, DriveApp, Utilities, CacheService);
 
 let fails = 0;
 function ok(cond, msg, extra) {
@@ -260,8 +273,25 @@ ok(payload.links === undefined && payload.categories === undefined,
 ok(payload.affected && payload.affected.ok === true, 'affected 에 저장 결과가 들어 있음');
 
 const ping = JSON.parse(api.handle_('ping', {}, ''));
-ok(ping.backendVersion === '2.2.0' && ping.drops === '전송함' && ping.maxDropBytes > 0,
+ok(/^2\.2\./.test(ping.backendVersion) && ping.drops === '전송함' && ping.maxDropBytes > 0,
   'ping 이 전송함 지원·한도를 알려 줌', [ping.backendVersion, ping.drops, ping.maxDropBytes]);
+ok(ping.driveOk === true, '드라이브를 쓸 수 있으면 ping.driveOk=true', ping.driveOk);
+
+/* ------------------------------------------------------------------ 8) 드라이브 권한이 아직 승인되지 않았을 때(x) */
+for (const k of Object.keys(cacheStore)) delete cacheStore[k];
+drive.deny = true;
+const deniedPing = JSON.parse(api.handle_('ping', {}, ''));
+ok(deniedPing.ok === true && deniedPing.driveOk === false, '권한이 없으면 ping.driveOk=false (앱이 미리 안내)', deniedPing.driveOk);
+const denied = JSON.parse(api.handle_('addDrop', {
+  kind: 'file', base64: b64(Buffer.from('Code.gs 본문')), mimeType: '', fileName: 'Code.gs', from: '폰'
+}, ''));
+ok(denied.ok === false && denied.code === 'NEED_DRIVE_AUTH',
+  '권한이 없을 때 파일 전송은 NEED_DRIVE_AUTH 코드로 거부', denied);
+ok(/드라이브 저장 권한/.test(denied.error) && /authorizeDrive|setup/.test(denied.error),
+  '거부 문구가 한국어 안내(무엇을 하면 되는지)임', denied.error);
+for (const k of Object.keys(cacheStore)) delete cacheStore[k];
+drive.deny = false;
+ok(api.driveReady_() === true, '권한이 돌아오면 driveOk 도 다시 true', api.driveReady_());
 
 const unknown = JSON.parse(api.handle_('nope', {}, ''));
 ok(unknown.ok === false && /알 수 없는 action/.test(unknown.error), '모르는 action 은 그대로 거부');
@@ -269,7 +299,7 @@ ok(unknown.ok === false && /알 수 없는 action/.test(unknown.error), '모르�
 const js = api.handle_('listDrops', { limit: 5 }, '__cb');
 ok(/^__cb\(/.test(js), 'JSONP callback 으로 감싸 응답');
 
-/* ------------------------------------------------------------------ 8) 기존 링크 API 회귀 없음 */
+/* ------------------------------------------------------------------ 9) 기존 링크 API 회귀 없음 */
 const saved = api.saveAll_({
   portalTitle: '나만의 포털', theme: 'auto',
   categories: [{ name: '업무', color: '#3b82f6', groups: ['수업'] }],
