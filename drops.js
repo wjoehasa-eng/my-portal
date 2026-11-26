@@ -324,7 +324,7 @@
       '  box-shadow:0 0 0 2px var(--bg)}',
       '.dr-veil{position:fixed;inset:0;background:rgba(8,12,20,.32);z-index:150;opacity:0;pointer-events:none;transition:opacity .16s}',
       '.dr-veil.on{opacity:1;pointer-events:auto}',
-      '.dr-panel{position:fixed;top:0;right:0;bottom:0;width:min(430px,100%);z-index:160;display:flex;flex-direction:column;',
+      '.dr-panel{position:fixed;top:0;right:0;bottom:0;width:min(620px,92vw);z-index:160;display:flex;flex-direction:column;',
       '  background:var(--panel);border-left:1px solid var(--line);box-shadow:-18px 0 50px -30px rgba(0,0,0,.5);',
       '  transform:translateX(102%);transition:transform .2s cubic-bezier(.2,.7,.3,1)}',
       '.dr-panel.on{transform:none}',
@@ -362,8 +362,11 @@
       '.dr-it .top{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mut);font-weight:700}',
       '.dr-it .pill{border:1px solid var(--line);border-radius:999px;padding:0 6px;background:var(--panel2);color:var(--acc)}',
       '.dr-it .top .sp{flex:1}',
-      '.dr-it .txt{margin-top:5px;font-size:13px;white-space:pre-wrap;word-break:break-word;cursor:pointer;max-height:9.6em;overflow:hidden}',
+      '.dr-it .txt{margin-top:5px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word;cursor:pointer}',
       '.dr-it .txt:hover{color:var(--acc)}',
+      '.dr-it.selecting .txt{cursor:text;user-select:text;-webkit-user-select:text;background:var(--panel2);border-radius:8px;padding:7px 9px;outline:1px dashed color-mix(in srgb,var(--acc) 55%,transparent)}',
+      '.dr-it.selecting .txt:hover{color:inherit}',
+      '.dr-it .acts .btn.active{background:var(--acc-soft);border-color:color-mix(in srgb,var(--acc) 45%,transparent);color:var(--acc);font-weight:750}',
       '.dr-it .txt.link{color:var(--acc);text-decoration:underline;text-underline-offset:2px}',
       '.dr-it .file{display:flex;align-items:center;gap:8px;margin-top:6px;border:1px solid var(--line);border-radius:9px;padding:7px 8px;background:var(--panel2)}',
       '.dr-it .file .ic{font-size:18px}',
@@ -765,8 +768,13 @@
         card.appendChild(f);
       } else {
         var t = el('div', 'txt' + (it.kind === 'link' ? ' link' : ''), esc(it.text));
-        t.title = '누르면 복사';
-        t.onclick = function () { copyItem(it); };
+        t.title = '누르면 전체 복사';
+        t.onclick = function () {
+          if (card.classList.contains('selecting')) return;
+          var s = window.getSelection ? String(window.getSelection()) : '';
+          if (s && s.trim()) return;
+          copyItem(it);
+        };
         card.appendChild(t);
       }
 
@@ -782,6 +790,15 @@
         var cp = el('button', 'btn', '📋 복사');
         cp.onclick = function () { copyItem(it); };
         acts.appendChild(cp);
+        var sel = el('button', 'btn', '✂️ 선택하여 복사');
+        sel.title = '글의 일부분만 드래그해서 선택할 수 있습니다';
+        sel.onclick = function () {
+          var on = card.classList.toggle('selecting');
+          sel.classList.toggle('active', on);
+          sel.textContent = on ? '✓ 선택 중 (드래그 후 Ctrl+C)' : '✂️ 선택하여 복사';
+          t.title = on ? '원하는 부분만 드래그해서 Ctrl+C로 복사하세요' : '누르면 전체 복사';
+        };
+        acts.appendChild(sel);
       }
       acts.appendChild(el('span', 'sp'));
       var del = el('button', 'btn del', '🗑');
