@@ -917,9 +917,10 @@ function driveCall_(fn) {
   }
 }
 
-/** 편집기에서 이 함수를 한 번 실행하면 드라이브·시트 권한 승인 창이 뜽니다. */
+/** 편집기에서 이 함수를 한 번 실행하면 드라이브(읽기·쓰기)·시트 권한 승인 창이 뜹니다. */
 function authorizeDrive() {
   DriveApp.getRootFolder();
+  dropFolder_();
   ss_().getName();
   return '드라이브·시트 권한 승인 완료 — 이제 전송함에서 파일을 보낼 수 있습니다.';
 }
