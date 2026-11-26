@@ -134,6 +134,32 @@
     st.items = merged.slice(0, LIMIT);
   }
 
+  var RT_HOST = 'https://my-portal-drop-default-rtdb.asia-southeast1.firebasedatabase.app';
+  function deriveRtUrl(execUrl) {
+    if (!execUrl || !window.crypto || !crypto.subtle || typeof TextEncoder === 'undefined') return Promise.resolve('');
+    try {
+      var data = new TextEncoder().encode('my-portal-drop:' + execUrl);
+      return crypto.subtle.digest('SHA-256', data).then(function (buf) {
+        var arr = Array.prototype.slice.call(new Uint8Array(buf));
+        var hex = arr.map(function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        return RT_HOST + '/ch/ch_' + hex.slice(0, 32);
+      }).catch(function () { return ''; });
+    } catch (e) { return Promise.resolve(''); }
+  }
+
+  function ensureRt() {
+    if (st.rt) { rtConnect(); return Promise.resolve(st.rt); }
+    var u = st.url || connUrl();
+    if (!u) return Promise.resolve('');
+    return deriveRtUrl(u).then(function (rt) {
+      if (rt) {
+        st.rt = rt;
+        rtConnect();
+      }
+      return rt;
+    });
+  }
+
   function rtBase() {
     return String(st.rt || '').replace(/\/+$/, '');
   }
@@ -1048,7 +1074,10 @@
     try { st.seen = JSON.parse(lsGet(KEYS.seen) || '{}') || {}; } catch (e) { st.seen = {}; }
     st.demo = /(^|[?&])demo=1(&|$)/.test(location.search);
     st.rt = rtUrl();
-    if (!st.demo && st.rt) rtConnect();
+    if (!st.demo) {
+      if (st.rt) rtConnect();
+      else ensureRt();
+    }
 
     /* 처음 한 번, 빠르게 새 소식 확인 (배지) */
     setTimeout(function () {
