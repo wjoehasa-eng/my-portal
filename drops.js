@@ -15,7 +15,7 @@
   var LIMIT = 60;
   var KEYS = { conn: 'portal.conn.v1', seen: 'drop.seen.v1', auto: 'portal.drops.auto.v1', cache: 'portal.drops.cache.v1', rt: 'portal.drops.rt.v1' };
   var st = {
-    url: '', rt: '', demo: false, connected: false, items: [], sheetItems: [], rtMap: {}, deletedIds: {}, seen: {},
+    url: '', rt: '', demo: false, connected: false, items: [], sheetItems: [], rtMap: {}, deletedIds: {}, seen: {}, selecting: {},
     open: false, poll: null, rtSource: null, auto: false, maxBytes: 12 * 1024 * 1024,
     busyOn: false, blobs: {}, phone: false, notice: '', backendOld: false,
     files: [], failRows: [], driveOk: null
@@ -743,13 +743,19 @@
     }
 
     ui.cnt.textContent = st.items.length ? st.items.length + '개' : '';
+    var sig = st.items.map(function (x) { return x.id + '@' + (x.at || ''); }).join('|');
+    if (st.items.length && ui.list.dataset.sig === sig && ui.list.children.length === st.items.length) {
+      return;
+    }
+    ui.list.dataset.sig = sig;
     ui.list.innerHTML = '';
     if (!st.items.length) {
       ui.list.appendChild(el('div', 'dr-empty', '아직 주고받은 것이 없어요.<br />위에 글을 붙여넣거나 파일을 보내 보세요.'));
       return;
     }
     st.items.forEach(function (it) {
-      var card = el('div', 'dr-it');
+      var isSel = !!st.selecting[it.id];
+      var card = el('div', 'dr-it' + (isSel ? ' selecting' : ''));
       var top = el('div', 'top');
       top.appendChild(el('span', 'pill', esc(it.from || '웹')));
       top.appendChild(el('span', '', esc(kindLabel(it))));
@@ -768,9 +774,9 @@
         card.appendChild(f);
       } else {
         var t = el('div', 'txt' + (it.kind === 'link' ? ' link' : ''), esc(it.text));
-        t.title = '누르면 전체 복사';
+        t.title = isSel ? '원하는 부분만 드래그해서 Ctrl+C로 복사하세요' : '누르면 전체 복사';
         t.onclick = function () {
-          if (card.classList.contains('selecting')) return;
+          if (st.selecting[it.id] || card.classList.contains('selecting')) return;
           var s = window.getSelection ? String(window.getSelection()) : '';
           if (s && s.trim()) return;
           copyItem(it);
@@ -790,10 +796,13 @@
         var cp = el('button', 'btn', '📋 복사');
         cp.onclick = function () { copyItem(it); };
         acts.appendChild(cp);
-        var sel = el('button', 'btn', '✂️ 선택하여 복사');
+        var sel = el('button', 'btn' + (isSel ? ' active' : ''), isSel ? '✓ 선택 중 (드래그 후 Ctrl+C)' : '✂️ 선택하여 복사');
         sel.title = '글의 일부분만 드래그해서 선택할 수 있습니다';
         sel.onclick = function () {
-          var on = card.classList.toggle('selecting');
+          var on = !st.selecting[it.id];
+          if (on) st.selecting[it.id] = true;
+          else delete st.selecting[it.id];
+          card.classList.toggle('selecting', on);
           sel.classList.toggle('active', on);
           sel.textContent = on ? '✓ 선택 중 (드래그 후 Ctrl+C)' : '✂️ 선택하여 복사';
           t.title = on ? '원하는 부분만 드래그해서 Ctrl+C로 복사하세요' : '누르면 전체 복사';
