@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>쿠키 먹고 빼기! 🍪</title>
+<style>
+  :root {
+    --bg: #FFF9EE;
+    --card: #FFFFFF;
+    --ink: #22263A;
+    --muted: #6E768E;
+    --line: #ECE4D4;
+    --ten: #FF9F1C;
+    --ten-soft: #FFF5E1;
+    --one: #3A86FF;
+    --one-soft: #EDF4FF;
+    --ok: #2EC4B6;
+    --ok-soft: #E3F9F6;
+    --warn: #FF5964;
+    --warn-soft: #FFE8EA;
+    --purple: #7B61FF;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  body {
+    margin: 0;
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 12px 24px;
+  }
+  .app {
+    width: 100%;
+    max-width: 540px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .brand { font-weight: 900; font-size: 18px; }
+  .controls { display: flex; gap: 6px; }
+  .pill-btn {
+    border: 2px solid var(--line);
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .pill-btn:active { transform: scale(0.95); }
+
+  .mode-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    background: #F3EAD9;
+    padding: 4px;
+    border-radius: 16px;
+  }
+  .mode-tab {
+    border: none;
+    background: transparent;
+    border-radius: 12px;
+    padding: 9px 6px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .mode-tab.active {
+    background: var(--card);
+    color: var(--ink);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 4px;
+  }
+  .dots { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #EDE3D0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+  .dot.current { border-color: var(--ink); background: #fff; color: var(--ink); }
+  .dot.done { background: var(--ok); color: #fff; }
+  .stars {
+    font-size: 14px;
+    font-weight: 800;
+    color: #D97706;
+    background: var(--ten-soft);
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+
+  .custom-bar {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #F6F1E7;
+    padding: 10px;
+    border-radius: 16px;
+  }
+  .custom-bar.show { display: flex; }
+  .custom-bar select {
+    font-size: 18px;
+    font-weight: 900;
+    padding: 6px 10px;
+    border-radius: 12px;
+    border: 2px solid #DDD2BE;
+    background: #fff;
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: 26px;
+    padding: 18px 16px;
+    box-shadow: 0 8px 26px rgba(34, 38, 58, 0.06);
+    border: 2px solid #F2E9D8;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .eq-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 34px;
+    font-weight: 900;
+  }
+  .eq-ans {
+    min-width: 54px;
+    height: 48px;
+    border-radius: 14px;
+    border: 3px dashed #C7BFA9;
+    background: #FAF7F0;
+    display: inline-grid;
+    place-items: center;
+    color: var(--muted);
+    font-size: 30px;
+  }
+  .eq-ans.solved {
+    border-style: solid;
+    border-color: var(--ok);
+    background: var(--ok-soft);
+    color: #0F766E;
+  }
+
+  .coach {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #F6F9FF;
+    border: 2px solid #D9E6FF;
+    border-radius: 18px;
+    padding: 11px 14px;
+  }
+  .coach.quiz-now {
+    background: #F4F0FF;
+    border-color: #D8CCFF;
+  }
+  .coach.ten-now {
+    background: var(--ten-soft);
+    border-color: #FFD699;
+  }
+  .coach.done-now {
+    background: var(--ok-soft);
+    border-color: #9CECE3;
+  }
+  .coach-emoji { font-size: 28px; line-height: 1; flex-shrink: 0; }
+  .coach-text { font-size: 15px; font-weight: 700; line-height: 1.4; }
+  .coach-text b { color: var(--warn); }
+  .coach.quiz-now .coach-text b { color: var(--purple); }
+  .coach.ten-now .coach-text b { color: #C2410C; }
+  .coach.done-now .coach-text b { color: #0F766E; }
+
+  /* 진짜 하나의 큰 접시! */
+  .big-plate {
+    background: #FFFDF7;
+    border: 3px solid #E5D8BF;
+    border-radius: 30px;
+    padding: 14px;
+    box-shadow: inset 0 4px 14px rgba(180, 155, 110, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .plate-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--muted);
+  }
+  .eaten-pill {
+    background: var(--warn-soft);
+    color: #D90429;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .eaten-pill.done {
+    background: var(--ok-soft);
+    color: #0F766E;
+  }
+
+  /* 16개가 한 덩어리로 5열씩 쭉 이어진 그리드 */
+  .unified-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    padding: 4px;
+  }
+  .slot {
+    aspect-ratio: 1 / 1;
+    max-height: 56px;
+    border-radius: 15px;
+    background: #FFFFFF;
+    border: 2px solid #EAE0CD;
+    display: grid;
+    place-items: center;
+    font-size: 28px;
+    cursor: default;
+    position: relative;
+    transition: transform 0.12s, opacity 0.2s, background 0.2s;
+  }
+  /* 앞 10개는 은은한 따뜻한 크림색으로 '10칸' 느낌만 살짝 */
+  .slot.in-ten {
+    background: #FFF6E3;
+    border-color: #F4D7A1;
+  }
+  /* 11번 이후 낱개도 같은 접시 안, 은은한 하늘빛 힌트만 */
+  .slot.in-one {
+    background: #F4F8FF;
+    border-color: #D2E3FF;
+  }
+  .slot.clickable {
+    cursor: pointer;
+  }
+  .slot.clickable:hover { transform: scale(1.06); }
+  .slot.clickable:active { transform: scale(0.88); }
+  .slot.pulse-one {
+    animation: pulseOne 1.15s infinite;
+    border-color: var(--one);
+  }
+  .slot.pulse-ten {
+    animation: pulseTen 1.15s infinite;
+    border-color: var(--ten);
+  }
+  .slot.eaten {
+    background: rgba(255,255,255,0.45);
+    border-style: dashed;
+    border-color: #DCD2C0;
+    cursor: default;
+  }
+  .slot.eaten .cookie {
+    opacity: 0.14;
+    transform: scale(0.65);
+    filter: grayscale(1);
+  }
+  .slot.eaten::after {
+    content: '✕';
+    position: absolute;
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--warn);
+  }
+  @keyframes pulseOne {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(58,134,255,0.38); }
+    50% { box-shadow: 0 0 0 6px rgba(58,134,255,0); }
+  }
+  @keyframes pulseTen {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,159,28,0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(255,159,28,0); }
+  }
+
+  .plate-legend {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  /* 퀴즈 선택 영역 (Step 2: 몇 개 더? / Step 4: 몇 개 남았을까?) */
+  .pick-box {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    background: #F9F7FF;
+    border: 2px solid #E2DAFF;
+    border-radius: 20px;
+    padding: 14px;
+  }
+  .pick-box.show { display: flex; }
+  .pick-box.final {
+    background: #F4FCFB;
+    border-color: #B4EDE6;
+  }
+  .pick-title {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--ink);
+  }
+  .choices {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .choice-btn {
+    height: 54px;
+    border-radius: 16px;
+    border: 2px solid #E5DDD0;
+    background: #fff;
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--ink);
+    cursor: pointer;
+    box-shadow: 0 3px 0 #E5DDD0;
+  }
+  .choice-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #E5DDD0; }
+  .choice-btn.shake {
+    animation: shake 0.35s;
+    background: var(--warn-soft);
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+
+  /* 완료 배너 */
+  .win-box {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #E3F9F6, #FFF6DF);
+    border: 2px solid var(--ok);
+    border-radius: 20px;
+    padding: 14px;
+    text-align: center;
+  }
+  .win-box.show { display: flex; }
+  .win-title { font-size: 20px; font-weight: 900; color: #0F766E; }
+  .win-sub { font-size: 16px; font-weight: 800; color: var(--ink); }
+  .next-btn {
+    width: 100%;
+    border: none;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 16px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+  .next-btn:active { transform: scale(0.98); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">🍪 쿠키 먹고 빼기!</div>
+    <div class="controls">
+      <button class="pill-btn" id="soundBtn" onclick="toggleSound()">🔊 소리</button>
+      <button class="pill-btn" onclick="resetProblem()">↺ 다시</button>
+    </div>
+  </div>
+
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tab-book" onclick="setMode('book')">📘 문제집 6문제</button>
+    <button class="mode-tab" id="tab-random" onclick="setMode('random')">🎲 랜덤 게임</button>
+    <button class="mode-tab" id="tab-custom" onclick="setMode('custom')">✏️ 내가 만들기</button>
+  </div>
+
+  <div class="progress-row" id="progressRow">
+    <div class="dots" id="dots"></div>
+    <div class="stars" id="stars">⭐ 0개</div>
+  </div>
+
+  <div class="custom-bar" id="customBar">
+    <select id="selA" onchange="applyCustom()"></select>
+    <span style="font-size:20px;font-weight:900;">−</span>
+    <select id="selB" onchange="applyCustom()"></select>
+  </div>
+
+  <div class="card">
+    <div class="eq-header">
+      <span id="eqA">16</span>
+      <span>−</span>
+      <span id="eqB" style="color:var(--warn);">8</span>
+      <span>=</span>
+      <span class="eq-ans" id="eqAns">?</span>
+    </div>
+
+    <div class="coach" id="coach">
+      <div class="coach-emoji" id="coachEmoji">🦊</div>
+      <div class="coach-text" id="coachText"></div>
+    </div>
+
+    <div class="big-plate">
+      <div class="plate-status">
+        <span id="plateTotal">🍽️ 한 접시에 쿠키 16개</span>
+        <span class="eaten-pill" id="eatenPill">0 / 8개 먹음</span>
+      </div>
+
+      <div class="unified-grid" id="unifiedGrid"></div>
+
+      <div class="plate-legend">
+        <span><i class="legend-dot" style="background:#FFF6E3;border:1.5px solid #F4D7A1;"></i>앞 10개</span>
+        <span><i class="legend-dot" style="background:#F4F8FF;border:1.5px solid #D2E3FF;"></i>나머지 낱개</span>
+      </div>
+    </div>
+
+    <!-- Step 2 또는 Step 4 퀴즈 -->
+    <div class="pick-box" id="pickBox">
+      <div class="pick-title" id="pickTitle"></div>
+      <div class="choices" id="choices"></div>
+    </div>
+
+    <div class="win-box" id="winBox">
+      <div class="win-title">🎉 정답이야!</div>
+      <div class="win-sub" id="winSub"></div>
+      <button class="next-btn" id="nextBtn" onclick="nextProblem()">다음 문제 풀기 ➜</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BOOK_PROBLEMS = [
+  { label: '예', a: 13, b: 4 },
+  { label: '①', a: 16, b: 8 },
+  { label: '②', a: 11, b: 5 },
+  { label: '③', a: 13, b: 7 },
+  { label: '④', a: 11, b: 2 },
+  { label: '⑤', a: 14, b: 8 },
+];
+
+let mode = 'book';
+let bookIdx = 0;
+let doneSet = new Set();
+let stars = 0;
+let soundOn = true;
+
+let A = 13, B = 4;
+let onesTotal = 3;
+let onesLeft = 3;
+let tenLeft = 10;
+let eatenCount = 0;
+// 단계: 'eat-ones' -> 'quiz-more' -> 'eat-ten' -> 'quiz-left' -> 'done'
+let phase = 'eat-ones';
+
+let audioCtx = null;
+function playTone(freq, dur = 0.11, type = 'sine', delay = 0) {
+  if (!soundOn) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    const t = audioCtx.currentTime + delay;
+    gain.gain.setValueAtTime(0.13, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + dur);
+  } catch (e) {}
+}
+function sfxPop() { playTone(520, 0.08, 'triangle'); }
+function sfxDing() { playTone(587, 0.1, 'sine', 0); playTone(880, 0.16, 'sine', 0.09); }
+function sfxErr() { playTone(220, 0.14, 'sawtooth'); }
+function sfxWin() {
+  playTone(523, 0.1, 'triangle', 0);
+  playTone(659, 0.1, 'triangle', 0.09);
+  playTone(784, 0.1, 'triangle', 0.18);
+  playTone(1046, 0.25, 'triangle', 0.27);
+}
+
+function toggleSound() {
+  soundOn = !soundOn;
+  document.getElementById('soundBtn').textContent = soundOn ? '🔊 소리' : '🔇 끔';
+}
+
+function initCustomSelects() {
+  const selA = document.getElementById('selA');
+  for (let i = 11; i <= 18; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = i;
+    selA.appendChild(o);
+  }
+  selA.value = 16;
+  updateSelB();
+}
+function updateSelB() {
+  const a = Number(document.getElementById('selA').value);
+  const ones = a - 10;
+  const selB = document.getElementById('selB');
+  const prev = Number(selB.value) || (ones + 2);
+  selB.innerHTML = '';
+  for (let b = ones + 1; b <= 9; b++) {
+    const o = document.createElement('option');
+    o.value = b; o.textContent = b;
+    selB.appendChild(o);
+  }
+  selB.value = (prev > ones && prev <= 9) ? prev : Math.min(9, ones + 2);
+}
+function applyCustom() {
+  updateSelB();
+  loadProblem(Number(document.getElementById('selA').value), Number(document.getElementById('selB').value));
+}
+
+function setMode(m) {
+  mode = m;
+  ['book', 'random', 'custom'].forEach(k => document.getElementById('tab-' + k).classList.toggle('active', k === m));
+  document.getElementById('progressRow').style.display = m === 'custom' ? 'none' : 'flex';
+  document.getElementById('customBar').classList.toggle('show', m === 'custom');
+  if (m === 'book') loadProblem(BOOK_PROBLEMS[bookIdx].a, BOOK_PROBLEMS[bookIdx].b);
+  else if (m === 'random') loadRandom();
+  else applyCustom();
+}
+
+function loadRandom() {
+  const a = 11 + Math.floor(Math.random() * 8);
+  const ones = a - 10;
+  const b = (ones + 1) + Math.floor(Math.random() * (9 - ones));
+  loadProblem(a, b);
+}
+
+function resetProblem() { loadProblem(A, B); }
+
+function loadProblem(a, b) {
+  A = a; B = b;
+  onesTotal = A - 10;
+  onesLeft = onesTotal;
+  tenLeft = 10;
+  eatenCount = 0;
+  phase = 'eat-ones';
+  renderAll();
+}
+
+function renderDots() {
+  const dots = document.getElementById('dots');
+  dots.innerHTML = '';
+  if (mode === 'book') {
+    BOOK_PROBLEMS.forEach((p, idx) => {
+      const d = document.createElement('button');
+      d.className = 'dot' + (idx === bookIdx ? ' current' : '') + (doneSet.has(idx) ? ' done' : '');
+      d.textContent = p.label;
+      d.onclick = () => { bookIdx = idx; loadProblem(p.a, p.b); };
+      dots.appendChild(d);
+    });
+  } else if (mode === 'random') {
+    const s = document.createElement('span');
+    s.style.cssText = 'font-size:13px;font-weight:800;color:var(--muted);';
+    s.textContent = '🎲 랜덤 도전! 계속 새로 나와요';
+    dots.appendChild(s);
+  }
+  document.getElementById('stars').textContent = `⭐ ${stars}개`;
+}
+
+function makeChoices(correct, maxVal) {
+  const set = new Set([correct]);
+  const deltas = [1, -1, 2, -2, 3];
+  for (const d of deltas) {
+    if (set.size >= 4) break;
+    const v = correct + d;
+    if (v >= 1 && v <= maxVal) set.add(v);
+  }
+  let n = 1;
+  while (set.size < 4) {
+    if (n !== correct) set.add(n);
+    n++;
+  }
+  return [...set].sort((x, y) => x - y);
+}
+
+function renderQuiz(correct, titleText, isFinal) {
+  const pickBox = document.getElementById('pickBox');
+  pickBox.className = 'pick-box show' + (isFinal ? ' final' : '');
+  document.getElementById('pickTitle').textContent = titleText;
+
+  const box = document.getElementById('choices');
+  box.innerHTML = '';
+  const arr = makeChoices(correct, 9);
+  arr.forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = n;
+    btn.onclick = () => {
+      if (n === correct) {
+        if (!isFinal) {
+          sfxDing();
+          phase = 'eat-ten';
+        } else {
+          phase = 'done';
+          stars++;
+          if (mode === 'book') doneSet.add(bookIdx);
+          sfxWin();
+        }
+        renderAll();
+      } else {
+        sfxErr();
+        btn.classList.remove('shake');
+        void btn.offsetWidth;
+        btn.classList.add('shake');
+      }
+    };
+    box.appendChild(btn);
+  });
+}
+
+function renderAll() {
+  renderDots();
+
+  document.getElementById('eqA').textContent = A;
+  document.getElementById('eqB').textContent = B;
+  const eqAns = document.getElementById('eqAns');
+  eqAns.textContent = phase === 'done' ? (A - B) : '?';
+  eqAns.className = 'eq-ans' + (phase === 'done' ? ' solved' : '');
+
+  document.getElementById('plateTotal').textContent = `🍽️ 한 접시에 쿠키 ${A}개`;
+  const pill = document.getElementById('eatenPill');
+  pill.textContent = `${eatenCount} / ${B}개 먹음`;
+  pill.className = 'eaten-pill' + (eatenCount === B ? ' done' : '');
+
+  const moreNeed = B - onesTotal;
+
+  // 코치 말풍선
+  const coach = document.getElementById('coach');
+  const emoji = document.getElementById('coachEmoji');
+  const text = document.getElementById('coachText');
+  coach.className = 'coach';
+
+  if (phase === 'eat-ones') {
+    emoji.textContent = '🦊';
+    text.innerHTML = `접시에 <b>${A}개</b>가 있어! 총 <b>${B}개</b>를 먹어야 하니까, 먼저 <b>파란 칸 낱개</b>부터 다 먹어서 <b>딱 10개</b>를 만들자!`;
+  } else if (phase === 'quiz-more') {
+    coach.classList.add('quiz-now');
+    emoji.textContent = '🤔';
+    text.innerHTML = `잘했어! <b>${onesTotal}개</b>를 먹어서 딱 <b>10개</b>가 됐네. <b>${B}개</b>를 다 먹으려면 앞으로 <b>몇 개를 더</b> 먹어야 할까?`;
+  } else if (phase === 'eat-ten') {
+    coach.classList.add('ten-now');
+    emoji.textContent = '🧺';
+    text.innerHTML = `맞았어! 이제 <b>${moreNeed}개</b> 더 먹으면 돼! 노란 칸에서 <b>${moreNeed}개</b>를 콕콕 눌러 먹어보자!`;
+  } else if (phase === 'quiz-left') {
+    coach.classList.add('done-now');
+    emoji.textContent = '✨';
+    text.innerHTML = `좋아! <b>${moreNeed}개</b>를 더 먹었더니 이제 접시에 <b>몇 개</b> 남았을까?`;
+  } else {
+    coach.classList.add('done-now');
+    emoji.textContent = '🥳';
+    text.innerHTML = `완벽해! <b>${onesTotal}개</b> 먼저 먹고 <b>${moreNeed}개</b> 더 먹으니 <b>${A - B}개</b> 남았구나!`;
+  }
+
+  // 한 접시 통합 그리드 (1..10은 노란 칸, 11..A는 파란 칸으로 연속 배치)
+  const grid = document.getElementById('unifiedGrid');
+  grid.innerHTML = '';
+
+  for (let idx = 0; idx < A; idx++) {
+    const isTen = idx < 10;
+    let isEaten = false;
+    if (isTen) {
+      isEaten = idx >= tenLeft;
+    } else {
+      const oneIdx = idx - 10;
+      isEaten = oneIdx >= onesLeft;
+    }
+
+    const canClickOne = (!isTen && !isEaten && phase === 'eat-ones');
+    const canClickTen = (isTen && !isEaten && phase === 'eat-ten');
+    const clickable = canClickOne || canClickTen;
+
+    const s = document.createElement('div');
+    s.className = 'slot ' + (isTen ? 'in-ten' : 'in-one')
+      + (isEaten ? ' eaten' : '')
+      + (clickable ? ' clickable ' + (canClickOne ? 'pulse-one' : 'pulse-ten') : '');
+    s.innerHTML = '<span class="cookie">🍪</span>';
+
+    if (canClickOne) s.onclick = () => eatOne();
+    if (canClickTen) s.onclick = () => eatTen();
+    grid.appendChild(s);
+  }
+
+  // 퀴즈 & 완료
+  const pickBox = document.getElementById('pickBox');
+  if (phase === 'quiz-more') {
+    renderQuiz(moreNeed, `❓ ${B}개 중에 ${onesTotal}개 먹었어! 몇 개를 더 먹어야 할까?`, false);
+  } else if (phase === 'quiz-left') {
+    renderQuiz(A - B, `❓ ${moreNeed}개 더 먹었어! 이제 몇 개 남았을까?`, true);
+  } else {
+    pickBox.classList.remove('show');
+  }
+
+  const winBox = document.getElementById('winBox');
+  if (phase === 'done') {
+    winBox.classList.add('show');
+    document.getElementById('winSub').textContent = `${A} − ${B} = ${A - B}`;
+    document.getElementById('nextBtn').textContent =
+      (mode === 'book' && bookIdx === BOOK_PROBLEMS.length - 1) ? '🎲 랜덤 게임으로 넘어가기 ➜' : '다음 문제 풀기 ➜';
+  } else {
+    winBox.classList.remove('show');
+  }
+}
+
+function eatOne() {
+  if (phase !== 'eat-ones' || onesLeft <= 0) return;
+  onesLeft--;
+  eatenCount++;
+  if (onesLeft === 0) {
+    sfxDing();
+    phase = 'quiz-more';
+  } else {
+    sfxPop();
+  }
+  renderAll();
+}
+
+function eatTen() {
+  if (phase !== 'eat-ten' || eatenCount >= B || tenLeft <= 0) return;
+  tenLeft--;
+  eatenCount++;
+  if (eatenCount === B) {
+    sfxDing();
+    phase = 'quiz-left';
+  } else {
+    sfxPop();
+  }
+  renderAll();
+}
+
+function nextProblem() {
+  if (mode === 'book') {
+    if (bookIdx < BOOK_PROBLEMS.length - 1) {
+      bookIdx++;
+      loadProblem(BOOK_PROBLEMS[bookIdx].a, BOOK_PROBLEMS[bookIdx].b);
+    } else {
+      setMode('random');
+    }
+  } else if (mode === 'random') {
+    loadRandom();
+  } else {
+    resetProblem();
+  }
+}
+
+initCustomSelects();
+loadProblem(BOOK_PROBLEMS[0].a, BOOK_PROBLEMS[0].b);
+</script>
+</body>
+</html>
