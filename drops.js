@@ -420,7 +420,7 @@
             '<span class="sp"></span>' +
             '<button class="btn primary" id="drSend">보내기</button>' +
           '</div>' +
-          '<div class="dr-hint">Ctrl+V — 글은 바로 보내고, 스크린샷은 이미지로 보냅니다 · 파일은 이 칸에 끌어다 놓아도 됩니다</div>' +
+          '<div class="dr-hint">Ctrl+V — 글은 바로 보내고, 캡처 이미지는 이미지로 바로 보냅니다 · 파일은 이 칸에 끌어다 놓아도 됩니다</div>' +
           '<div class="dr-fail hidden" id="drFail"></div>' +
           '<input type="file" id="drFileInput" multiple class="dr-vh" tabindex="-1" aria-hidden="true" />' +
         '</div>' +
@@ -506,18 +506,24 @@
     document.addEventListener('paste', function (e) {
       if (!st.open || st.phone) return;
       var tgt = e.target;
-      if (tgt && tgt !== ui.text && /INPUT|TEXTAREA|SELECT/.test(tgt.tagName || '')) return;
       if (tgt && tgt.isContentEditable) return;
+      if (tgt && tgt !== ui.text && /INPUT|TEXTAREA|SELECT/.test(tgt.tagName || '')) return;
       var cd = e.clipboardData;
       if (!cd) return;
-      var files = [];
-      if (cd.files && cd.files.length) files = Array.prototype.slice.call(cd.files);
+      var files = clipboardFiles(cd);
+      var text = cd.getData ? String(cd.getData('text/plain') || '') : '';
+      var inText = tgt === ui.text;
       if (files.length) {
-        e.preventDefault();
-        pick(files);
+        /* 캡처 이미지는 이름·확장자를 붙여 바로 전송 대열에 넣습니다. */
+        if (!(inText && text)) e.preventDefault();
+        pick(namePasted(files));
+        if (text && !inText) {
+          var cur = String(ui.text.value || '');
+          ui.text.value = (cur ? cur + '\n' : '') + text;
+          ui.text.focus();
+        }
         return;
       }
-      var text = cd.getData('text/plain');
       if (!text) return;
       var focused = document.activeElement === ui.text;
       var empty = !String(ui.text.value || '').trim();
@@ -527,6 +533,55 @@
       if (empty) sendText();
       else ui.text.focus();
     });
+  }
+
+  /** 클립보드의 파일(이미지 포함) — items 를 먼저 보고 없으면 files 를 씁니다. */
+  function clipboardFiles(cd) {
+    var out = [];
+    if (!cd) return out;
+    var items = cd.items ? Array.prototype.slice.call(cd.items) : [];
+    items.forEach(function (it) {
+      if (!it || it.kind !== 'file') return;
+      var f = it.getAsFile ? it.getAsFile() : null;
+      if (f) out.push(f);
+    });
+    if (!out.length && cd.files && cd.files.length) out = Array.prototype.slice.call(cd.files);
+    return out;
+  }
+
+  /** 이름/확장자가 없는 붙여넣기 파일에 clipboard-YYYYMMDD-HHMMSS.png 를 붙입니다.
+   *  (브라우저가 image.png 같은 임시 이름을 주므로, 제 이름이 있는 파일만 그대로 둡니다) */
+  function namePasted(files) {
+    var base = stamp();
+    return files.map(function (f, i) {
+      var nm = String(f.name || '');
+      var hasExt = /\.[a-z0-9]{1,5}$/i.test(nm);
+      var generic = !nm || !hasExt || /^(image|blob|paste|clipboard)[-.].*$/i.test(nm);
+      if (!generic && hasExt) return f;
+      var ext = extForType(f.type) || (f.type === 'application/pdf' ? 'pdf' : 'bin');
+      var name = (/^image\//.test(f.type || '') ? 'clipboard-' : 'paste-') + base +
+        (files.length > 1 ? '-' + (i + 1) : '') + '.' + ext;
+      try { return new File([f], name, { type: f.type || '', lastModified: Date.now() }); }
+      catch (e) {
+        var copy = f.slice ? f.slice(0, f.size, f.type) : f;
+        try { Object.defineProperty(copy, 'name', { value: name }); } catch (e2) {}
+        return copy;
+      }
+    });
+  }
+
+  function extForType(type) {
+    var t = String(type || '').toLowerCase().split(';')[0];
+    if (/jpeg|jpg/.test(t)) return 'jpg';
+    if (/png/.test(t)) return 'png';
+    if (/gif/.test(t)) return 'gif';
+    if (/webp/.test(t)) return 'webp';
+    if (/bmp/.test(t)) return 'bmp';
+    if (/svg/.test(t)) return 'svg';
+    if (/avif/.test(t)) return 'avif';
+    if (/hei[cf]/.test(t)) return 'heic';
+    if (/tiff/.test(t)) return 'tif';
+    return '';
   }
 
   /* ---------------------------------------------------------------- 목록 */
@@ -925,6 +980,9 @@
     if (/\.jpe?g$/.test(n)) return 'image/jpeg';
     if (/\.gif$/.test(n)) return 'image/gif';
     if (/\.webp$/.test(n)) return 'image/webp';
+    if (/\.bmp$/.test(n)) return 'image/bmp';
+    if (/\.hei[cf]$/.test(n)) return 'image/heic';
+    if (/\.avif$/.test(n)) return 'image/avif';
     if (/\.pdf$/.test(n)) return 'application/pdf';
     if (/\.(csv|tsv)$/.test(n)) return 'text/csv';
     if (/\.(txt|md|gs|js|json|html?|css|py|sh|xml|yml|yaml)$/.test(n)) return 'text/plain';
@@ -1074,7 +1132,7 @@
         var imgType = (it.types || []).filter(function (t) { return t.indexOf('image/') === 0; })[0];
         if (imgType) {
           return it.getType(imgType).then(function (blob) {
-            files.push(new File([blob], '스크린샷-' + stamp() + '.' + (imgType.split('/')[1] || 'png'), { type: imgType }));
+            files.push(new File([blob], 'clipboard-' + stamp() + '.' + (extForType(imgType) || 'png'), { type: imgType }));
           });
         }
         if ((it.types || []).indexOf('text/plain') >= 0) {

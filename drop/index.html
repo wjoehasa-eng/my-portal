@@ -191,6 +191,7 @@
         <span class="sp"></span>
         <button class="btn primary" id="btnSend">보내기</button>
       </div>
+      <p class="hintline" id="pasteHint">⌨️ <b>Ctrl+V</b> 로 캡처한 이미지를 붙여넣으면 아래에 올라가요 — <b>보내기</b>(또는 Ctrl+Enter)로 바로 전송.</p>
     </section>
     <!-- accept 를 두지 않습니다 — .gs/.txt/.json/압축 등 어떤 파일이든 고를 수 있어야 합니다. -->
     <input type="file" id="fileInput" multiple class="vh" tabindex="-1" aria-hidden="true" />
@@ -604,12 +605,145 @@
     return /^image\//.test(guessMime(f && f.name) || '');
   }
 
+  /* ---------------------------------------------------------------- 붙여넣기(캡처 이미지) */
+  function two(n) { return ('0' + n).slice(-2); }
+  /** clipboard-20261126-125301.png 에 쓰는 시각 문자열 */
+  function stampName() {
+    var d = new Date();
+    return d.getFullYear() + two(d.getMonth() + 1) + two(d.getDate()) + '-' +
+      two(d.getHours()) + two(d.getMinutes()) + two(d.getSeconds());
+  }
+  function extForType(type) {
+    var t = String(type || '').toLowerCase().split(';')[0];
+    if (/jpeg|jpg/.test(t)) return 'jpg';
+    if (/png/.test(t)) return 'png';
+    if (/gif/.test(t)) return 'gif';
+    if (/webp/.test(t)) return 'webp';
+    if (/bmp/.test(t)) return 'bmp';
+    if (/svg/.test(t)) return 'svg';
+    if (/avif/.test(t)) return 'avif';
+    if (/hei[cf]/.test(t)) return 'heic';
+    if (/tiff/.test(t)) return 'tif';
+    return 'png';
+  }
+  /** 클립보드에서 파일(주로 이미지)만 골라 냅니다. items/files 중 있는 쪽을 씁니다. */
+  function clipboardFiles(cd) {
+    var out = [];
+    if (!cd) return out;
+    var items = cd.items ? Array.prototype.slice.call(cd.items) : [];
+    items.forEach(function (it) {
+      if (!it || it.kind !== 'file') return;
+      var f = it.getAsFile ? it.getAsFile() : null;
+      if (f) out.push(f);
+    });
+    if (!out.length && cd.files && cd.files.length) {
+      out = Array.prototype.slice.call(cd.files);
+    }
+    return out.filter(function (f) { return f && isImageFile(f); });
+  }
+  /** 붙여넣은 이미지에 확장자 있는 이름을 붙입니다 — clipboard-YYYYMMDD-HHMMSS.png
+   *  (브라우저가 image.png 처럼 이름 없는 사본을 주므로, 제 이름이 있는 파일만 그대로 둡니다) */
+  function namePasted(files) {
+    var base = stampName();
+    return files.map(function (f, i) {
+      var nm = String(f.name || '');
+      var hasExt = /\.[a-z0-9]{1,5}$/i.test(nm);
+      var generic = !nm || !hasExt || /^(image|blob|paste|clipboard)[-.].*$/i.test(nm);
+      var name = (!generic && hasExt) ? nm :
+        ('clipboard-' + base + (files.length > 1 ? '-' + (i + 1) : '') + '.' + extForType(f.type));
+      var type = f.type || guessMime(name) || 'image/png';
+      try { return new File([f], name, { type: type, lastModified: Date.now() }); }
+      catch (e) {
+        /* File 생성자를 못 쓰는 옛 웹뷰 — 이름만 바꾼 사본을 씁니다. */
+        var copy = f.slice ? f.slice(0, f.size, type) : f;
+        try { Object.defineProperty(copy, 'name', { value: name }); } catch (e2) {}
+        return copy;
+      }
+    });
+  }
+  /** 붙여넣은 사진을 대기 줄에 올립니다 — ✕ 로 빼거나 보내기 로 바로 전송. */
+  function addPasted(files) {
+    var max = state.maxBytes || 12 * 1024 * 1024;
+    var added = 0;
+    files.forEach(function (f) {
+      if (f.size > max) { toast(f.name + ' — ' + sizeText(f.size) + '는 너무 커요(최대 ' + sizeText(max) + ')', { err: true }); return; }
+      if (!f.size) { toast('빈 이미지라 보낼 것이 없어요.', { err: true }); return; }
+      state.files.push(f);
+      added++;
+    });
+    if (!added) return;
+    paintQueue();
+    toast('🖼 사진 ' + added + '장 붙였어요 — 보내기 를 누르면 전송 ⚡');
+  }
+
+  /** Ctrl+V — 전송함 화면에서 캡처 이미지를 바로 받습니다. */
+  function onPaste(e) {
+    var wrap = $('#appWrap');
+    if (!wrap || wrap.classList.contains('hidden')) return;   /* 연결 화면에서는 기본 동작 */
+    var cd = e.clipboardData;
+    if (!cd) return;
+    var imgs = clipboardFiles(cd);
+    if (!imgs.length) return;              /* 글만 붙여넣었으면 브라우저가 그대로 넣게 둡니다 */
+    var tgt = e.target;
+    var inText = tgt === $('#txt');
+    var text = cd.getData ? String(cd.getData('text/plain') || '') : '';
+    /* 이미지만 있으면 기본 붙여넣기를 막고, 글도 함께 있으면 입력칸에서는 글을 살립니다. */
+    if (!inText || !text) e.preventDefault();
+    addPasted(namePasted(imgs));
+    if (text && !inText) {
+      var cur = String($('#txt').value || '');
+      $('#txt').value = (cur ? cur + '\n' : '') + text;
+    }
+  }
+
+  /** 📋 버튼 — 브라우저가 허락하면 클립보드의 사진까지 읽어 옵니다. */
+  function pasteTextAndSend() {
+    if (!navigator.clipboard || !navigator.clipboard.readText) {
+      $('#txt').focus();
+      toast('입력창을 길게 눌러 붙여넣어 주세요.');
+      return;
+    }
+    navigator.clipboard.readText().then(function (t) {
+      if (!t) { toast('클립보드가 비어 있어요.'); return; }
+      $('#txt').value = t;
+      $('#txt').focus();
+      sendText();
+    }).catch(function () {
+      $('#txt').focus();
+      toast('붙여넣기 권한이 없어요. 입력창을 길게 눌러 주세요.');
+    });
+  }
+
+  function pasteFromClipboard() {
+    if (!navigator.clipboard || !navigator.clipboard.read) { pasteTextAndSend(); return; }
+    navigator.clipboard.read().then(function (items) {
+      var jobs = [];
+      (items || []).forEach(function (it) {
+        var t = (it.types || []).filter(function (x) { return /^image\//.test(x); })[0];
+        if (!t) return;
+        jobs.push(it.getType(t).then(function (b) {
+          var f = b;
+          try { f = new File([b], 'clipboard-' + stampName() + '.' + extForType(t), { type: t }); } catch (e) {}
+          state.files.push(f);
+        }));
+      });
+      return Promise.all(jobs).then(function () { return jobs.length; });
+    }).then(function (n) {
+      if (n) {
+        paintQueue();
+        toast('🖼 사진 ' + n + '장 붙였어요 — 보내기 를 누르면 전송 ⚡');
+        return;
+      }
+      pasteTextAndSend();
+    }).catch(function () { pasteTextAndSend(); });
+  }
+
   function paint() {
     var box = $('#items');
     box.innerHTML = '';
     $('#cnt').textContent = state.items.length ? state.items.length + '개' : '';
     if (!state.items.length) {
-      box.appendChild(el('div', 'empty', '아직 보낸 것이 없어요.<br />위에 글을 붙여넣거나 📎 로 사진을 보내 보세요.'));
+      box.appendChild(el('div', 'empty', '아직 보낸 것이 없어요.<br />위에 글을 붙여넣거나 📎 로 사진을,<br />캡처 화면은 Ctrl+V 로 붙여넣어 보세요.'));
       return;
     }
     state.items.forEach(function (it) {
@@ -1243,25 +1377,17 @@
     };
 
     $('#txt').addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendText(); }
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (state.files.length) sendFiles();
+        else sendText();
+      }
     });
 
-    $('#btnPaste').onclick = function () {
-      if (!navigator.clipboard || !navigator.clipboard.readText) {
-        $('#txt').focus();
-        toast('입력창을 길게 눌러 붙여넣어 주세요.');
-        return;
-      }
-      navigator.clipboard.readText().then(function (t) {
-        if (!t) { toast('클립보드가 비어 있어요.'); return; }
-        $('#txt').value = t;
-        $('#txt').focus();
-        sendText();
-      }).catch(function () {
-        $('#txt').focus();
-        toast('붙여넣기 권한이 없어요. 입력창을 길게 눌러 주세요.');
-      });
-    };
+    $('#btnPaste').onclick = pasteFromClipboard;
+
+    /* 캡처한 화면을 파일로 저장하지 않고 바로 Ctrl+V 로 보냅니다. */
+    document.addEventListener('paste', onPaste);
 
     $('#btnFile').onkeydown = function (e) {
       /* label 은 마우스·터치로 열리고, 키보드(Enter/Space)로도 열리게 합니다. */
