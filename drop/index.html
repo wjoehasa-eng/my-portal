@@ -731,7 +731,9 @@
     }).then(function (n) {
       if (n) {
         paintQueue();
-        toast('🖼 사진 ' + n + '장 붙였어요 — 보내기 를 누르면 전송 ⚡');
+        toast('🖼 사진 ' + n + '장 붙였어요');
+        /* 「붙여넣어 보내기」 버튼이므로 사진도 바로 보냅니다. */
+        if (!state.sending) sendFiles();
         return;
       }
       pasteTextAndSend();
