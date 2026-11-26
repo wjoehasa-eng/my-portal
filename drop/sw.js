@@ -6,7 +6,7 @@
  * 개인정보: 담아 둔 공유 내용은 이 기기 브라우저의 Cache 에만 잠깐 있고,
  *           앱이 읽은 즉시 지웁니다. 바깥으로 보내지 않습니다.
  */
-const CACHE = 'drop-shell-v3';
+const CACHE = 'drop-shell-v5';
 const SHARE_CACHE = 'drop-share-v2';
 const SHELL = [
   './',

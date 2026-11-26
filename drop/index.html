@@ -190,16 +190,17 @@
   'use strict';
 
   /* ---------------------------------------------------------------- 기기 저장 */
-  var LS = { conn: 'drop.conn.v1', seen: 'drop.seen.v1', auto: 'drop.auto.v1', cache: 'drop.cache.v1', tip: 'drop.tip.v1' };
+  var LS = { conn: 'drop.conn.v1', seen: 'drop.seen.v1', auto: 'drop.auto.v1', cache: 'drop.cache.v1', tip: 'drop.tip.v1', rt: 'drop.rt.v1' };
   function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 
   /* ---------------------------------------------------------------- 상태 */
   var state = {
-    url: '', demo: false, items: [], busy: 0, auto: true,
+    url: '', rt: '', demo: false, items: [], sheetItems: [], rtMap: {}, deletedIds: {}, busy: 0, auto: true,
     files: [],            /* 보내기 전에 모아 둔 파일 */
     blobCache: {},        /* fileId → objectURL */
-    seen: {}, polling: null, sending: false
+    maxBytes: 12 * 1024 * 1024,
+    seen: {}, polling: null, rtSource: null, sending: false
   };
 
   var $ = function (s) { return document.querySelector(s); };
@@ -348,17 +349,108 @@
     });
   }
 
+  function rtBase() {
+    return String(state.rt || '').replace(/\/+$/, '');
+  }
+
+  function mergeItems() {
+    var byId = {};
+    var rtItems = [];
+    Object.keys(state.rtMap || {}).forEach(function (k) {
+      var v = state.rtMap[k];
+      if (!v || !v.id || state.deletedIds[v.id]) return;
+      var copy = Object.assign({}, v, { _fbKey: k });
+      byId[copy.id] = copy;
+      rtItems.push(copy);
+    });
+    var merged = rtItems.slice();
+    (state.sheetItems || []).forEach(function (it) {
+      if (!it || !it.id || state.deletedIds[it.id] || byId[it.id]) return;
+      var dup = it.kind === 'text' && rtItems.some(function (r) {
+        return r.kind === 'text' && r.from === it.from && r.text === it.text &&
+          Math.abs((Date.parse(r.at) || 0) - (Date.parse(it.at) || 0)) < 20000;
+      });
+      if (!dup) {
+        byId[it.id] = it;
+        merged.push(it);
+      }
+    });
+    merged.sort(function (a, b) {
+      return (a.at || '') < (b.at || '') ? 1 : (a.at || '') > (b.at || '') ? -1 : 0;
+    });
+    state.items = merged.slice(0, 60);
+  }
+
+  function rtPush(item) {
+    var b = rtBase();
+    if (!b) return Promise.resolve(null);
+    return fetch(b + '/drops.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item)
+    }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  }
+
+  function rtDelete(fbKey) {
+    var b = rtBase();
+    if (!b || !fbKey) return Promise.resolve();
+    return fetch(b + '/drops/' + encodeURIComponent(fbKey) + '.json', { method: 'DELETE' }).catch(function () {});
+  }
+
+  function rtConnect() {
+    var b = rtBase();
+    if (!b || typeof EventSource === 'undefined' || state.rtSource) return;
+    try {
+      var es = new EventSource(b + '/drops.json');
+      state.rtSource = es;
+      function applyChange() {
+        mergeItems();
+        paint();
+        try { lsSet(LS.cache, JSON.stringify({ at: Date.now(), items: state.items })); } catch (e) {}
+        if (!document.hidden) markSeen();
+        else updateBadge();
+      }
+      es.addEventListener('put', function (e) {
+        try {
+          var msg = JSON.parse(e.data);
+          if (msg.path === '/') {
+            state.rtMap = msg.data && typeof msg.data === 'object' ? msg.data : {};
+          } else if (msg.path && msg.path.charAt(0) === '/') {
+            var k = msg.path.slice(1).split('/')[0];
+            if (msg.data === null) delete state.rtMap[k];
+            else state.rtMap[k] = msg.data;
+          }
+          applyChange();
+        } catch (err) {}
+      });
+      es.addEventListener('patch', function (e) {
+        try {
+          var msg = JSON.parse(e.data);
+          if (msg.data && typeof msg.data === 'object') {
+            Object.keys(msg.data).forEach(function (k) {
+              if (msg.data[k] === null) delete state.rtMap[k];
+              else state.rtMap[k] = msg.data[k];
+            });
+            applyChange();
+          }
+        } catch (err) {}
+      });
+    } catch (e) {}
+  }
+
   /* ---------------------------------------------------------------- 목록 */
   function load(opts) {
     opts = opts || {};
     if (!state.url || state.demo) return Promise.resolve();
     return jsonp({ action: 'listDrops', d: JSON.stringify({ limit: 60 }) }).then(function (d) {
       if (!d || d.ok === false) throw new Error((d && d.error) || '목록을 불러오지 못했습니다.');
-      state.items = d.items || [];
+      state.sheetItems = d.items || [];
+      mergeItems();
       state.maxBytes = d.maxBytes || 12 * 1024 * 1024;
       paint();
       try { lsSet(LS.cache, JSON.stringify({ at: Date.now(), items: state.items })); } catch (e) {}
-      markSeen();
+      if (!document.hidden) markSeen();
+      else updateBadge();
       return d;
     }).catch(function (err) {
       if (!opts.silent) toast(err.message, { err: true });
@@ -367,9 +459,23 @@
     });
   }
 
+  function unseenCount() {
+    return state.items.filter(function (it) { return !state.seen[it.id]; }).length;
+  }
+
+  function updateBadge() {
+    var c = unseenCount();
+    document.title = c > 0 ? '(' + (c > 99 ? '99+' : c) + ') 내 전송함' : '내 전송함';
+    try {
+      if (c > 0 && navigator.setAppBadge) navigator.setAppBadge(c).catch(function () {});
+      else if (c <= 0 && navigator.clearAppBadge) navigator.clearAppBadge().catch(function () {});
+    } catch (e) {}
+  }
+
   function markSeen() {
     state.items.forEach(function (it) { state.seen[it.id] = 1; });
     try { lsSet(LS.seen, JSON.stringify(state.seen)); } catch (e) {}
+    updateBadge();
   }
 
   function timeText(iso) {
@@ -564,12 +670,18 @@
       toast('데모에서 지웠어요');
       return;
     }
-    post({ action: 'deleteDrop', id: it.id }, 30000).then(function (d) {
-      if (d && d.items) { state.items = d.items; }
-      else state.items = state.items.filter(function (x) { return x.id !== it.id; });
-      paint();
-      toast('지웠어요');
-    }).catch(function (err) { toast(err.message, { err: true }); });
+    state.deletedIds[it.id] = 1;
+    if (it._fbKey) {
+      delete state.rtMap[it._fbKey];
+      rtDelete(it._fbKey);
+    }
+    state.sheetItems = state.sheetItems.filter(function (x) { return x.id !== it.id; });
+    mergeItems();
+    paint();
+    toast('지웠어요');
+    if (!/^rt_/.test(String(it.id))) {
+      post({ action: 'deleteDrop', id: it.id }, 30000).catch(function () {});
+    }
   }
 
   /* ---------------------------------------------------------------- 보내기 */
@@ -590,10 +702,32 @@
       return Promise.resolve();
     }
     if (!state.url) { toast('먼저 연결해 주세요.', { err: true }); return Promise.resolve(); }
+    if (state.rt) {
+      var rtItem = {
+        id: 'rt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        at: new Date().toISOString(),
+        from: '폰',
+        kind: 'text',
+        text: text
+      };
+      $('#txt').value = '';
+      setBusy(true);
+      post({ action: 'addDrop', kind: 'text', text: text, from: '폰' }, 40000).catch(function () {});
+      return rtPush(rtItem).then(function (res) {
+        if (res && res.name) {
+          state.rtMap[res.name] = rtItem;
+          mergeItems();
+          paint();
+        }
+        toast('보냈어요 ⚡');
+      }).catch(function (err) {
+        toast(err.message, { err: true });
+      }).then(function () { setBusy(false); });
+    }
     setBusy(true);
     return post({ action: 'addDrop', kind: 'text', text: text, from: '폰' }, 40000).then(function (d) {
       $('#txt').value = '';
-      if (d && d.items) state.items = d.items;
+      if (d && d.items) { state.sheetItems = d.items; mergeItems(); }
       else return load({ silent: true });
       paint();
       toast('보냈어요 ✅');
@@ -670,7 +804,12 @@
             done++;
             bar.querySelector('i').style.width = Math.round(done / queue.length * 100) + '%';
             setBusy(true, '올리는 중… ' + done + '/' + queue.length);
-            if (d && d.items) { state.items = d.items; paint(); }
+            if (d && d.items) {
+              state.sheetItems = d.items;
+              if (state.rt && d.items[0]) rtPush(d.items[0]);
+              mergeItems();
+              paint();
+            }
           });
         });
       }).catch(function (err) {
@@ -731,8 +870,26 @@
   function sendSharedText(text) {
     $('#txt').value = '';
     if (!state.url) { $('#txt').value = text; toast('연결하면 바로 보낼 수 있어요.'); return Promise.resolve(); }
+    if (state.rt) {
+      var rtItem = {
+        id: 'rt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        at: new Date().toISOString(),
+        from: '공유',
+        kind: 'text',
+        text: text
+      };
+      post({ action: 'addDrop', kind: 'text', text: text, from: '공유' }, 40000).catch(function () {});
+      return rtPush(rtItem).then(function (res) {
+        if (res && res.name) {
+          state.rtMap[res.name] = rtItem;
+          mergeItems();
+          paint();
+        }
+        toast('공유한 글을 보냈어요 ⚡');
+      }).catch(function (err) { $('#txt').value = text; toast(err.message, { err: true }); });
+    }
     return post({ action: 'addDrop', kind: 'text', text: text, from: '공유' }, 40000).then(function (d) {
-      if (d && d.items) state.items = d.items;
+      if (d && d.items) { state.sheetItems = d.items; mergeItems(); }
       paint();
       toast('공유한 글을 보냈어요 ✅', { action: { label: '되돌리기', fn: function () { undoLatest(); } } });
     }).catch(function (err) { $('#txt').value = text; toast(err.message, { err: true }); });
@@ -789,9 +946,9 @@
     stopPolling();
     if (!state.auto) return;
     state.polling = setInterval(function () {
-      if (document.hidden || state.sending) return;
+      if (state.sending) return;
       load({ silent: true }).catch(function () {});
-    }, 20000);
+    }, 4000);
   }
   function stopPolling() { if (state.polling) { clearInterval(state.polling); state.polling = null; } }
 
@@ -805,12 +962,29 @@
 
     var hash = location.hash.replace(/^#/, '');
     var fromHash = '';
-    if (/^s=/.test(hash)) {
-      var v = hash.slice(2);
-      fromHash = /^https?:/i.test(v) ? v : b64decode(v);
+    var rtHash = '';
+    if (/(^|&)s=/.test(hash)) {
+      try {
+        var hp = new URLSearchParams(hash);
+        var sv = hp.get('s') || '';
+        if (sv) fromHash = /^https?:/i.test(sv) ? sv : b64decode(sv);
+        var rv = hp.get('rt') || '';
+        if (rv) rtHash = /^https?:/i.test(rv) ? rv : b64decode(rv);
+      } catch (e) {}
+      if (!fromHash && /^s=/.test(hash)) {
+        var v = hash.slice(2);
+        fromHash = /^https?:/i.test(v) ? v : b64decode(v);
+      }
     } else if (hash && /^https?:/i.test(hash)) {
       fromHash = hash;
     }
+    if (!rtHash && params.get('rt')) {
+      var rqp = params.get('rt') || '';
+      rtHash = /^https?:/i.test(rqp) ? rqp : b64decode(rqp);
+    }
+    if (rtHash && /^https:\/\//i.test(rtHash)) lsSet(LS.rt, rtHash);
+    state.rt = rtHash || lsGet(LS.rt);
+    if (state.rt && !demo) rtConnect();
 
     try { state.seen = JSON.parse(lsGet(LS.seen) || '{}') || {}; } catch (e) { state.seen = {}; }
     state.auto = lsGet(LS.auto) !== '0';
@@ -843,6 +1017,16 @@
       }
     }
     bindEvents();
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && state.url && !state.demo) {
+        load({ silent: true }).then(function () { markSeen(); }).catch(function () {});
+      }
+    });
+    window.addEventListener('focus', function () {
+      if (!document.hidden && state.url && !state.demo) {
+        load({ silent: true }).then(function () { markSeen(); }).catch(function () {});
+      }
+    });
   }
 
   function demoItems() {
