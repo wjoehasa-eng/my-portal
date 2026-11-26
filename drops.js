@@ -1012,7 +1012,6 @@
         var needAuth = st.failRows.some(function (r) { return r.needDriveAuth; });
         if (needAuth) st.driveOk = false;
         renderFail();
-        if (needAuth) paint();
         var first = st.failRows[0];
         toast(first.msg + (failed.length > 1 ? ' 외 ' + (failed.length - 1) + '개' : ''),
           { err: true, action: { label: '다시 시도', fn: sendFiles } });
@@ -1163,7 +1162,6 @@
       ];
     }
     paint();
-    renderFail();
     if (st.url) refresh(false);
     startPoll();
     markSeen();
