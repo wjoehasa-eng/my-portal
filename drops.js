@@ -13,10 +13,10 @@
   window.__dropsReady = true;
 
   var LIMIT = 60;
-  var KEYS = { conn: 'portal.conn.v1', seen: 'drop.seen.v1', auto: 'portal.drops.auto.v1', cache: 'portal.drops.cache.v1' };
+  var KEYS = { conn: 'portal.conn.v1', seen: 'drop.seen.v1', auto: 'portal.drops.auto.v1', cache: 'portal.drops.cache.v1', rt: 'portal.drops.rt.v1' };
   var st = {
-    url: '', demo: false, connected: false, items: [], seen: {},
-    open: false, poll: null, auto: false, maxBytes: 12 * 1024 * 1024,
+    url: '', rt: '', demo: false, connected: false, items: [], sheetItems: [], rtMap: {}, deletedIds: {}, seen: {},
+    open: false, poll: null, rtSource: null, auto: false, maxBytes: 12 * 1024 * 1024,
     busyOn: false, blobs: {}, phone: false, notice: '', backendOld: false
   };
 
@@ -69,11 +69,130 @@
     try { v = localStorage.getItem(KEYS.conn) || ''; } catch (e) { v = ''; }
     if (v) return v;
     var hash = location.hash.replace(/^#/, '');
-    if (/^s=/.test(hash)) return b64decode(hash.slice(2));
+    if (/(^|&)s=/.test(hash)) {
+      try {
+        var hp = new URLSearchParams(hash);
+        var sv = hp.get('s') || '';
+        if (sv) return /^https?:/i.test(sv) ? sv : b64decode(sv);
+      } catch (e) {}
+      return b64decode(hash.slice(2));
+    }
     if (/^https?:/i.test(hash)) return hash;
     var p = '';
     try { p = new URLSearchParams(location.search).get('s') || ''; } catch (e) {}
     return p;
+  }
+
+  function rtUrl() {
+    var hash = location.hash.replace(/^#/, '');
+    var found = '';
+    if (/(^|&)rt=/.test(hash)) {
+      try {
+        var hp = new URLSearchParams(hash);
+        var rv = hp.get('rt') || '';
+        if (rv) found = /^https?:/i.test(rv) ? rv : b64decode(rv);
+      } catch (e) {}
+    }
+    if (!found) {
+      try {
+        var qp = new URLSearchParams(location.search).get('rt') || '';
+        if (qp) found = /^https?:/i.test(qp) ? qp : b64decode(qp);
+      } catch (e) {}
+    }
+    if (found && /^https:\/\//i.test(found)) {
+      lsSet(KEYS.rt, found);
+      return found;
+    }
+    return lsGet(KEYS.rt);
+  }
+
+  function mergeItems() {
+    var byId = {};
+    var rtItems = [];
+    Object.keys(st.rtMap || {}).forEach(function (k) {
+      var v = st.rtMap[k];
+      if (!v || !v.id || st.deletedIds[v.id]) return;
+      var copy = Object.assign({}, v, { _fbKey: k });
+      byId[copy.id] = copy;
+      rtItems.push(copy);
+    });
+    var merged = rtItems.slice();
+    (st.sheetItems || []).forEach(function (it) {
+      if (!it || !it.id || st.deletedIds[it.id] || byId[it.id]) return;
+      var dup = it.kind === 'text' && rtItems.some(function (r) {
+        return r.kind === 'text' && r.from === it.from && r.text === it.text &&
+          Math.abs((Date.parse(r.at) || 0) - (Date.parse(it.at) || 0)) < 20000;
+      });
+      if (!dup) {
+        byId[it.id] = it;
+        merged.push(it);
+      }
+    });
+    merged.sort(function (a, b) {
+      return (a.at || '') < (b.at || '') ? 1 : (a.at || '') > (b.at || '') ? -1 : 0;
+    });
+    st.items = merged.slice(0, LIMIT);
+  }
+
+  function rtBase() {
+    return String(st.rt || '').replace(/\/+$/, '');
+  }
+
+  function rtPush(item) {
+    var b = rtBase();
+    if (!b) return Promise.resolve(null);
+    return fetch(b + '/drops.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item)
+    }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  }
+
+  function rtDelete(fbKey) {
+    var b = rtBase();
+    if (!b || !fbKey) return Promise.resolve();
+    return fetch(b + '/drops/' + encodeURIComponent(fbKey) + '.json', { method: 'DELETE' }).catch(function () {});
+  }
+
+  function rtConnect() {
+    var b = rtBase();
+    if (!b || typeof EventSource === 'undefined' || st.rtSource) return;
+    try {
+      var es = new EventSource(b + '/drops.json');
+      st.rtSource = es;
+      function applyChange() {
+        mergeItems();
+        paint();
+        updateBadge();
+        try { lsSet(KEYS.cache, JSON.stringify({ at: Date.now(), items: st.items })); } catch (e) {}
+        if (st.open) markSeen();
+      }
+      es.addEventListener('put', function (e) {
+        try {
+          var msg = JSON.parse(e.data);
+          if (msg.path === '/') {
+            st.rtMap = msg.data && typeof msg.data === 'object' ? msg.data : {};
+          } else if (msg.path && msg.path.charAt(0) === '/') {
+            var k = msg.path.slice(1).split('/')[0];
+            if (msg.data === null) delete st.rtMap[k];
+            else st.rtMap[k] = msg.data;
+          }
+          applyChange();
+        } catch (err) {}
+      });
+      es.addEventListener('patch', function (e) {
+        try {
+          var msg = JSON.parse(e.data);
+          if (msg.data && typeof msg.data === 'object') {
+            Object.keys(msg.data).forEach(function (k) {
+              if (msg.data[k] === null) delete st.rtMap[k];
+              else st.rtMap[k] = msg.data[k];
+            });
+            applyChange();
+          }
+        } catch (err) {}
+      });
+    } catch (e) {}
   }
 
   function basePath() {
@@ -379,7 +498,8 @@
     if (!st.url) { paint(); return Promise.resolve(); }
     return jsonp({ action: 'listDrops', d: JSON.stringify({ limit: LIMIT }) }, 25000).then(function (d) {
       if (!d || d.ok === false) throw new Error((d && d.error) || '목록을 불러오지 못했습니다.');
-      st.items = d.items || [];
+      st.sheetItems = d.items || [];
+      mergeItems();
       if (d.maxBytes) st.maxBytes = d.maxBytes;
       st.backendOld = false;
       paint();
@@ -658,12 +778,18 @@
       toast('데모에서 지웠어요');
       return;
     }
-    post({ action: 'deleteDrop', id: it.id }, 30000).then(function (d) {
-      if (d && d.items) st.items = d.items;
-      else st.items = st.items.filter(function (x) { return x.id !== it.id; });
-      paint();
-      toast('지웠어요');
-    }).catch(function (err) { toast(err.message, { err: true }); });
+    st.deletedIds[it.id] = 1;
+    if (it._fbKey) {
+      delete st.rtMap[it._fbKey];
+      rtDelete(it._fbKey);
+    }
+    st.sheetItems = st.sheetItems.filter(function (x) { return x.id !== it.id; });
+    mergeItems();
+    paint();
+    toast('지웠어요');
+    if (!/^rt_/.test(String(it.id))) {
+      post({ action: 'deleteDrop', id: it.id }, 30000).catch(function () {});
+    }
   }
 
   /* ---------------------------------------------------------------- 보내기 */
@@ -685,10 +811,35 @@
       toast('보냈어요 (데모)');
       return;
     }
+    if (st.rt) {
+      var rtItem = {
+        id: 'rt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        at: new Date().toISOString(),
+        from: 'PC',
+        kind: 'text',
+        text: text
+      };
+      ui.text.value = '';
+      setBusy(true);
+      rtPush(rtItem).then(function (res) {
+        if (res && res.name) {
+          st.rtMap[res.name] = rtItem;
+          mergeItems();
+          paint();
+          markSeen();
+        }
+        toast('폰으로 보냈어요 ⚡', { action: { label: '되돌리기', fn: function () { removeItem(Object.assign({}, rtItem, { _fbKey: res && res.name })); } } });
+        ui.text.focus();
+      }).catch(function (err) {
+        toast(err.message, { err: true });
+      }).then(function () { setBusy(false); });
+      post({ action: 'addDrop', kind: 'text', text: text, from: 'PC' }, 40000).catch(function () {});
+      return;
+    }
     setBusy(true);
     post({ action: 'addDrop', kind: 'text', text: text, from: 'PC' }, 40000).then(function (d) {
       ui.text.value = '';
-      if (d && d.items) { st.items = d.items; paint(); }
+      if (d && d.items) { st.sheetItems = d.items; mergeItems(); paint(); }
       else refresh(false);
       markSeen();
       var first = st.items[0];
@@ -735,7 +886,12 @@
           }, 180000).then(function (d) {
             done++;
             setLabel('올리는 중… ' + done + '/' + okFiles.length);
-            if (d && d.items) { st.items = d.items; paint(); }
+            if (d && d.items) {
+              st.sheetItems = d.items;
+              if (st.rt && d.items[0]) rtPush(d.items[0]);
+              mergeItems();
+              paint();
+            }
           });
         });
       }).catch(function (err) {
@@ -806,7 +962,10 @@
   function phoneLink() {
     var url = st.url || connUrl();
     if (!url) return dropUrl();
-    return dropUrl() + '#s=' + b64encode(url);
+    var h = '#s=' + b64encode(url);
+    var rt = st.rt || rtUrl();
+    if (rt) h += '&rt=' + b64encode(rt);
+    return dropUrl() + h;
   }
 
   function openPhone() {
@@ -888,6 +1047,8 @@
 
     try { st.seen = JSON.parse(lsGet(KEYS.seen) || '{}') || {}; } catch (e) { st.seen = {}; }
     st.demo = /(^|[?&])demo=1(&|$)/.test(location.search);
+    st.rt = rtUrl();
+    if (!st.demo && st.rt) rtConnect();
 
     /* 처음 한 번, 빠르게 새 소식 확인 (배지) */
     setTimeout(function () {
