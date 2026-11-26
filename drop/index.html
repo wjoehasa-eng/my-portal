@@ -358,7 +358,8 @@
       state.maxBytes = d.maxBytes || 12 * 1024 * 1024;
       paint();
       try { lsSet(LS.cache, JSON.stringify({ at: Date.now(), items: state.items })); } catch (e) {}
-      markSeen();
+      if (!document.hidden) markSeen();
+      else updateBadge();
       return d;
     }).catch(function (err) {
       if (!opts.silent) toast(err.message, { err: true });
@@ -367,9 +368,23 @@
     });
   }
 
+  function unseenCount() {
+    return state.items.filter(function (it) { return !state.seen[it.id]; }).length;
+  }
+
+  function updateBadge() {
+    var c = unseenCount();
+    document.title = c > 0 ? '(' + (c > 99 ? '99+' : c) + ') 내 전송함' : '내 전송함';
+    try {
+      if (c > 0 && navigator.setAppBadge) navigator.setAppBadge(c).catch(function () {});
+      else if (c <= 0 && navigator.clearAppBadge) navigator.clearAppBadge().catch(function () {});
+    } catch (e) {}
+  }
+
   function markSeen() {
     state.items.forEach(function (it) { state.seen[it.id] = 1; });
     try { lsSet(LS.seen, JSON.stringify(state.seen)); } catch (e) {}
+    updateBadge();
   }
 
   function timeText(iso) {
@@ -789,9 +804,9 @@
     stopPolling();
     if (!state.auto) return;
     state.polling = setInterval(function () {
-      if (document.hidden || state.sending) return;
+      if (state.sending) return;
       load({ silent: true }).catch(function () {});
-    }, 20000);
+    }, 4000);
   }
   function stopPolling() { if (state.polling) { clearInterval(state.polling); state.polling = null; } }
 
@@ -843,6 +858,16 @@
       }
     }
     bindEvents();
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && state.url && !state.demo) {
+        load({ silent: true }).then(function () { markSeen(); }).catch(function () {});
+      }
+    });
+    window.addEventListener('focus', function () {
+      if (!document.hidden && state.url && !state.demo) {
+        load({ silent: true }).then(function () { markSeen(); }).catch(function () {});
+      }
+    });
   }
 
   function demoItems() {

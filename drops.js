@@ -317,7 +317,7 @@
       lsSet(KEYS.auto, st.auto ? '1' : '0');
       startPoll();
     };
-    st.auto = lsGet(KEYS.auto) === '1';
+    st.auto = lsGet(KEYS.auto) !== '0';
     $('#drAuto').checked = st.auto;
 
     ui.text.addEventListener('keydown', function (e) {
@@ -409,11 +409,55 @@
     return st.items.filter(function (it) { return !st.seen[it.id]; }).length;
   }
 
+  var baseTitle = '';
+  var origFaviconHref = '';
+  function updateFaviconBadge(c) {
+    try {
+      var link = document.querySelector('link[rel~="icon"]');
+      if (!link) return;
+      if (!origFaviconHref) origFaviconHref = link.getAttribute('href') || '';
+      if (c <= 0) {
+        if (origFaviconHref && link.getAttribute('href') !== origFaviconHref) link.setAttribute('href', origFaviconHref);
+        return;
+      }
+      var cv = document.createElement('canvas');
+      cv.width = 32; cv.height = 32;
+      var ctx = cv.getContext('2d');
+      if (!ctx) return;
+      var drawBadge = function () {
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(22, 10, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold ' + (c > 9 ? '11px' : '13px') + ' sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(c > 99 ? '99' : String(c), 22, 10.5);
+        link.setAttribute('href', cv.toDataURL('image/png'));
+      };
+      var img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = function () {
+        try { ctx.drawImage(img, 0, 0, 32, 32); drawBadge(); } catch (e) { drawBadge(); }
+      };
+      img.onerror = drawBadge;
+      img.src = origFaviconHref;
+    } catch (e) {}
+  }
+
   function updateBadge() {
     var btn = $('#btnDrops');
+    var c = unseenCount();
+    if (!baseTitle) baseTitle = document.title.replace(/^\(\d+\+?\)\s*/, '');
+    document.title = c > 0 ? '(' + (c > 99 ? '99+' : c) + ') ' + baseTitle : baseTitle;
+    updateFaviconBadge(c);
+    try {
+      if (c > 0 && navigator.setAppBadge) navigator.setAppBadge(c).catch(function () {});
+      else if (c <= 0 && navigator.clearAppBadge) navigator.clearAppBadge().catch(function () {});
+    } catch (e) {}
     if (!btn) return;
     var n = btn.querySelector('.n');
-    var c = unseenCount();
     if (!n) return;
     if (c > 0) { n.textContent = c > 99 ? '99+' : String(c); n.classList.remove('hidden'); }
     else n.classList.add('hidden');
@@ -790,7 +834,7 @@
     st.poll = setInterval(function () {
       if (!st.open || document.hidden || st.busyOn) return;
       refresh(false);
-    }, 20000);
+    }, 4000);
   }
   function stopPoll() { if (st.poll) { clearInterval(st.poll); st.poll = null; } }
 
@@ -845,22 +889,25 @@
     try { st.seen = JSON.parse(lsGet(KEYS.seen) || '{}') || {}; } catch (e) { st.seen = {}; }
     st.demo = /(^|[?&])demo=1(&|$)/.test(location.search);
 
-    /* 처음 한 번, 조용히 새 소식 확인 (배지) */
+    /* 처음 한 번, 빠르게 새 소식 확인 (배지) */
     setTimeout(function () {
       if (st.demo) return;
       var u = connUrl();
       if (!u) return;
       st.url = u;
       refresh(false).catch(function () {});
-    }, 2500);
+    }, 800);
 
-    /* 5분마다 가볍게 확인 */
+    /* 닫혀 있어도 화면이 보이면 15초마다 가볍게 확인 (배지·탭 숫자) */
     setInterval(function () {
       if (document.hidden || st.open) return;
       if (!st.demo && connUrl() && !st.backendOld) refresh(false).catch(function () {});
-    }, 300000);
+    }, 15000);
 
     document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && !st.demo && connUrl() && !st.open) refresh(false).catch(function () {});
+    });
+    window.addEventListener('focus', function () {
       if (!document.hidden && !st.demo && connUrl() && !st.open) refresh(false).catch(function () {});
     });
   }
