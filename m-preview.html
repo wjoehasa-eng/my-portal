@@ -15,6 +15,11 @@
   <div class="col"><span class="lbl">전체 길이 390</span><iframe id="f4" src="./" width="390" height="6000"></iframe></div>
 </div>
 <script>
+/* 프레임이 브라우저 HTTP 캐시의 옛 판을 물지 않도록 주소에 시각을 붙입니다. */
+['f1','f2','f3','f4'].forEach(function (id) {
+  var f = document.getElementById(id);
+  f.src = f.getAttribute('src') + (f.getAttribute('src').indexOf('?') < 0 ? '?' : '&') + 'pv=' + Date.now();
+});
 /* #<CSS> 로 넘긴 스타일을 미리보기 프레임에만 넣어 봅니다(배포 없이 시험용). */
 (function () {
   var css = '';
