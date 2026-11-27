@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
-<meta name="portal-version" content="3.7.4" />
+<meta name="portal-version" content="3.7.5" />
 <title>나만의 포털</title>
 <!-- 한글 글꼴: 경기천년제목 Bold (경기도청 서체 · 눈누 CDN). 화면 글씨를 굵고 또렷하게. -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
@@ -457,6 +457,14 @@
   .sk i{display:block;height:13px;border-radius:7px;margin-bottom:10px;background:linear-gradient(90deg,var(--line) 25%,var(--panel2) 50%,var(--line) 75%);background-size:400% 100%;animation:sh 1.5s ease-in-out infinite}
   .sk i.t{height:20px;width:52%;margin-bottom:14px}
   @keyframes sh{0%{background-position:100% 0}100%{background-position:0 0}}
+  /* 첫 접속 — 시트에서 처음 불러오는 동안 경과 초를 보여 줍니다 */
+  .bootload{display:flex;align-items:center;justify-content:center;gap:9px;width:max-content;max-width:100%;margin:20px auto 0;
+    padding:9px 15px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--mut);
+    font-size:12.5px;font-weight:700;box-shadow:var(--shadow-sm)}
+  .bootload .sp{width:12px;height:12px;flex:none;border-radius:50%;border:2px solid color-mix(in srgb,var(--acc) 26%,transparent);border-top-color:var(--acc);animation:bspin .8s linear infinite}
+  .bootload b{color:var(--txt);font-variant-numeric:tabular-nums;margin-left:2px}
+  @keyframes bspin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){ .bootload .sp{animation-duration:2.4s} }
 
   /* ---------- connect / empty ---------- */
   .center{min-height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center;padding:24px 0}
@@ -1471,7 +1479,7 @@
     opt = opt || {};
     var silent = !!opt.silent;
     var prevCache = readCache();
-    if (!state.data && !silent) renderSkeleton();
+    if (!state.data && !silent) { renderSkeleton(); startBootTimer(); }
     setSync('syncing');
     jsonp({ action: 'load' }).then(function (data) {
       if (!data || data.ok === false) throw new Error((data && data.error) || '불러오지 못했습니다.');
@@ -1494,18 +1502,23 @@
       var anyGroup = norm.links.some(function (l) { return !!l.group; }) || (norm.soloGroups || []).length > 0;
       if (!anyGroup) mergeFromCache(norm, prevCache);
       setSync('idle');
+      hideBootTimer();
       if (state.edit || state.dirty || state.inFlight) { state.remote = norm; return; }
       var first = !state.data;
       var changed = first || sig(norm) !== sig(state.data);
       state.data = norm;
       if (state.save !== 'saving') state.save = 'idle';
       state.dirty = false;
+      /* 시트의 최신 목록을 받아들였으니, 아까 이 기기에서 지운 것 때문에 켜 둔 전체 삭제 허가는 풉니다.
+         (빈 목록이 그대로 시트로 올라가 엉뚱한 전체 삭제가 되는 길을 막습니다) */
+      state.clearAllowed = false;
       writeCache(norm);
       if (first && !state.demo) state.banner = !lsGet(LS.banner);
       if (changed) renderAll();
       else paintStatus();
     }).catch(function (err) {
       setSync('idle');
+      hideBootTimer();
       if (state.data) toast('동기화하지 못했습니다: ' + err.message, true);
       else renderConnect(err.message);
     });
@@ -1926,12 +1939,36 @@
     $('#editBar').innerHTML = '';
     $('#bannerWrap').innerHTML = '';
     $('#foot').innerHTML = '';
-    var h = '<div class="sk-grid">';
+    /* 처음 시트에서 불러오는 동안 빈 화면 대신 경과 초를 보여 줍니다. (fetch 는 그대로 바로 시작) */
+    var h = '<div class="bootload" id="bootLoad" role="status" aria-live="polite">' +
+      '<i class="sp"></i><span id="bootLoadTxt">시트에서 불러오는 중…</span></div>';
+    h += '<div class="sk-grid">';
     for (var i = 0; i < 8; i++) {
       h += '<div class="sk"><i class="t"></i><i style="width:88%"></i><i style="width:74%"></i><i style="width:82%"></i><i style="width:64%"></i></div>';
     }
     h += '</div>';
     $('#root').innerHTML = h;
+  }
+
+  /* 「시트에서 불러오는 중… N초」 — 화면에만 초를 세고, 요청은 바로 나갑니다. */
+  var bootTimer = { id: 0, t0: 0 };
+  function startBootTimer() {
+    stopBootTimer();
+    bootTimer.t0 = Date.now();
+    bootTimer.id = setInterval(function () {
+      var el = $('#bootLoadTxt');
+      if (!el) { stopBootTimer(); return; }
+      var s = Math.round((Date.now() - bootTimer.t0) / 1000);
+      el.innerHTML = '시트에서 불러오는 중…' + (s >= 1 ? '<b>' + s + '초</b>' : '');
+    }, 500);
+  }
+  function stopBootTimer() {
+    if (bootTimer.id) { clearInterval(bootTimer.id); bootTimer.id = 0; }
+  }
+  function hideBootTimer() {
+    stopBootTimer();
+    var el = $('#bootLoad');
+    if (el && el.parentNode) el.parentNode.removeChild(el);
   }
 
   function renderAll() {
@@ -3280,12 +3317,14 @@
     html += '<a href="#" id="fRefresh">↻ 새로고침</a>';
     if (!state.demo) html += '<span class="sep">|</span><a href="#" id="fSheet">▦ 시트 열기</a>';
     html += '<span class="sep">|</span><a href="#" id="fImport">📥 북마크 가져오기</a>';
+    html += '<span class="sep">|</span><a href="#" id="fExport" title="지금 포털 전체(링크·카테고리·배치)를 JSON 파일로 내려받습니다. 연결 주소는 담지 않습니다.">⤓ JSON 백업</a>';
     html += '<span class="sep">|</span><a href="#" id="fDemo">?demo=1 데모</a>';
     if (!state.demo) html += '<span class="sep">|</span><a href="#" id="fConn">연결 주소</a>';
     $('#foot').innerHTML = html;
     $('#fRefresh').onclick = function (e) { e.preventDefault(); load({ silent: !!state.data }); };
     if ($('#fSheet')) $('#fSheet').onclick = function (e) { e.preventDefault(); openSheet(); };
     $('#fImport').onclick = function (e) { e.preventDefault(); pickFile(); };
+    $('#fExport').onclick = function (e) { e.preventDefault(); exportJson(); };
     $('#fDemo').onclick = function (e) { e.preventDefault(); location.href = location.pathname + '?demo=1'; };
     if ($('#fConn')) $('#fConn').onclick = function (e) { e.preventDefault(); renderConnect(null, true); };
   }
@@ -3293,6 +3332,43 @@
   function openSheet() {
     if (state.sheetUrl) window.open(state.sheetUrl, '_blank', 'noopener');
     else toast('시트 주소를 알 수 없습니다.', true);
+  }
+
+  /** 지금 화면의 포털 전체를 JSON 파일로 내려받습니다(데이터를 잃어버렸을 때의 보험).
+   *  시트 주소(/exec)·링크 주소는 그대로 두되 연결 주소는 담지 않습니다. */
+  function exportJson() {
+    if (!state.data) { toast('내보낼 자료가 아직 없습니다.', true); return; }
+    var d = state.data;
+    var ymd = (function () {
+      var t = new Date();
+      return t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2);
+    })();
+    var pack = {
+      app: 'my-portal',
+      version: (document.querySelector('meta[name="portal-version"]') || {}).content || '',
+      exportedAt: new Date().toISOString(),
+      counts: { links: d.links.length, categories: d.cats.length },
+      data: {
+        title: d.title, theme: d.theme,
+        cats: d.cats,
+        links: d.links.map(function (l) {
+          return { cat: l.cat, group: l.group || '', name: l.name, icon: l.icon, url: l.url, desc: l.desc, pin: !!l.pin };
+        }),
+        pinOrder: d.pinOrder || [], soloGroups: d.soloGroups || [], favZones: d.favZones || [],
+        collapsed: d.collapsed || [], collapsedGroups: d.collapsedGroups || [],
+        tabOrder: d.tabOrder || [], hiddenTabs: d.hiddenTabs || []
+      }
+    };
+    var blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = '나만의-포털-백업-' + ymd + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    toast('JSON 백업 파일을 내려받았습니다 (링크 ' + d.links.length + '개 · 카테고리 ' + d.cats.length + '개)');
   }
 
   /* ---------------------------------------------------------------- connect */
@@ -6544,7 +6620,7 @@
 </script>
 <!-- 📨 전송함(폰과 주고받기): 포털 본체와 분리된 작은 모듈. index.html 을 건드리지 않습니다. -->
 <script src="qr.js"></script>
-<script src="drops.js?v=3.7.4"></script>
+<script src="drops.js?v=3.7.5"></script>
 <script>
 /* 홈 화면에 설치한 포털을 앱처럼(주소창 없이) 열고, 인터넷이 끊겨도 마지막 화면이 뜨게 합니다.
    파일을 그냥 열었을 때(file://)나 http에서는 등록하지 않습니다 — https(깃허브 페이지)에서만 동작합니다. */
