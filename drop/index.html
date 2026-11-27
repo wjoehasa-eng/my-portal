@@ -340,7 +340,7 @@
   /** 이 전송이 이미 전송함에 들어갔는지 목록으로 확인합니다(몇 초 늦게 보일 수 있어 두 번 살핍니다). */
   function confirmSent(payload) {
     function look() {
-      return jsonp({ action: 'listDrops', d: JSON.stringify({ limit: 20 }) }, 20000).then(function (d) {
+      return jsonp({ action: 'listDrops', d: JSON.stringify({ limit: 20 }) }, 6000).then(function (d) {
         var items = (d && d.items) || [];
         var cid = String(payload.cid || '');
         var now = Date.now();
