@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>모바일 미리보기</title>
+<style>
+  html,body{margin:0;background:#222;font:12px sans-serif;color:#ddd}
+  .row{display:flex;gap:16px;padding:12px}
+  .col{display:flex;flex-direction:column;gap:4px}
+  iframe{border:0;background:#fff;border-radius:2px}
+  .lbl{font-weight:700}
+</style></head>
+<body>
+<div class="row">
+  <div class="col"><span class="lbl">실제 데이터 390×844</span><iframe id="f1" src="./" width="390" height="844"></iframe></div>
+  <div class="col"><span class="lbl">데모 390×844</span><iframe id="f2" src="./?demo=1" width="390" height="844"></iframe></div>
+  <div class="col"><span class="lbl">실제 데이터 360×780</span><iframe id="f3" src="./" width="360" height="780"></iframe></div>
+</div>
+<script>
+/* #<CSS> 로 넘긴 스타일을 미리보기 프레임에만 넣어 봅니다(배포 없이 시험용). */
+(function () {
+  var css = '';
+  try { css = decodeURIComponent(location.hash.slice(1)); } catch (e) { css = ''; }
+  if (!css) return;
+  ['f1', 'f2', 'f3'].forEach(function (id) {
+    var f = document.getElementById(id);
+    function apply() {
+      try {
+        var d = f.contentDocument;
+        if (!d) return;
+        var old = d.getElementById('__try');
+        if (old) old.remove();
+        var s = d.createElement('style');
+        s.id = '__try';
+        s.textContent = css;
+        d.head.appendChild(s);
+      } catch (e) {}
+    }
+    f.addEventListener('load', function () { apply(); setTimeout(apply, 300); setTimeout(apply, 1200); });
+    apply();
+  });
+})();
+</script>
+</body></html>
