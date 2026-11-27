@@ -304,7 +304,7 @@ Apps Script 웹 앱을 통해 읽고 씁니다. 그래서 공용 PC에서도, �
   `drop/`(폰 앱 — `index.html`·`manifest.webmanifest`·`sw.js`·`icons/`). `deploy.sh` 는 폴더째 그대로 올립니다.
 - 폰 앱은 `scope`/`start_url` 이 `/my-portal/drop/` 라서 포털과 **별개의 앱**으로 설치됩니다.
 - 포털 루트도 설치형 앱입니다 — `manifest.json`·`sw.js`·`icon-192.png`·`icon-512.png`·`icon-maskable-512.png`.
-  아이콘은 `python3 tools/make-icons.py` 로 다시 그립니다(색은 index.html 의 `--acc`·`--acc2`, Pillow 필요).
+  아이콘은 생성형 이미지로 만들고 `python3 tools/round-icon.py <일반.png> <마스크용.png>` 로 모서리를 다듬습니다(Pillow 필요).
   루트 `sw.js` 는 `portal-shell-` 캐시만 다루고 `/drop/`·`/cookie-minus/` 요청은 **건너뜁니다**(fetch 진입에서 바로 return).
   전송함 `drop/sw.js` 의 activate 도 `drop-` 캐시만 지워 포털 캐시를 건드리지 않습니다.
 - 백엔드 v2.2.0부터 전송함(`listDrops`·`addDrop`·`getDropFile`·`deleteDrop`·`clearDrops`)을 지원합니다.
