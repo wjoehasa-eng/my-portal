@@ -92,12 +92,14 @@ ok(/indexOf\('drop-'\) === 0/.test(dropSw), 'drop/sw.js 도 drop- 캐시만 지�
 ok(/const CACHE = 'drop-shell-v\d+'/.test(dropSw), '전송함 캐시 이름 그대로');
 ok(/share_target/.test(read('drop/manifest.webmanifest')), '전송함 manifest 의 공유하기 그대로');
 
-console.log('\n[7] 굵고 또렷한 글꼴(경기천년제목 Bold)');
+console.log('\n[7] 또렷한 글꼴(경기천년제목 Medium)');
 const dropHtml = read('drop/index.html');
 [['index.html', html], ['drop/index.html', dropHtml]].forEach(([name, t]) => {
   ok(/@font-face\{[^}]*font-family:'GyeonggiTitle'/.test(t), name + ' — @font-face 선언');
-  ok(/projectnoonnu\/2410-3@1\.0\/Title_Bold\.woff/.test(t), name + ' — 경기천년제목 Bold 파일');
-  ok(/font-weight:400 900/.test(t), name + ' — 400~900 굵기를 Bold 한 벌로');
+  ok(/projectnoonnu\/noonfonts_one@1\.0\/GyeonggiTitleM\.woff/.test(t), name + ' — 경기천년제목 Medium 파일');
+  ok(!/Title_Bold\.woff/.test(t), name + ' — 무거운 Bold 파일은 남기지 않음');
+  ok(!/<link rel="preload"[^>]*Title_Bold/.test(t), name + ' — preload 도 Medium');
+  ok(/font-weight:400 900/.test(t), name + ' — 400~900 굵기를 Medium 한 벌로(가짜 볼드 금지)');
   ok(/font-family:'GyeonggiTitle',/.test(t), name + ' — 기본 글꼴 목록 맨 앞');
   ok(/rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net"/.test(t), name + ' — 글꼴 서버 미리 연결');
   ok(/font-display:swap/.test(t), name + ' — 글씨가 늦게 떠도 먼저 시스템 글꼴로 보임');

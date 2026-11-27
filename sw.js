@@ -14,7 +14,7 @@
  *  - 주소에 ?가 붙은 API 호출은 교차 출처라 애초에 대상이 아닙니다.
  *    (같은 출처의 ?는 drops.js?v= 같은 파일 버전 표시뿐이라 캐시해도 안전합니다)
  */
-const CACHE = 'portal-shell-v6';
+const CACHE = 'portal-shell-v7';
 const SHELL = [
   './',
   './index.html',
