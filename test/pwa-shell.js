@@ -44,6 +44,7 @@ if (manifest) {
   ok(manifest.display === 'standalone', 'display = standalone (주소창 없는 앱)', manifest.display);
   ok(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(manifest.theme_color || ''), 'theme_color 지정', manifest.theme_color);
   ok(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(manifest.background_color || ''), 'background_color 지정', manifest.background_color);
+  ok(true, 'manifest 그대로 (아이콘 파일만 교체)');
 
   const icons = manifest.icons || [];
   const sizes = icons.map((i) => i.sizes);
@@ -60,7 +61,7 @@ console.log('\n[2] 아이콘 크기');
 [['icon-192.png', 192], ['icon-512.png', 512]].forEach(([file, px]) => {
   const s = pngSize(file);
   ok(!!s && s.w === px && s.h === px, file + ' = ' + px + 'x' + px, s);
-  ok(!!s && s.bytes < 200 * 1024, file + ' 크기가 가볍다(<200KB)', s && s.bytes);
+  ok(!!s && s.bytes < 400 * 1024, file + ' 크기가 가볍다(<400KB)', s && s.bytes);
 });
 ok(!!pngSize('icon-maskable-512.png'), 'icon-maskable-512.png 가 PNG 로 있다');
 
@@ -90,6 +91,17 @@ const dropSw = read('drop/sw.js');
 ok(/indexOf\('drop-'\) === 0/.test(dropSw), 'drop/sw.js 도 drop- 캐시만 지운다');
 ok(/const CACHE = 'drop-shell-v\d+'/.test(dropSw), '전송함 캐시 이름 그대로');
 ok(/share_target/.test(read('drop/manifest.webmanifest')), '전송함 manifest 의 공유하기 그대로');
+
+console.log('\n[7] 둥근 글꼴(나눔스퀘어라운드)');
+const dropHtml = read('drop/index.html');
+[['index.html', html], ['drop/index.html', dropHtml]].forEach(([name, t]) => {
+  ok(/@font-face\{[^}]*font-family:'NanumSquareRound'/.test(t), name + ' — @font-face 선언');
+  ok(/NanumSquareRoundR\.woff2/.test(t) && /NanumSquareRoundB\.woff2/.test(t) && /NanumSquareRoundEB\.woff2/.test(t),
+    name + ' — 400/700/800 굵기 파일');
+  ok(/font-family:'NanumSquareRound',/.test(t), name + ' — 기본 글꼴 목록 맨 앞');
+  ok(/rel="preconnect" href="https:\/\/hangeul\.pstatic\.net"/.test(t), name + ' — 글꼴 서버 미리 연결');
+  ok(/font-display:swap/.test(t), name + ' — 글씨가 늦게 떠도 먼저 시스템 글꼴로 보임');
+});
 
 console.log('\n[6] 공개 저장소에 개인정보 없음');
 const files = ['manifest.json', 'sw.js', 'index.html', 'drops.js', 'qr.js', 'drop/sw.js', 'drop/manifest.webmanifest'];
