@@ -2959,13 +2959,13 @@
     'grade-head-os': 'icon-192.png',
     'kids-scheduler': 'icon-192.png'
   };
-  /** 내 앱 링크면 그 앱의 PWA 아이콘 주소(아니면 ''). */
+  /** 내 앱 링크면 그 앱의 PWA 아이콘 주소(목록에 없어도 기본 icon-192.png 자동 연결). */
   function ownAppIcon(url) {
     var m = /^https?:\/\/([a-z0-9-]+)\.github\.io\/([^\/?#]+)/i.exec(String(url || ''));
     if (!m || m[1].toLowerCase() !== OWN_APP_HOST) return '';
     var repo = decodeURIComponent(m[2]).toLowerCase();
-    var file = OWN_APP_ICONS[repo];
-    return file ? 'https://' + OWN_APP_HOST + '.github.io/' + repo + '/' + file : '';
+    var file = OWN_APP_ICONS[repo] || 'icon-192.png';
+    return 'https://' + OWN_APP_HOST + '.github.io/' + repo + '/' + file;
   }
 
   /** 자동 아이콘인지(사용자가 직접 고른 이모지·이미지가 아닌지) */
