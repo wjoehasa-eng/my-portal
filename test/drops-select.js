@@ -26,6 +26,11 @@ function ok(cond, msg, extra) {
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/* 시간 칸(.tw) 안에서 상대 시간(.rel) 바로 뒤에 실제 시각(.abs)이 오는지 */
+function rewrap(tw, rel, absEl) {
+  return !!(tw && rel && absEl && rel.parentNode === tw && absEl.parentNode === tw && rel.nextElementSibling === absEl);
+}
+
 (async function () {
   const src = fs.readFileSync(path.join(ROOT, 'drops.js'), 'utf8');
 
@@ -99,9 +104,13 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     ok(!!d.querySelector('#drSelAll') && !!d.querySelector('#drSelNone') && !!d.querySelector('#drSelDel'),
       '전체 선택 · 전체 해제 · 선택 삭제 단추가 있다');
     ok(d.querySelectorAll('.dr-it .dr-chk').length === 3, '항목마다 체크박스가 있다');
-    const when = d.querySelector('.dr-it .when');
-    ok(!!when && /^\d{1,2}\/\d{1,2} \d{2}:\d{2}$/.test(when.textContent.trim()),
-      '카드에 정확한 전송 시각(11/27 10:08 꼴)이 함께 보인다', when && when.textContent);
+    const tw = d.querySelector('.dr-it .top .tw');
+    const rel = tw && tw.querySelector('.rel');
+    const absEl = tw && tw.querySelector('.abs');
+    ok(!!absEl && /^\d{1,2}\/\d{1,2} \d{2}:\d{2}$/.test(absEl.textContent.trim()),
+      '카드에 정확한 전송 시각(11/27 10:08 꼴)이 함께 보인다', absEl && absEl.textContent);
+    ok(!!rewrap(tw, rel, absEl), '실제 시각이 상대 시간 바로 아래 줄(같은 시간 칸)에 붙어 있다', tw && tw.innerHTML.slice(0, 120));
+    ok(!d.querySelector('.dr-it .when'), '카드 아래로 흘어져 있던 옛 시각 줄은 사라졌다');
     ok(!!d.querySelector('.dr-it .top').textContent.match(/(방금|분 전|시간 전|어제|\d{1,2}\/\d{1,2} \d{2}:\d{2})/),
       '상대 시간도 그대로 남아 있다', d.querySelector('.dr-it .top').textContent);
 

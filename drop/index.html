@@ -6,21 +6,15 @@
 <meta name="theme-color" content="#3b5bfd" />
 <meta name="color-scheme" content="light dark" />
 <title>내 전송함</title>
-<meta name="drop-version" content="1.4.1" />
-<link rel="preconnect" href="https://hangeul.pstatic.net" crossorigin />
-<link rel="preload" as="font" type="font/woff2" crossorigin
-      href="https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundR.woff2" />
+<meta name="drop-version" content="1.4.2" />
+<!-- 한글 글꼴: 경기천년제목 Bold (포털과 같은 글씨 · 눈누 CDN) -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link rel="preload" as="font" type="font/woff" crossorigin
+      href="https://cdn.jsdelivr.net/gh/projectnoonnu/2410-3@1.0/Title_Bold.woff" />
 <style>
-  /* 둥근 한글 글꼴: 나눔스퀘어라운드 (포털과 같은 글씨) */
-  @font-face{font-family:'NanumSquareRound';font-style:normal;font-weight:400;font-display:swap;
-    src:url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundR.woff2) format('woff2'),
-        url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundR.woff) format('woff')}
-  @font-face{font-family:'NanumSquareRound';font-style:normal;font-weight:700;font-display:swap;
-    src:url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundB.woff2) format('woff2'),
-        url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundB.woff) format('woff')}
-  @font-face{font-family:'NanumSquareRound';font-style:normal;font-weight:800;font-display:swap;
-    src:url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundEB.woff2) format('woff2'),
-        url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundEB.woff) format('woff')}
+  /* 경기천년제목 Bold 한 벌로 400~900 전부 — 작은 글씨까지 진하고 또렷하게 */
+  @font-face{font-family:'GyeonggiTitle';font-style:normal;font-weight:400 900;font-display:swap;
+    src:url(https://cdn.jsdelivr.net/gh/projectnoonnu/2410-3@1.0/Title_Bold.woff) format('woff')}
 </style>
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" />
@@ -44,7 +38,7 @@
   html,body{margin:0;height:100%}
   body{
     background:var(--bg); color:var(--txt);
-    font-family:'NanumSquareRound',-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",Roboto,sans-serif;
+    font-family:'GyeonggiTitle',-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",Roboto,sans-serif;
     font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
     padding-bottom:calc(18px + env(safe-area-inset-bottom));
   }
@@ -124,10 +118,13 @@
   .it{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh);
     padding:11px 12px;margin-bottom:9px;animation:in .16s ease-out}
   @keyframes in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-  .it-top{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--mut);font-weight:700}
+  .it-top{display:flex;align-items:flex-start;gap:7px;font-size:11.5px;color:var(--mut);font-weight:700}
   .pill{border:1px solid var(--line);border-radius:999px;padding:1px 7px;background:var(--soft);color:var(--acc)}
   .it-top .sp{flex:1}
-  .it .when{margin:2px 0 0;font-size:11px;color:var(--mut);font-weight:600;letter-spacing:.2px}
+  /* 상대 시간(1시간 전) 바로 아래 줄에 실제 시각(11/27 11:00)을 오른쪽으로 가지런히 */
+  .it-top .tw{display:flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1.2;text-align:right;flex:none}
+  .it-top .tw .rel{font-size:11.5px;font-weight:700;white-space:nowrap}
+  .it-top .tw .abs{font-size:10.5px;font-weight:650;letter-spacing:.2px;color:var(--mut);white-space:nowrap}
   .it-body{margin:7px 0 0;font-size:15px;word-break:break-word;white-space:pre-wrap}
   .it-body.txt{cursor:pointer}
   .it-body.txt:active{opacity:.6}
@@ -828,14 +825,16 @@
       top.appendChild(el('span', 'pill', esc(it.from || '웹')));
       top.appendChild(el('span', '', esc(kindLabel(it))));
       top.appendChild(el('span', 'sp'));
-      top.appendChild(el('span', '', esc(timeText(it.at))));
-      card.appendChild(top);
+      var tw = el('span', 'tw');
+      tw.appendChild(el('span', 'rel', esc(timeText(it.at))));
       var abs = absText(it.at);
       if (abs) {
-        var when = el('div', 'when', esc(abs));
+        var when = el('span', 'abs', esc(abs));
         when.title = new Date(it.at).toLocaleString('ko-KR');
-        card.appendChild(when);
+        tw.appendChild(when);
       }
+      top.appendChild(tw);
+      card.appendChild(top);
 
       if (it.kind === 'file' || it.kind === 'image') {
         var f = el('div', 'file');

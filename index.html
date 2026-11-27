@@ -5,22 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
-<meta name="portal-version" content="3.7.3" />
+<meta name="portal-version" content="3.7.4" />
 <title>나만의 포털</title>
-<!-- 둥근 한글 글꼴: 나눔스퀘어라운드 (네이버 한글한글아름답게 CDN). 화면 글씨를 조금 둥글고 부드럽게. -->
-<link rel="preconnect" href="https://hangeul.pstatic.net" crossorigin />
-<link rel="preload" as="font" type="font/woff2" crossorigin
-      href="https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundR.woff2" />
+<!-- 한글 글꼴: 경기천년제목 Bold (경기도청 서체 · 눈누 CDN). 화면 글씨를 굵고 또렷하게. -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link rel="preload" as="font" type="font/woff" crossorigin
+      href="https://cdn.jsdelivr.net/gh/projectnoonnu/2410-3@1.0/Title_Bold.woff" />
 <style>
-  @font-face{font-family:'NanumSquareRound';font-style:normal;font-weight:400;font-display:swap;
-    src:url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundR.woff2) format('woff2'),
-        url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundR.woff) format('woff')}
-  @font-face{font-family:'NanumSquareRound';font-style:normal;font-weight:700;font-display:swap;
-    src:url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundB.woff2) format('woff2'),
-        url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundB.woff) format('woff')}
-  @font-face{font-family:'NanumSquareRound';font-style:normal;font-weight:800;font-display:swap;
-    src:url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundEB.woff2) format('woff2'),
-        url(https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundEB.woff) format('woff')}
+  /* 경기천년제목 Bold 한 벌로 400~900 전부 — 작은 글씨까지 진하고 또렷하게 보이도록 */
+  @font-face{font-family:'GyeonggiTitle';font-style:normal;font-weight:400 900;font-display:swap;
+    src:url(https://cdn.jsdelivr.net/gh/projectnoonnu/2410-3@1.0/Title_Bold.woff) format('woff')}
 </style>
 <!-- 홈 화면에 앱으로 설치: manifest + 아이콘 (.js 가 꺼져 있어도 그대로 보입니다) -->
 <link rel="manifest" href="manifest.json" />
@@ -74,7 +68,7 @@
       var(--bg);
     background-attachment:fixed;
     color:var(--txt); min-height:100vh;
-    font-family:'NanumSquareRound',-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-family:'GyeonggiTitle',-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",Roboto,"Helvetica Neue",Arial,sans-serif;
     font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   }
   button,input,select,textarea{font:inherit;color:inherit}
@@ -6550,7 +6544,7 @@
 </script>
 <!-- 📨 전송함(폰과 주고받기): 포털 본체와 분리된 작은 모듈. index.html 을 건드리지 않습니다. -->
 <script src="qr.js"></script>
-<script src="drops.js?v=3.7.0"></script>
+<script src="drops.js?v=3.7.4"></script>
 <script>
 /* 홈 화면에 설치한 포털을 앱처럼(주소창 없이) 열고, 인터넷이 끊겨도 마지막 화면이 뜨게 합니다.
    파일을 그냥 열었을 때(file://)나 http에서는 등록하지 않습니다 — https(깃허브 페이지)에서만 동작합니다. */
