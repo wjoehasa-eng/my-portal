@@ -81,7 +81,8 @@ ok(/BASE \+ 'drop\/'/.test(sw), '/drop/ 경로는 건너뛴다');
 ok(/BASE \+ 'cookie-minus\/'/.test(sw), '/cookie-minus/ 경로도 건너뛴다');
 ok(/portal-shell-/.test(sw) && /k !== CACHE/.test(sw), '내 옛 캐시만 지운다');
 ok(/indexOf\('portal-shell-'\) === 0/.test(sw), 'drop 캐시는 activate 에서 지우지 않는다');
-ok(/await fetch\(req\)/.test(sw), '네트워크 우선(새 배포가 바로 반영)');
+ok(/await fetch\(req/.test(sw), '네트워크 우선(새 배포가 바로 반영)');
+ok(/cache: 'no-cache'/.test(sw), '화면(HTML)은 HTTP 캐시를 건너뛰고 새 판을 받는다');
 ok(/req\.mode === 'navigate'/.test(sw), '오프라인이면 마지막 화면으로 대체');
 
 console.log('\n[5] 전송함 sw.js 가 포털 캐시를 지우지 않는지');
