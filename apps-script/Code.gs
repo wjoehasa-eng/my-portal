@@ -1,6 +1,11 @@
 /**
- * 나만의 북마크 포털 — 구글 시트 백엔드 (Google Apps Script) v2.2.1
+ * 나만의 북마크 포털 — 구글 시트 백엔드 (Google Apps Script) v2.3.0
  * ==========================================================
+ * v2.3.0 (2026-11-27)
+ *  · 전송함 중복 저장 방지 — 앱이 보내는 `cid`(전송 고유 id)를 그대로 저장 id 로 써서,
+ *    같은 전송이 두 번 도착하면(연타·응답 못 받음 후 재전송) **한 번만** 기록합니다.
+ *    `cid` 가 없는 예전 앱은 지금처럼 동작합니다.
+ *
  * v2.2.1 (2026-11-26)
  *  · 전송함 파일 저장이 「드라이브 권한 미승인」으로 막힐 때, 영어 구글 오류 대신
  *    한국어 안내와 `code: NEED_DRIVE_AUTH` 를 돌려줍니다(앱이 해결 방법을 띄움).
@@ -93,7 +98,7 @@
 /** 스프레드시트 ID. 시트에 붙인(컨테이너 바인딩) 스크립트라면 비워 두세요. */
 var SHEET_ID = '';
 
-var BACKEND_VERSION = '2.2.1';
+var BACKEND_VERSION = '2.3.0';
 
 var TABS = { links: '링크', settings: '설정', drops: '전송함' };
 
@@ -764,6 +769,15 @@ function addDrop_(req) {
   var fileId = '';
   var size = 0;
 
+  /* 전송 고유 id — 같은 전송이 두 번 도착해도 한 번만 저장합니다.
+     (앱이 연타·응답 실패 후 재전송해도 시트에 두 줄이 생기지 않습니다.) */
+  var cid = clean_(req.cid || '').slice(0, 40);
+  if (cid && !/^[a-z0-9_-]{6,40}$/i.test(cid)) cid = '';
+  if (cid) {
+    var already = findDropById_(sh, cid);
+    if (already) return { ok: true, item: already, kept: DROP_LIST_MAX, deduped: true };
+  }
+
   if (kind === 'file' || kind === 'image') {
     var b64 = String(req.base64 || '').replace(/^data:[^,]*,/, '');
     if (!b64) throw new Error('파일 내용이 비어 있습니다.');
@@ -790,7 +804,7 @@ function addDrop_(req) {
   }
 
   var item = {
-    id: newDropId_(),
+    id: cid || newDropId_(),
     at: new Date().toISOString(),
     from: from,
     kind: kind,
@@ -840,14 +854,16 @@ function deleteDrop_(req) {
   var id = clean_(req && req.id);
   if (!sh || !id) return { ok: true, removed: 0 };
 
-  var target = null;
-  dropRows_(sh).forEach(function (d) { if (d.id === id) target = d; });
-  if (!target) return { ok: true, removed: 0 };
+  var targets = [];
+  dropRows_(sh).forEach(function (d) { if (d.id === id) targets.push(d); });
+  if (!targets.length) return { ok: true, removed: 0 };
 
-  if (target.fileId) trashFile_(target.fileId);
-  sh.deleteRow(target.row);
+  targets.forEach(function (t) { if (t.fileId) trashFile_(t.fileId); });
+  /* 같은 id 가 여러 줄 있으면(예전 중복 저장) 모두 지웁니다 — 아래에서부터 지워야 행 번호가 밀리지 않습니다. */
+  targets.sort(function (a, b) { return b.row - a.row; });
+  targets.forEach(function (t) { sh.deleteRow(t.row); });
   SpreadsheetApp.flush();
-  return { ok: true, removed: 1, id: id };
+  return { ok: true, removed: targets.length, id: id };
 }
 
 /** 전송함 비우기 — 모든 행과 파일을 지웁니다. */
@@ -960,6 +976,14 @@ function trashFile_(fileId) {
 
 function newDropId_() {
   return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+/** 같은 전송 id(cid)가 이미 저장되어 있으면 그 항목을 돌려줍니다(중복 저장 방지). */
+function findDropById_(sh, id) {
+  if (!sh || !id) return null;
+  var hit = null;
+  dropRows_(sh).forEach(function (d) { if (d.id === id && !hit) hit = d; });
+  return hit;
 }
 
 function guessExt_(mime) {
