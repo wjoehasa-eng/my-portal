@@ -14,7 +14,7 @@
  *  - 주소에 ?가 붙은 API 호출은 교차 출처라 애초에 대상이 아닙니다.
  *    (같은 출처의 ?는 drops.js?v= 같은 파일 버전 표시뿐이라 캐시해도 안전합니다)
  */
-const CACHE = 'portal-shell-v4';
+const CACHE = 'portal-shell-v5';
 const SHELL = [
   './',
   './index.html',
@@ -75,9 +75,10 @@ self.addEventListener('fetch', (e) => {
 
 async function networkFirst(req, url) {
   try {
-    /* 화면(HTML)은 브라우저 HTTP 캐시에 기대지 않고 서버에 물어봅니다(바뀐 게 없으면 304로 가볍게).
-       이렇게 해야 새로 배포한 판이 다음에 열 때 바로 뜨고, 구버전 캐시에 갇히지 않습니다. */
-    const fresh = await fetch(req, req.mode === 'navigate' ? { cache: 'no-cache' } : undefined);
+    /* 화면(HTML)과 스크립트(drops.js)는 브라우저 HTTP 캐시에 기대지 않고 서버에 물어봅니다(바뀐 게 없으면 304로 가볍게).
+       이렇게 해야 새로 배포한 판이 다음에 열 때 바로 뜨고, 구버전 캐시에 갇히지 않습니다.
+       drops.js 는 주소에 ?v= 가 붙어 있는데도 예전 판을 물고 있는 기기가 있어 함께 no-cache 로 받습니다. */
+    const fresh = await fetch(req, (req.mode === 'navigate' || /\/drops\.js$/.test(url.pathname)) ? { cache: 'no-cache' } : undefined);
     if (fresh && fresh.ok && fresh.type === 'basic') {
       const c = await caches.open(CACHE);
       c.put(req, fresh.clone()).catch(() => {});

@@ -92,15 +92,16 @@ ok(/indexOf\('drop-'\) === 0/.test(dropSw), 'drop/sw.js 도 drop- 캐시만 지�
 ok(/const CACHE = 'drop-shell-v\d+'/.test(dropSw), '전송함 캐시 이름 그대로');
 ok(/share_target/.test(read('drop/manifest.webmanifest')), '전송함 manifest 의 공유하기 그대로');
 
-console.log('\n[7] 둥근 글꼴(나눔스퀘어라운드)');
+console.log('\n[7] 굵고 또렷한 글꼴(경기천년제목 Bold)');
 const dropHtml = read('drop/index.html');
 [['index.html', html], ['drop/index.html', dropHtml]].forEach(([name, t]) => {
-  ok(/@font-face\{[^}]*font-family:'NanumSquareRound'/.test(t), name + ' — @font-face 선언');
-  ok(/NanumSquareRoundR\.woff2/.test(t) && /NanumSquareRoundB\.woff2/.test(t) && /NanumSquareRoundEB\.woff2/.test(t),
-    name + ' — 400/700/800 굵기 파일');
-  ok(/font-family:'NanumSquareRound',/.test(t), name + ' — 기본 글꼴 목록 맨 앞');
-  ok(/rel="preconnect" href="https:\/\/hangeul\.pstatic\.net"/.test(t), name + ' — 글꼴 서버 미리 연결');
+  ok(/@font-face\{[^}]*font-family:'GyeonggiTitle'/.test(t), name + ' — @font-face 선언');
+  ok(/projectnoonnu\/2410-3@1\.0\/Title_Bold\.woff/.test(t), name + ' — 경기천년제목 Bold 파일');
+  ok(/font-weight:400 900/.test(t), name + ' — 400~900 굵기를 Bold 한 벌로');
+  ok(/font-family:'GyeonggiTitle',/.test(t), name + ' — 기본 글꼴 목록 맨 앞');
+  ok(/rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net"/.test(t), name + ' — 글꼴 서버 미리 연결');
   ok(/font-display:swap/.test(t), name + ' — 글씨가 늦게 떠도 먼저 시스템 글꼴로 보임');
+  ok(!/NanumSquareRound/.test(t), name + ' — 옛 둥근 글꼴은 남기지 않음');
 });
 
 console.log('\n[6] 공개 저장소에 개인정보 없음');

@@ -411,8 +411,11 @@
       '.dr-it .top .dr-chk{accent-color:var(--acc);width:15px;height:15px;flex:none;margin:0 1px 0 0;cursor:pointer}',
       '.dr-it.checked{border-color:color-mix(in srgb,var(--acc) 55%,var(--line));background:color-mix(in srgb,var(--acc) 6%,var(--panel))}',
       '.dr-it .when{margin:2px 0 0;font-size:10.5px;color:var(--mut);font-weight:650;letter-spacing:.2px;padding-left:21px}',
+      '.dr-it .top .tw{display:flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1.2;text-align:right;flex:none}',
+      '.dr-it .top .tw .rel{font-size:11px;font-weight:700;white-space:nowrap}',
+      '.dr-it .top .tw .abs{font-size:10.5px;font-weight:650;letter-spacing:.2px;color:var(--mut);white-space:nowrap}',
       '.dr-it{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:9px 10px;margin-bottom:7px}',
-      '.dr-it .top{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mut);font-weight:700}',
+      '.dr-it .top{display:flex;align-items:flex-start;gap:6px;font-size:11px;color:var(--mut);font-weight:700}',
       '.dr-it .pill{border:1px solid var(--line);border-radius:999px;padding:0 6px;background:var(--panel2);color:var(--acc)}',
       '.dr-it .top .sp{flex:1}',
       '.dr-it .txt{margin-top:5px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word;cursor:pointer}',
@@ -855,14 +858,17 @@
       top.appendChild(el('span', 'pill', esc(it.from || '웹')));
       top.appendChild(el('span', '', esc(kindLabel(it))));
       top.appendChild(el('span', 'sp'));
-      top.appendChild(el('span', '', esc(timeText(it.at))));
-      card.appendChild(top);
+      /* 상대 시간(1시간 전) 바로 아래 줄에 실제 시각(11/27 11:00)을 오른쪽으로 가지런히 */
+      var tw = el('span', 'tw');
+      tw.appendChild(el('span', 'rel', esc(timeText(it.at))));
       var abs = absText(it.at);
       if (abs) {
-        var when = el('div', 'when', esc(abs));
+        var when = el('span', 'abs', esc(abs));
         when.title = new Date(it.at).toLocaleString('ko-KR');
-        card.appendChild(when);
+        tw.appendChild(when);
       }
+      top.appendChild(tw);
+      card.appendChild(top);
 
       if (it.kind === 'file' || it.kind === 'image') {
         var f = el('div', 'file');
