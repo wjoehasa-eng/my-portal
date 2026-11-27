@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#eef1f7" />
-<meta name="portal-version" content="3.6.0" />
+<meta name="portal-version" content="3.7.0" />
 <title>나만의 포털</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E" />
 <style>
@@ -1766,6 +1766,7 @@
 
   /** 화면 상태를 바꾼 직후 호출: 보기 모드는 자동 저장, 편집 모드는 완료 때 한 번에 저장. */
   function changed() {
+    stampPinTokens();
     if (state.edit) {
       state.editDirty = true;
       paintStatus();
@@ -1918,6 +1919,7 @@
   function renderAll() {
     if (!state.data) return;
     var d = state.data;
+    stampPinTokens();
     document.title = d.title || '나만의 포털';
     $('#portalTitle').textContent = d.title || '나만의 포털';
     document.documentElement.setAttribute('data-theme', d.theme || 'auto');
@@ -2487,6 +2489,7 @@
   /** 지금 데이터에 실재하는 토큰만 순서대로 남깁니다(저장·캐시 전 정리).
    *  예전 형식 토큰이 지금 형식으로 바뀌면 즐겨찾기 구역(__fzones)의 토큰도 함께 옮깁니다. */
   function prunePinOrder() {
+    stampPinTokens();
     var list = [], moved = {};
     pinEntries().forEach(function (e) {
       list.push(e.token);
@@ -2510,6 +2513,38 @@
     if (!state.data) return;
     state.data.pinOrder = pinOrderArr().map(fn);
     favZonesStore().forEach(function (z) { z.tokens = (z.tokens || []).map(fn); });
+  }
+
+  /** 링크의 즐겨찾기 토큰은 주소(URL) 지문으로 만들어집니다. 그래서 편집 모달에서
+   *  아이콘·이름·설명을 바꾸면 그대로지만, **주소를 바꾸면 토큰이 달라져** 즐겨찾기 순서
+   *  목록·색 박스(구역)에서 그 타일이 풀려 맨 뒤로 밀리거나 구역 밖으로 나갔습니다
+   *  (같은 주소를 쓰는 링크가 여럿이면 `_1` 순번이 밀리는 경우도 같습니다).
+   *  링크마다 마지막으로 쓰인 토큰을 기억해 두고, 토큰이 달라지면 순서 목록과 구역의
+   *  토큰을 **한 번에(사이에 끼지 않고)** 새 토큰으로 옮깁니다. 편집 경로가 무엇이든
+   *  저장·그리기 직전에 한 번 돌기 때문에 즐겨찾기 상태·위치가 그대로 살아납니다. */
+  function stampPinTokens() {
+    var arr = (state.data && state.data.links) || [];
+    if (!arr.length) return false;
+    var map = {};
+    var moved = false;
+    var seen = {};
+    for (var i = 0; i < arr.length; i++) {
+      var l = arr[i];
+      if (!l) continue;
+      /* pinLinkToken 과 같은 규칙(같은 주소 중 몇 번째인지 `_n`)을 한 번 도는 동안 계산합니다. */
+      var base = pinLinkBase(l);
+      var k = seen[base] || 0;
+      seen[base] = k + 1;
+      var tok = k ? base + '_' + k : base;
+      var was = l.__pinTok;
+      if (was && was !== tok) { map[was] = tok; moved = true; }
+      l.__pinTok = tok;
+    }
+    if (moved) {
+      remapPinTokens(function (t) { return map[t] || t; });
+      pruneFavZones();
+    }
+    return moved;
   }
 
   /** 즐겨찾기 항목 하나를 다른 항목 앞으로 옮깁니다. beforeTok이 null이면 맨 뒤로. */
@@ -2847,6 +2882,37 @@
   /** 사용자가 넣은 이미지 아이콘인지 (이미지 주소 / 직접 넣은 이미지 data URL) */
   function isImageIcon(v) { return /^(https?:\/\/|data:image\/)/i.test(String(v || '').trim()); }
 
+  /* ------------------------------------------------ 내 앱(PWA)의 실제 아이콘
+     내 GitHub Pages 앱(`wjoehasa-eng.github.io/<저장소>/…`)은 그 앱의 매니페스트에 적힌
+     실제 PWA 아이콘을 그대로 보여줍니다. 핸드폰 홈 화면에 깔린 아이콘과 같은 그림입니다.
+     경로는 저장소별로 직접 확인해 둔 값(2026-11)이라 추가 요청 없이 바로 뜨고,
+     그 파일이 없거나 못 불러오면 지금까지처럼 파비콘·이모지로 돌아갑니다.
+     편집 창에서 사용자가 직접 고른 이모지·이미지가 있으면 그쪽을 존중합니다. */
+  var OWN_APP_HOST = 'wjoehasa-eng';
+  var OWN_APP_ICONS = {
+    'personal-calendar': 'icon-192.png',
+    'car-care': 'icon-192.png',
+    'stock-note': 'icon-192.png',
+    'wealth-plan': 'icon-192.png',
+    'health-coach': 'icon-192.png',
+    'leejong-calendar': 'icon-192.png',
+    'neis-archive': 'icons/icon-192.png',
+    'korea-photo-map': 'icons/icon-192.png',
+    'pokemon-routine': 'icon-192.png',
+    'indi-lounge': 'assets/img/icon-192.png',
+    'hakpok-playbook': 'icons/icon-192.png',
+    'grade-head-os': 'icon-192.png',
+    'kids-scheduler': 'icon-192.png'
+  };
+  /** 내 앱 링크면 그 앱의 PWA 아이콘 주소(아니면 ''). */
+  function ownAppIcon(url) {
+    var m = /^https?:\/\/([a-z0-9-]+)\.github\.io\/([^\/?#]+)/i.exec(String(url || ''));
+    if (!m || m[1].toLowerCase() !== OWN_APP_HOST) return '';
+    var repo = decodeURIComponent(m[2]).toLowerCase();
+    var file = OWN_APP_ICONS[repo];
+    return file ? 'https://' + OWN_APP_HOST + '.github.io/' + repo + '/' + file : '';
+  }
+
   /** 자동 아이콘인지(사용자가 직접 고른 이모지·이미지가 아닌지) */
   function autoIcon(l) {
     var ic = String(l.icon || '').trim();
@@ -2870,6 +2936,15 @@
       return '<span class="em on">' + esc(guessIcon(l.url, l.name)) + '</span>' +
         '<img class="fv uv" src="' + esc(ic) + '" alt="" decoding="async" ' +
         'onload="this.classList.add(\'on\')" onerror="this.remove()">';
+    }
+    /* 내 앱은 사용자가 직접 고른 아이콘이 없을 때 실제 PWA 아이콘(폰 홈 화면과 같은 그림) */
+    if (autoIcon(l)) {
+      var pwa = ownAppIcon(l.url);
+      if (pwa) {
+        return '<span class="em on">' + esc(guessIcon(l.url, l.name)) + '</span>' +
+          '<img class="fv uv pwa" src="' + esc(pwa) + '" alt="" decoding="async" ' +
+          'onload="this.classList.add(\'on\')" onerror="this.remove()">';
+      }
     }
     var plan = autoIcon(l) ? autoBadgePlan(l) : null;
     if (plan) {
@@ -4850,6 +4925,9 @@
       var g = guessIcon(us, nm);
       iconVal = g;
       if ($('#mIcon')) $('#mIcon').value = g;
+      /* 내 앱이면 폰에 깔린 것과 같은 PWA 아이콘을 미리 보여 줍니다(저장되는 값은 그대로 자동). */
+      var pwa = ownAppIcon(us);
+      if (pwa) { setIconPreview(pwa); return; }
       /* 제목에 맞춰 만든 배지가 있으면 그걸 미리 보여줍니다. */
       var plan = autoBadgePlan({ name: nm || us, url: us });
       setIconPreview(plan ? { src: plan.src, brand: plan.brand } : g);
@@ -6448,6 +6526,6 @@
 </script>
 <!-- 📨 전송함(폰과 주고받기): 포털 본체와 분리된 작은 모듈. index.html 을 건드리지 않습니다. -->
 <script src="qr.js"></script>
-<script src="drops.js"></script>
+<script src="drops.js?v=3.7.0"></script>
 </body>
 </html>

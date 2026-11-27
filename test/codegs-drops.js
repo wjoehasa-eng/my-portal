@@ -248,6 +248,20 @@ try { api.addDrop_({ kind: 'file', base64: bigB64, mimeType: 'application/octet-
 ok(/너무 큽니다/.test(bigErr), '한도 초과 파일은 저장 전에 막고 안내', bigErr);
 
 /* ------------------------------------------------------------------ 6) 지우기 */
+/* 같은 전송(cid)이 두 번 도착하면 한 번만 저장 — 연타·응답 실패 후 재전송 대비 */
+const cid1 = 'ctest' + Date.now().toString(36);
+const first = api.addDrop_({ kind: 'text', text: '중복 확인', from: '폰', cid: cid1 });
+const second = api.addDrop_({ kind: 'text', text: '중복 확인', from: '폰', cid: cid1 });
+const dupRows = api.listDrops_({}).items.filter((it) => it.text === '중복 확인');
+ok(dupRows.length === 1, '같은 cid 로 두 번 보내도 한 번만 저장', dupRows.length);
+ok(second.deduped === true && second.item.id === first.item.id, '두 번째 응답은 같은 항목을 돌려줌', second.item && second.item.id);
+ok(first.item.id === cid1, '저장 id 가 보낸 cid 그대로(앱이 바로 알아볼 수 있음)', first.item.id);
+const third = api.addDrop_({ kind: 'text', text: '중복 확인', from: '폰' });
+ok(third.item.id !== cid1 && api.listDrops_({}).items.filter((it) => it.text === '중복 확인').length === 2,
+  'cid 가 없으면 예전처럼 따로 저장(수동으로 같은 글을 두 번 보낸 경우)', third.item.id);
+api.deleteDrop_({ id: cid1 });
+api.deleteDrop_({ id: third.item.id });
+
 let before = api.listDrops_({}).total;
 let del = api.deleteDrop_({ id: r3.item.id });
 ok(del.ok && del.removed === 1, '한 건 삭제', del);
@@ -273,7 +287,7 @@ ok(payload.links === undefined && payload.categories === undefined,
 ok(payload.affected && payload.affected.ok === true, 'affected 에 저장 결과가 들어 있음');
 
 const ping = JSON.parse(api.handle_('ping', {}, ''));
-ok(/^2\.2\./.test(ping.backendVersion) && ping.drops === '전송함' && ping.maxDropBytes > 0,
+ok(/^2\.[23]\./.test(ping.backendVersion) && ping.drops === '전송함' && ping.maxDropBytes > 0,
   'ping 이 전송함 지원·한도를 알려 줌', [ping.backendVersion, ping.drops, ping.maxDropBytes]);
 ok(ping.driveOk === true, '드라이브를 쓸 수 있으면 ping.driveOk=true', ping.driveOk);
 

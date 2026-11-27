@@ -18,7 +18,9 @@
     url: '', rt: '', demo: false, connected: false, items: [], sheetItems: [], rtMap: {}, deletedIds: {}, seen: {}, selecting: {},
     open: false, poll: null, rtSource: null, auto: false, maxBytes: 12 * 1024 * 1024,
     busyOn: false, blobs: {}, phone: false, notice: '', backendOld: false,
-    files: [], failRows: [], driveOk: null
+    files: [], failRows: [], driveOk: null,
+    /* 삭제하려고 체크한 항목(폴링·새로고침에도 유지)과 화면 다시 그리기 신호 */
+    checked: {}, selRev: 0
   };
 
   /* ---------------------------------------------------------------- 도우미 */
@@ -109,30 +111,39 @@
 
   function mergeItems() {
     var byId = {};
-    var rtItems = [];
+    var merged = [];
     Object.keys(st.rtMap || {}).forEach(function (k) {
       var v = st.rtMap[k];
       if (!v || !v.id || st.deletedIds[v.id]) return;
       var copy = Object.assign({}, v, { _fbKey: k });
+      if (byId[copy.id]) return;
       byId[copy.id] = copy;
-      rtItems.push(copy);
+      merged.push(copy);
     });
-    var merged = rtItems.slice();
     (st.sheetItems || []).forEach(function (it) {
       if (!it || !it.id || st.deletedIds[it.id] || byId[it.id]) return;
-      var dup = it.kind === 'text' && rtItems.some(function (r) {
-        return r.kind === 'text' && r.from === it.from && r.text === it.text &&
-          Math.abs((Date.parse(r.at) || 0) - (Date.parse(it.at) || 0)) < 20000;
-      });
-      if (!dup) {
-        byId[it.id] = it;
-        merged.push(it);
-      }
+      /* 같은 내용이 20초 안에 두 번 저장된 경우(연타·응답 실패로 인한 중복 저장)는 한 번만 보여 줍니다. */
+      if (merged.some(function (r) {
+        return dropSig(r) === dropSig(it) && Math.abs(atMs(r) - atMs(it)) < 20000;
+      })) return;
+      byId[it.id] = it;
+      merged.push(it);
     });
     merged.sort(function (a, b) {
       return (a.at || '') < (b.at || '') ? 1 : (a.at || '') > (b.at || '') ? -1 : 0;
     });
     st.items = merged.slice(0, LIMIT);
+  }
+
+  /** 같은 전송인지 비교할 지문 — 글은 보낸곳+내용, 파일은 보낸곳+이름+크기. */
+  function dropSig(it) {
+    if (!it) return '';
+    if (it.kind === 'text' || it.kind === 'link') return 't|' + (it.from || '') + '|' + String(it.text || '');
+    return 'f|' + (it.from || '') + '|' + String(it.fileName || '') + '|' + Number(it.size || 0);
+  }
+  function atMs(it) {
+    var t = Date.parse((it && it.at) || '');
+    return isNaN(t) ? 0 : t;
   }
 
   var RT_HOST = 'https://my-portal-drop-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -259,7 +270,34 @@
 
   function markServer(err) { err = err || new Error('보내지 못했습니다.'); err.server = true; return err; }
 
+  /** 전송 한 건마다 고유 id — 응답을 못 받아 다시 보내도 같은 건으로 알아보게 합니다. */
+  function newCid() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+  /** 이 전송이 이미 전송함에 들어갔는지 목록으로 확인합니다(몇 초 늦게 보일 수 있어 두 번 살핍니다). */
+  function confirmSent(payload) {
+    function look() {
+      return jsonp({ action: 'listDrops', d: JSON.stringify({ limit: 20 }) }, 20000).then(function (d) {
+        var items = (d && d.items) || [];
+        var cid = String(payload.cid || '');
+        var now = Date.now();
+        var hit = items.filter(function (it) {
+          if (!it) return false;
+          if (cid && (String(it.id || '') === cid || String(it.cid || '') === cid)) return true;
+          if (Math.abs(now - (Date.parse(it.at) || 0)) > 180000) return false;
+          return dropSig(it) === dropSig({ kind: payload.kind, from: payload.from, text: payload.text, fileName: payload.fileName, size: payload.size });
+        })[0];
+        return hit || null;
+      }).catch(function () { return null; });
+    }
+    return look().then(function (hit) {
+      if (hit) return hit;
+      return new Promise(function (r) { setTimeout(r, 1200); }).then(look);
+    });
+  }
+
   function post(body, ms) {
+    var isDrop = !!(body && body.action === 'addDrop');
+    if (isDrop && !body.cid) body.cid = newCid();
     var text = JSON.stringify(body);
     return new Promise(function (resolve, reject) {
       var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -280,8 +318,15 @@
       }).catch(function (err) {
         if (timer) clearTimeout(timer);
         if (err && err.server) { reject(err); return; }
-        formPost(text).then(function () { resolve({ ok: true, uncertain: true }); })
-          .catch(function () { reject(new Error('보내지 못했습니다.')); });
+        /* 요청은 서버에 닿았는데 응답만 못 받은 경우(CORS·리다이렉트)가 있어,
+           그대로 다시 보내면 같은 글이 두 번 저장됩니다. 먼저 목록에서 확인합니다. */
+        var retry = isDrop
+          ? confirmSent(body).then(function (hit) {
+              if (hit) { resolve({ ok: true, uncertain: true, deduped: true, item: hit }); return null; }
+              return formPost(text).then(function () { resolve({ ok: true, uncertain: true }); });
+            })
+          : formPost(text).then(function () { resolve({ ok: true, uncertain: true }); });
+        retry.catch(function () { reject(new Error('보내지 못했습니다.')); });
       });
     });
   }
@@ -358,6 +403,14 @@
       '.dr-lh .sp{flex:1}',
       '.dr-lh label{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--mut);font-weight:700}',
       '.dr-lh input{accent-color:var(--acc);width:14px;height:14px}',
+      '.dr-lh .dr-mini{height:24px;padding:0 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);font-size:11px;font-weight:750;white-space:nowrap}',
+      '.dr-lh .dr-mini:hover:not(:disabled){border-color:var(--acc);color:var(--acc)}',
+      '.dr-lh .dr-mini:disabled{opacity:.45}',
+      '.dr-lh .dr-mini.danger{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 32%,var(--line))}',
+      '.dr-lh .dr-mini.danger:hover:not(:disabled){background:color-mix(in srgb,var(--danger) 10%,var(--panel2));color:var(--danger)}',
+      '.dr-it .top .dr-chk{accent-color:var(--acc);width:15px;height:15px;flex:none;margin:0 1px 0 0;cursor:pointer}',
+      '.dr-it.checked{border-color:color-mix(in srgb,var(--acc) 55%,var(--line));background:color-mix(in srgb,var(--acc) 6%,var(--panel))}',
+      '.dr-it .when{margin:2px 0 0;font-size:10.5px;color:var(--mut);font-weight:650;letter-spacing:.2px;padding-left:21px}',
       '.dr-it{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:9px 10px;margin-bottom:7px}',
       '.dr-it .top{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mut);font-weight:700}',
       '.dr-it .pill{border:1px solid var(--line);border-radius:999px;padding:0 6px;background:var(--panel2);color:var(--acc)}',
@@ -428,6 +481,9 @@
           '<input type="file" id="drFileInput" multiple class="dr-vh" tabindex="-1" aria-hidden="true" />' +
         '</div>' +
         '<div class="dr-lh"><b>최근</b><span class="n" id="drCnt"></span><span class="sp"></span>' +
+          '<button class="dr-mini" id="drSelAll" title="목록의 모든 항목을 체크">전체 선택</button>' +
+          '<button class="dr-mini" id="drSelNone" title="체크를 모두 해제" disabled>전체 해제</button>' +
+          '<button class="dr-mini danger" id="drSelDel" title="체크한 항목만 지우기" disabled>선택 삭제</button>' +
           '<label><input type="checkbox" id="drAuto" /> 자동 20초</label></div>' +
         '<div id="drList"></div>' +
       '</div>' +
@@ -459,6 +515,12 @@
     veil.onclick = close;
     $('#drClose').onclick = close;
     $('#drRefresh').onclick = function () { refresh(true); };
+    ui.selAll = $('#drSelAll');
+    ui.selNone = $('#drSelNone');
+    ui.selDel = $('#drSelDel');
+    ui.selAll.onclick = checkAll;
+    ui.selNone.onclick = uncheckAll;
+    ui.selDel.onclick = deleteChecked;
     $('#drPhoneBtn').onclick = openPhone;
     $('#drPhoneClose').onclick = function () { st.phone = false; ui.phoneBox.classList.add('hidden'); };
     $('#drPaste').onclick = pasteAndSend;
@@ -692,6 +754,18 @@
     if (diff < 86400 * 2) return '어제 ' + hh + ':' + mm;
     return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + hh + ':' + mm;
   }
+
+  /** 정확한 전송 시각 — 올해는 `11/27 10:08`, 다른 해는 `2025-12-31 09:05`. */
+  function absText(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var hh = ('0' + d.getHours()).slice(-2), mm = ('0' + d.getMinutes()).slice(-2);
+    if (d.getFullYear() !== new Date().getFullYear()) {
+      return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2) + ' ' + hh + ':' + mm;
+    }
+    return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + hh + ':' + mm;
+  }
   function sizeText(n) {
     n = Number(n) || 0;
     if (n < 1024) return n + 'B';
@@ -743,7 +817,16 @@
     }
 
     ui.cnt.textContent = st.items.length ? st.items.length + '개' : '';
-    var sig = st.items.map(function (x) { return x.id + '@' + (x.at || ''); }).join('|');
+    /* 체크한 항목 수에 따라 「선택 삭제」 단추를 바로 고칩니다. */
+    var nChk = 0;
+    st.items.forEach(function (x) { if (x && st.checked[x.id]) nChk++; });
+    if (ui.selDel) {
+      ui.selDel.disabled = !nChk;
+      ui.selDel.textContent = nChk ? '선택 삭제 (' + nChk + ')' : '선택 삭제';
+    }
+    if (ui.selAll) ui.selAll.disabled = !st.items.length;
+    if (ui.selNone) ui.selNone.disabled = !nChk;
+    var sig = st.items.map(function (x) { return x.id + '@' + (x.at || ''); }).join('|') + '#' + st.selRev;
     if (st.items.length && ui.list.dataset.sig === sig && ui.list.children.length === st.items.length) {
       return;
     }
@@ -755,13 +838,31 @@
     }
     st.items.forEach(function (it) {
       var isSel = !!st.selecting[it.id];
-      var card = el('div', 'dr-it' + (isSel ? ' selecting' : ''));
+      var isChk = !!st.checked[it.id];
+      var card = el('div', 'dr-it' + (isSel ? ' selecting' : '') + (isChk ? ' checked' : ''));
       var top = el('div', 'top');
+      var cbox = el('input');
+      cbox.type = 'checkbox';
+      cbox.className = 'dr-chk';
+      cbox.checked = isChk;
+      cbox.title = '골라서 지우기';
+      cbox.setAttribute('aria-label', '이 항목 선택');
+      cbox.onclick = function (e) {
+        e.stopPropagation();
+        setChecked(it.id, cbox.checked);
+      };
+      top.appendChild(cbox);
       top.appendChild(el('span', 'pill', esc(it.from || '웹')));
       top.appendChild(el('span', '', esc(kindLabel(it))));
       top.appendChild(el('span', 'sp'));
       top.appendChild(el('span', '', esc(timeText(it.at))));
       card.appendChild(top);
+      var abs = absText(it.at);
+      if (abs) {
+        var when = el('div', 'when', esc(abs));
+        when.title = new Date(it.at).toLocaleString('ko-KR');
+        card.appendChild(when);
+      }
 
       if (it.kind === 'file' || it.kind === 'image') {
         var f = el('div', 'file');
@@ -901,18 +1002,71 @@
       toast('데모에서 지웠어요');
       return;
     }
+    dropOne(it);
+    mergeItems();
+    paint();
+    toast('지웠어요');
+  }
+
+  /** 전송함에서 한 건을 지웁니다(시트의 deleteDrop 포함). 화면 다시 그리기는 부르는 쪽에서. */
+  function dropOne(it) {
+    if (!it || !it.id) return;
     st.deletedIds[it.id] = 1;
+    delete st.checked[it.id];
     if (it._fbKey) {
       delete st.rtMap[it._fbKey];
       rtDelete(it._fbKey);
     }
     st.sheetItems = st.sheetItems.filter(function (x) { return x.id !== it.id; });
-    mergeItems();
-    paint();
-    toast('지웠어요');
     if (!/^rt_/.test(String(it.id))) {
       post({ action: 'deleteDrop', id: it.id }, 30000).catch(function () {});
     }
+  }
+
+  /* ------------------------------------------------ 여러 개 골라 지우기 */
+  function setChecked(id, on) {
+    if (!id) return;
+    if (on) st.checked[id] = 1; else delete st.checked[id];
+    st.selRev++;
+    paint();
+  }
+
+  function checkAll() {
+    if (!st.items.length) return;
+    st.items.forEach(function (it) { if (it && it.id) st.checked[it.id] = 1; });
+    st.selRev++;
+    paint();
+    toast('전체 ' + st.items.length + '개를 체크했습니다 · 「선택 삭제」로 지웁니다');
+  }
+
+  function uncheckAll() {
+    st.checked = {};
+    st.selRev++;
+    paint();
+  }
+
+  /** 체크한 항목만 지웁니다(시트 전송함에서도 실제 삭제). */
+  function deleteChecked() {
+    var targets = st.items.filter(function (it) { return it && st.checked[it.id]; });
+    if (!targets.length) { toast('지울 항목을 먼저 체크해 주세요'); return; }
+    if (!confirm('체크한 ' + targets.length + '개를 전송함에서 지울까요?\n지운 항목은 되돌릴 수 없습니다.')) return;
+    if (st.demo) {
+      var ids = {};
+      targets.forEach(function (it) { ids[it.id] = 1; });
+      st.items = st.items.filter(function (x) { return !ids[x.id]; });
+      st.checked = {};
+      st.selRev++;
+      paint();
+      toast('데모에서 ' + targets.length + '개를 지웠어요');
+      return;
+    }
+    targets.forEach(dropOne);
+    st.checked = {};
+    mergeItems();
+    st.selRev++;
+    paint();
+    updateBadge();
+    toast(targets.length + '개를 지웠어요');
   }
 
   /* ---------------------------------------------------------------- 보내기 */
@@ -924,6 +1078,8 @@
   function setLabel(msg) { ui.send.textContent = msg; }
 
   function sendText() {
+    /* 연타로 같은 글이 두 번 저장되지 않도록 보내는 동안은 받지 않습니다. */
+    if (st.busyOn) return;
     var text = String(ui.text.value || '');
     if (!text.trim()) { toast('보낼 내용을 입력해 주세요.', { err: true }); return; }
     if (!st.url && !st.demo) { toast('먼저 포털을 시트에 연결해 주세요.', { err: true }); return; }
@@ -1068,6 +1224,7 @@
   }
 
   function sendFiles() {
+    if (st.busyOn) return;
     if (!st.files.length) return;
     if (!st.url) { toast('먼저 포털을 시트에 연결해 주세요.', { err: true }); return; }
     var queue = st.files.slice();
