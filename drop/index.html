@@ -6,15 +6,15 @@
 <meta name="theme-color" content="#3b5bfd" />
 <meta name="color-scheme" content="light dark" />
 <title>내 전송함</title>
-<meta name="drop-version" content="1.4.3" />
-<!-- 한글 글꼴: 경기천년제목 Medium (포털과 같은 글씨 · 눈누 CDN) -->
+<meta name="drop-version" content="1.4.4" />
+<!-- 한글 글꼴: 스위트 SUITE Medium (포털과 같은 글씨) -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-<link rel="preload" as="font" type="font/woff" crossorigin
-      href="https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/GyeonggiTitleM.woff" />
+<link rel="preload" as="font" type="font/woff2" crossorigin
+      href="https://cdn.jsdelivr.net/gh/sun-typeface/SUITE@2/fonts/static/woff2/SUITE-Medium.woff2" />
 <style>
-  /* 경기천년제목 Medium 한 벌로 400~900 전부 — 굵게 뭉개지지 않고 작은 글씨까지 또렷하게 */
-  @font-face{font-family:'GyeonggiTitle';font-style:normal;font-weight:400 900;font-display:swap;
-    src:url(https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/GyeonggiTitleM.woff) format('woff')}
+  /* SUITE Medium 한 벌로 400~900 전부 — 적당한 굵기 유지 + 작은 화면 가독성 */
+  @font-face{font-family:'SUITE';font-style:normal;font-weight:400 900;font-display:swap;
+    src:url(https://cdn.jsdelivr.net/gh/sun-typeface/SUITE@2/fonts/static/woff2/SUITE-Medium.woff2) format('woff2')}
 </style>
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" />
@@ -38,7 +38,7 @@
   html,body{margin:0;height:100%}
   body{
     background:var(--bg); color:var(--txt);
-    font-family:'GyeonggiTitle',-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",Roboto,sans-serif;
+    font-family:'SUITE',-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",Roboto,sans-serif;
     font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
     padding-bottom:calc(18px + env(safe-area-inset-bottom));
   }
