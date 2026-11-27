@@ -25,7 +25,8 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== SHARE_CACHE).map((k) => caches.delete(k))))
+      /* 내(drop-) 캐시만 지웁니다. 같은 사이트의 다른 앱(포털 portal-shell-… 등) 캐시는 남겨 둡니다. */
+      .then((keys) => Promise.all(keys.filter((k) => k.indexOf('drop-') === 0 && k !== CACHE && k !== SHARE_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });

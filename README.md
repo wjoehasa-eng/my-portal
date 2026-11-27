@@ -167,6 +167,17 @@ Apps Script 웹 앱을 통해 읽고 씁니다. 그래서 공용 PC에서도, �
 > 시트의 `링크`·`설정` 탭은 Apps Script가 처음 실행될 때 자동으로 만들어집니다.
 > 예전 7열 시트(그룹 열 없음)도 그대로 동작하고, `그룹` 헤더가 없으면 자동으로 채웁니다.
 
+## 📱 홈 화면에 앱으로 설치 (PWA)
+
+포털은 핸드폰 **홈 화면에 앱으로 설치**할 수 있습니다. 주소창 없는 전체 화면으로 열리고, 아이콘 아래 이름은 `포털`입니다.
+
+- **안드로이드(크롬·삼성 인터넷)** — `https://wjoehasa-eng.github.io/my-portal/` 를 열고 오른쪽 위 **⋮ → 앱 설치**(크롬은 주소창 옆 설치 아이콘) 또는 **홈 화면에 추가**.
+- **아이폰(사파리)** — 아래 **공유 → 홈 화면에 추가**.
+- 설치한 앱도 **같은 주소·같은 브라우저 저장소**를 씁니다. 이미 연결해 둔 시트 주소와 링크 목록이 그대로 이어집니다(따로 다시 연결할 필요 없음).
+- 새로 배포하면 다음에 앱을 열 때 **바로 새 판**이 뜨고(네트워크 우선), 인터넷이 끊기면 **마지막으로 연 화면**이 뜹니다.
+- 아이콘은 **보라~파랑 바탕에 흰 타일 2×2** — 포털 첫 화면의 타일 모양을 줄인 그림입니다.
+- 전송함(`/drop/`)은 자기 `manifest.webmanifest`·`sw.js`를 쓰는 **별개 앱**입니다. 포털을 설치해도 전송함 설치는 그대로이고, 서로의 캐시를 지우지 않습니다.
+
 ## 📨 전송함 (폰 ↔ PC)
 
 폰과 PC 사이에 **짧은 글·링크·사진·파일**을 카톡 “나에게 보내기”보다 짧은 손짓으로 주고받는 칸입니다.
@@ -286,11 +297,16 @@ Apps Script 웹 앱을 통해 읽고 씁니다. 그래서 공용 PC에서도, �
   `node test/drops-select.js`(전송함 전체 선택·전체 해제·선택 삭제·정확한 시각·중복 병합, jsdom),
   `node test/pin-edit-keep.js`(즐겨찾기 상태 링크를 편집해도 pin·순서·구역 유지),
   `node test/pwa-icon.js`(내 앱 타일이 실제 PWA 아이콘을 쓰는지),
+  `node test/pwa-shell.js`(포털 홈 화면 설치 구성 — manifest·아이콘·서비스 워커·전송함 분리·개인정보 0건),
   `node test/qr-verify.js`(QR 행렬을 참조 구현 정답과 대조),
   `node test/wire-name.js`(이름 인코딩 왕복). `test/bookmarks-*.html`은 가져오기 형식 시험용 샘플입니다.
 - 전송함 파일 구성: `drops.js`(포털 쪽 패널, index.html 과 분리), `qr.js`(QR 생성기, 외부 호출 없음),
   `drop/`(폰 앱 — `index.html`·`manifest.webmanifest`·`sw.js`·`icons/`). `deploy.sh` 는 폴더째 그대로 올립니다.
 - 폰 앱은 `scope`/`start_url` 이 `/my-portal/drop/` 라서 포털과 **별개의 앱**으로 설치됩니다.
+- 포털 루트도 설치형 앱입니다 — `manifest.json`·`sw.js`·`icon-192.png`·`icon-512.png`·`icon-maskable-512.png`.
+  아이콘은 `python3 tools/make-icons.py` 로 다시 그립니다(색은 index.html 의 `--acc`·`--acc2`, Pillow 필요).
+  루트 `sw.js` 는 `portal-shell-` 캐시만 다루고 `/drop/`·`/cookie-minus/` 요청은 **건너뜁니다**(fetch 진입에서 바로 return).
+  전송함 `drop/sw.js` 의 activate 도 `drop-` 캐시만 지워 포털 캐시를 건드리지 않습니다.
 - 백엔드 v2.2.0부터 전송함(`listDrops`·`addDrop`·`getDropFile`·`deleteDrop`·`clearDrops`)을 지원합니다.
   v2.1.0 이하 백엔드에 연결하면 전송함 패널에 “Code.gs 를 2.2.0 으로 올려 주세요” 안내가 뜹니다.
 - 백엔드 v2.2.1(2026-11-26) — 드라이브 권한이 없을 때 영어 오류 대신 `code: NEED_DRIVE_AUTH` 와 한국어 안내를 돌려주고,
