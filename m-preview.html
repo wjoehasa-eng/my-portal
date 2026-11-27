@@ -12,6 +12,7 @@
   <div class="col"><span class="lbl">실제 데이터 390×844</span><iframe id="f1" src="./" width="390" height="844"></iframe></div>
   <div class="col"><span class="lbl">데모 390×844</span><iframe id="f2" src="./?demo=1" width="390" height="844"></iframe></div>
   <div class="col"><span class="lbl">실제 데이터 360×780</span><iframe id="f3" src="./" width="360" height="780"></iframe></div>
+  <div class="col"><span class="lbl">전체 길이 390</span><iframe id="f4" src="./" width="390" height="6000"></iframe></div>
 </div>
 <script>
 /* #<CSS> 로 넘긴 스타일을 미리보기 프레임에만 넣어 봅니다(배포 없이 시험용). */
@@ -19,7 +20,7 @@
   var css = '';
   try { css = decodeURIComponent(location.hash.slice(1)); } catch (e) { css = ''; }
   if (!css) return;
-  ['f1', 'f2', 'f3'].forEach(function (id) {
+  ['f1', 'f2', 'f3', 'f4'].forEach(function (id) {
     var f = document.getElementById(id);
     function apply() {
       try {
